@@ -1,0 +1,2540 @@
+需求：
+
+
+设备备件管理系统/
+├── 📁 项目结构
+│   ├── 📄 app.py (主应用入口)
+│   │   ├── create_app() - 应用工厂函数
+│   │   │   ├── 配置加载 (环境变量优先)
+│   │   │   ├── Flask实例创建
+│   │   │   ├── _initialize_app() - 应用初始化
+│   │   │   │   ├── _ensure_directories() - 目录创建
+│   │   │   │   │   ├── templates/ - 模板目录
+│   │   │   │   │   ├── uploads/ - 上传目录  
+│   │   │   │   │   └── backups/ - 备份目录
+│   │   │   │   ├── _initialize_database() - 数据库初始化
+│   │   │   │   │   ├── 3次重试机制
+│   │   │   │   │   ├── check_database_status()
+│   │   │   │   │   ├── init_db()
+│   │   │   │   │   └── _recreate_database() - 失败重建
+│   │   │   │   ├── email_sender.init_app() - 邮件初始化
+│   │   │   │   ├── task_scheduler.init_scheduler() - 定时任务
+│   │   │   │   └── _print_config_info() - 配置输出
+│   │   │   ├── _setup_routes() - 路由注册
+│   │   │   │   ├── setup_main_routes() - 主路由
+│   │   │   │   ├── setup_location_routes() - 位置路由
+│   │   │   │   ├── setup_parts_routes() - 备件路由
+│   │   │   │   ├── setup_operation_routes() - 操作路由
+│   │   │   │   ├── setup_import_export_routes() - 导入导出
+│   │   │   │   └── setup_settings_routes() - 设置路由
+│   │   │   ├── _register_template_filters() - 模板过滤器
+│   │   │   │   └── register_template_filters() - 辅助工具过滤器注册
+│   │   │   ├── _register_context_processors() - 上下文
+│   │   │   ├── _register_error_handlers() - 错误处理
+│   │   │   ├── _add_system_endpoints() - 系统端点
+│   │   │   └── 启动时间记录
+│   │   ├── app实例创建 (全局)
+│   │   └── cleanup_on_exit() - 退出清理
+│   ├── 📄 config.py (配置管理)
+│   │   ├── Config基类
+│   │   │   ├── 基本配置
+│   │   │   ├── 性能优化配置
+│   │   │   ├── 上传配置
+│   │   │   ├── 会话配置
+│   │   │   ├── 日志配置
+│   │   │   ├── 备份配置
+│   │   │   ├── 安全配置
+│   │   │   ├── 邮件配置 (163邮箱)
+│   │   │   ├── 低库存报警配置
+│   │   │   ├── 自动任务配置
+│   │   │   ├── 系统监控配置
+│   │   │   ├── 功能开关
+│   │   │   ├── API配置
+│   │   │   ├── 缓存配置
+│   │   │   ├── 国际化配置
+│   │   │   ├── 报表配置
+│   │   │   ├── 数据验证配置
+│   │   │   ├── 通知配置
+│   │   │   ├── 邮件模板配置
+│   │   │   └── init_app() - 配置初始化方法
+│   │   ├── DevelopmentConfig - 开发环境
+│   │   ├── ProductionConfig - 生产环境
+│   │   ├── TestingConfig - 测试环境
+│   │   ├── StagingConfig - 预发布环境
+│   │   ├── 配置映射字典
+│   │   ├── get_config() - 获取当前配置
+│   │   ├── validate_config() - 配置验证
+│   │   ├── get_mail_config_info() - 邮件配置信息
+│   │   ├── print_config_summary() - 配置摘要打印
+│   │   └── current_config - 当前配置实例
+│   ├── 📁 models/ (数据模型层)
+│   │   ├── 📄 database.py (数据库管理)
+│   │   │   ├── DatabaseManager类 (单例模式)
+│   │   │   │   ├── _init_db() - 初始化连接池
+│   │   │   │   └── get_connection() - 获取数据库连接
+│   │   │   │       ├── SQLite连接配置
+│   │   │   │       ├── PRAGMA性能优化
+│   │   │   │       │   ├── foreign_keys = ON
+│   │   │   │       │   ├── journal_mode = WAL
+│   │   │   │       │   ├── synchronous = NORMAL
+│   │   │   │       │   ├── cache_size = 10000
+│   │   │   │       │   └── temp_store = MEMORY
+│   │   │   │       ├── 异常处理机制
+│   │   │   │       └── 连接自动关闭
+│   │   │   ├── get_db_connection() - 兼容旧代码的连接获取
+│   │   │   ├── init_db() - 数据库表结构初始化
+│   │   │   │   ├── 表存在性检查
+│   │   │   │   ├── spare_parts表 (备件表)
+│   │   │   │   │   ├── 基础字段 (id, part_no, name, type)
+│   │   │   │   │   ├── 库存字段 (current_stock, min_stock, max_stock)
+│   │   │   │   │   ├── 业务字段 (key_part, lt_weeks, unit_price)
+│   │   │   │   │   ├── 位置字段 (location, supplier, description)
+│   │   │   │   │   ├── 时间字段 (created_date, updated_date)
+│   │   │   │   │   └── 唯一约束 (part_no, name)
+│   │   │   │   ├── outbound_records表 (出库记录表)
+│   │   │   │   │   ├── 关联字段 (part_id)
+│   │   │   │   │   ├── 数量字段 (quantity)
+│   │   │   │   │   ├── 时间字段 (outbound_date)
+│   │   │   │   │   ├── 操作字段 (operator, purpose, work_center)
+│   │   │   │   │   └── 外键约束 (ON DELETE CASCADE)
+│   │   │   │   ├── inbound_records表 (入库记录表)
+│   │   │   │   │   ├── 关联字段 (part_id)
+│   │   │   │   │   ├── 数量字段 (quantity)
+│   │   │   │   │   ├── 时间字段 (inbound_date)
+│   │   │   │   │   ├── 操作字段 (operator, supplier, purpose, work_center)
+│   │   │   │   │   └── 外键约束 (ON DELETE CASCADE)
+│   │   │   │   ├── locations表 (库位表)
+│   │   │   │   │   ├── 位置字段 (location_code, description)
+│   │   │   │   │   ├── 状态字段 (status, part_count, capacity)
+│   │   │   │   │   └── 时间字段 (last_updated)
+│   │   │   │   ├── operation_records表 (操作记录表)
+│   │   │   │   │   ├── 操作类型 (operation_type, operation_date)
+│   │   │   │   │   ├── 业务字段 (supplier_recipient, location, part_no)
+│   │   │   │   │   ├── 描述字段 (description, part_type)
+│   │   │   │   │   ├── 数量字段 (quantity)
+│   │   │   │   │   ├── 工作中心 (work_center)
+│   │   │   │   │   └── 时间字段 (created_date)
+│   │   │   │   ├── system_settings表 (系统设置表)
+│   │   │   │   │   ├── 键值字段 (setting_key, setting_value)
+│   │   │   │   │   ├── 类型字段 (setting_type, category)
+│   │   │   │   │   ├── 描述字段 (description)
+│   │   │   │   │   ├── 更新字段 (updated_at, updated_by)
+│   │   │   │   │   └── 默认设置数据插入
+│   │   │   │   │       ├── 邮件设置 (mail_server, mail_port等)
+│   │   │   │   │       ├── 定时任务设置 (low_stock_alert_enabled等)
+│   │   │   │   │       └── 系统设置 (system_name, company_name等)
+│   │   │   │   ├── 性能索引创建
+│   │   │   │   │   ├── spare_parts表索引 (location, type, stock, part_no)
+│   │   │   │   │   ├── outbound_records表索引 (outbound_date)
+│   │   │   │   │   ├── inbound_records表索引 (inbound_date)
+│   │   │   │   │   └── operation_records表索引 (operation_date)
+│   │   │   │   └── 事务提交与回滚
+│   │   │   ├── check_database_status() - 数据库状态检查
+│   │   │   │   ├── 文件存在性检查
+│   │   │   │   ├── 文件大小统计
+│   │   │   │   ├── 表数量统计
+│   │   │   │   └── 表数据量统计
+│   │   │   ├── backup_database() - 数据库备份
+│   │   │   │   ├── 备份目录创建
+│   │   │   │   ├── 时间戳命名
+│   │   │   │   ├── 文件复制
+│   │   │   │   └── 备份路径返回
+│   │   │   ├── 系统设置管理函数
+│   │   │   │   ├── get_system_setting() - 获取单个设置
+│   │   │   │   │   └── 类型转换 (boolean, number, string)
+│   │   │   │   ├── set_system_setting() - 设置系统设置
+│   │   │   │   │   └── 值类型转换与存储
+│   │   │   │   ├── get_all_system_settings() - 获取所有设置
+│   │   │   │   │   └── 按分类过滤
+│   │   │   │   └── get_mail_settings() - 获取邮件设置
+│   │   │   │       └── 收件人列表处理
+│   │   │   └── 错误处理与日志记录
+│   │   └── 📄 settings.py (系统设置模型)
+│   │       ├── SystemSettings类 (系统设置管理)
+│   │       │   ├── get_all_settings() - 获取所有系统设置
+│   │       │   │   ├── 数据库查询执行
+│   │       │   │   ├── 结果字典构建
+│   │       │   │   │   ├── value - 设置值
+│   │       │   │   │   ├── type - 设置类型
+│   │       │   │   │   ├── category - 分类
+│   │       │   │   │   └── description - 描述
+│   │       │   │   └── 错误处理与日志
+│   │       │   ├── get_setting() - 获取单个设置值
+│   │       │   │   ├── 数据库查询
+│   │       │   │   ├── 类型转换逻辑
+│   │       │   │   │   ├── boolean类型: 字符串转布尔值
+│   │       │   │   │   ├── number类型: 字符串转数字 (int/float)
+│   │       │   │   │   └── string类型: 直接返回
+│   │       │   │   └── 默认值支持
+│   │       │   ├── set_setting() - 更新设置值
+│   │       │   │   ├── 设置存在性验证
+│   │       │   │   ├── 值格式化处理
+│   │       │   │   │   ├── boolean类型: 布尔值转字符串
+│   │       │   │   │   └── 其他类型: 转字符串
+│   │       │   │   ├── 数据库更新
+│   │       │   │   ├── 时间戳更新
+│   │       │   │   ├── 操作者记录
+│   │       │   │   └── 事务提交
+│   │       │   ├── get_settings_by_category() - 按分类获取设置
+│   │       │   │   ├── 分类过滤查询
+│   │       │   │   ├── 结果字典构建
+│   │       │   │   └── 错误处理
+│   │       │   └── get_mail_settings() - 获取邮件相关设置
+│   │       │       ├── 多分类合并 (email, schedule)
+│   │       │       └── 设置字典合并
+│   │       └── 日志记录器配置
+│   ├── 📁 routes/ (路由控制层)
+│   │   ├── 📄 main_routes.py - 主路由 (首页/仪表板/健康检查)
+│   │   │   ├── setup_main_routes(app) - 设置主页面路由
+│   │   │   │   ├── @app.route('/api/search_parts_basic') - API: 搜索备件 - 基础版本
+│   │   │   │   │   ├── 参数获取 (part_no, name, field, query)
+│   │   │   │   │   ├── 条件构建 (where_conditions, params)
+│   │   │   │   │   ├── 数据库查询 (spare_parts表)
+│   │   │   │   │   ├── 结果安全转换 (safe_str)
+│   │   │   │   │   └── JSON返回 (success, data/error)
+│   │   │   │   ├── @app.route('/api/quick_search') - API: 快速搜索备件（用于自动完成）
+│   │   │   │   │   ├── 查询参数验证 (长度>=2)
+│   │   │   │   │   ├── 多字段搜索 (part_no, name, type)
+│   │   │   │   │   ├── 排序优化 (匹配part_no优先)
+│   │   │   │   │   ├── 结果安全转换 (safe_str, safe_int)
+│   │   │   │   │   └── JSON返回 (success, data/error)
+│   │   │   │   ├── @app.route('/') - 优化后的首页 - 减少数据库查询，添加缓存
+│   │   │   │   │   ├── 性能计时 (start_time)
+│   │   │   │   │   ├── 基本统计信息获取 (total_parts, low_stock_count, out_of_stock_count, total_inventory_value)
+│   │   │   │   │   ├── 低库存备件获取 (限制10条)
+│   │   │   │   │   ├── 最近出库记录获取 (限制8条)
+│   │   │   │   │   ├── 最近入库记录获取 (限制8条)
+│   │   │   │   │   ├── 库位使用情况统计
+│   │   │   │   │   ├── 加载时间计算
+│   │   │   │   │   └── 渲染index.html模板
+│   │   │   │   ├── @app.route('/database_info') - 数据库信息页面
+│   │   │   │   │   ├── 数据库统计信息 (各部分记录数)
+│   │   │   │   │   ├── 数据库文件大小
+│   │   │   │   │   ├── 表详细信息 (表名和记录数)
+│   │   │   │   │   └── 渲染database_info.html模板
+│   │   │   │   ├── @app.route('/system_status') - 系统状态监控页面
+│   │   │   │   │   ├── 系统信息获取 (platform, python_version, hostname, processor, boot_time)
+│   │   │   │   │   ├── 资源使用情况 (CPU, 内存, 磁盘)
+│   │   │   │   │   ├── 应用统计信息 (今日出入库记录数)
+│   │   │   │   │   └── 渲染system_status.html模板
+│   │   │   │   ├── @app.route('/api/dashboard_stats') - API: 获取仪表板统计信息
+│   │   │   │   │   ├── 数据库查询 (总备件数、低库存数、缺货数、库位数、今日出入库数)
+│   │   │   │   │   └── JSON返回 (success, data/error)
+│   │   │   │   ├── @app.route('/test_email') - 测试邮件发送功能
+│   │   │   │   │   ├── 配置状态检查
+│   │   │   │   │   ├── 创建测试低库存数据
+│   │   │   │   │   ├── 调用email_sender.send_low_stock_alert
+│   │   │   │   │   └── 返回测试结果HTML
+│   │   │   │   ├── @app.route('/test_network') - 测试网络连接
+│   │   │   │   │   ├── DNS解析测试
+│   │   │   │   │   ├── 常用邮件服务器端口测试
+│   │   │   │   │   ├── 互联网连接测试
+│   │   │   │   │   ├── 测试结果分析
+│   │   │   │   │   └── 返回测试结果HTML
+│   │   │   │   ├── @app.route('/settings', methods=['GET', 'POST']) - 系统设置页面
+│   │   │   │   │   ├── POST: 更新系统设置
+│   │   │   │   │   │   ├── 表单数据遍历更新
+│   │   │   │   │   │   ├── 定时任务更新
+│   │   │   │   │   │   └── 重定向到设置页面
+│   │   │   │   │   ├── GET: 显示设置页面
+│   │   │   │   │   │   ├── 按分类组织设置
+│   │   │   │   │   │   ├── 获取所有设置并按分类分组
+│   │   │   │   │   │   └── 渲染settings.html模板
+│   │   │   │   │   └── 错误处理
+│   │   │   │   ├── @app.route('/api/settings/test_email', methods=['POST']) - 测试邮件设置
+│   │   │   │   │   ├── 创建测试低库存数据
+│   │   │   │   │   ├── 调用email_sender.send_low_stock_alert
+│   │   │   │   │   └── JSON返回 (success, message)
+│   │   │   │   └── @app.route('/api/settings/run_task/<task_name>', methods=['POST']) - 手动执行定时任务
+│   │   │   │       ├── 低库存报警任务 (在后台线程中执行)
+│   │   │   │       ├── 自动备份任务
+│   │   │   │       └── JSON返回 (success, message)
+│   │   │   └── 错误处理与日志记录
+│   │   ├── 📄 import_export.py - 数据交换 (新增详细内容)
+│   │   │   ├── setup_import_export_routes(app) - 设置导入导出路由
+│   │   │   │   ├── @app.route('/import_part_info_only', methods=['GET', 'POST']) - 仅更新备件信息的导入页面
+│   │   │   │   │   ├── POST: 处理备件信息更新导入
+│   │   │   │   │   │   ├── 文件上传验证
+│   │   │   │   │   │   ├── Excel文件读取 (pd.read_excel)
+│   │   │   │   │   │   ├── 数据清理 (clean_operations_dataframe)
+│   │   │   │   │   │   ├── 列名调试 (debug_column_names)
+│   │   │   │   │   │   ├── 必要列验证 ('货号 Part no')
+│   │   │   │   │   │   ├── 备选列名支持
+│   │   │   │   │   │   │   ├── '货号 Part no', '货号 Part No', '货号Part no'
+│   │   │   │   │   │   │   ├── '货号Part No', 'Part No', 'Part no'
+│   │   │   │   │   │   │   ├── 'part_no', '货号'
+│   │   │   │   │   │   │   └── 模糊匹配机制
+│   │   │   │   │   │   ├── 备件信息更新处理 (process_part_info_only_update)
+│   │   │   │   │   │   ├── 导入结果处理
+│   │   │   │   │   │   │   ├── 成功: 清除session数据
+│   │   │   │   │   │   │   └── 失败: 存储错误信息到session
+│   │   │   │   │   │   └── 重定向到导入页面
+│   │   │   │   │   ├── GET: 显示导入页面
+│   │   │   │   │   │   ├── 从session获取导入结果
+│   │   │   │   │   │   │   ├── import_errors
+│   │   │   │   │   │   │   ├── error_count
+│   │   │   │   │   │   │   ├── updated_count
+│   │   │   │   │   │   │   ├── not_found_count
+│   │   │   │   │   │   │   └── import_summary
+│   │   │   │   │   │   ├── 清除session数据
+│   │   │   │   │   │   └── 渲染import_part_info_only.html模板
+│   │   │   │   │   └── 异常处理机制
+│   │   │   │   ├── @app.route('/download_part_info_update_template') - 下载备件信息更新模板
+│   │   │   │   │   ├── 模板数据构建
+│   │   │   │   │   │   ├── '货号 Part no': ['PART-001', 'PART-002', ...]
+│   │   │   │   │   │   ├── '关键备件 Key part': ['是', '否', ...]
+│   │   │   │   │   │   ├── '最低库存 Low stock': [5, 10, ...]
+│   │   │   │   │   │   ├── '最高库存 High stock': [50, 100, ...]
+│   │   │   │   │   │   ├── '交货期 LT (Week)': [2, 1, ...]
+│   │   │   │   │   │   ├── '单价 Unit price (RMB)': [25.5, 0.8, ...]
+│   │   │   │   │   │   └── '单位 Unit': ['个', '包', ...]
+│   │   │   │   │   ├── Excel文件生成
+│   │   │   │   │   ├── 说明工作表创建
+│   │   │   │   │   │   ├── 列名: ['列名', '说明', '示例', '备注']
+│   │   │   │   │   │   └── 详细字段说明
+│   │   │   │   │   └── 文件下载返回
+│   │   │   │   ├── @app.route('/import_operations_data', methods=['GET', 'POST']) - 操作记录导入页面
+│   │   │   │   │   ├── POST: 处理操作记录导入
+│   │   │   │   │   │   ├── 文件上传验证
+│   │   │   │   │   │   ├── Excel文件读取
+│   │   │   │   │   │   ├── 数据清理
+│   │   │   │   │   │   ├── 列名调试
+│   │   │   │   │   │   ├── 文件类型检测 (detect_file_type)
+│   │   │   │   │   │   │   ├── 'operations_with_parts': 操作记录文件
+│   │   │   │   │   │   │   ├── 'part_info_only': 备件信息文件
+│   │   │   │   │   │   │   └── 'unknown': 未知文件类型
+│   │   │   │   │   │   ├── 文件类型路由
+│   │   │   │   │   │   │   ├── 备件信息文件: 重定向到import_part_info_only
+│   │   │   │   │   │   │   └── 操作记录文件: 处理操作记录导入
+│   │   │   │   │   │   ├── 操作记录必需列验证
+│   │   │   │   │   │   │   ├── 'Operation type'
+│   │   │   │   │   │   │   ├── 'Date'
+│   │   │   │   │   │   │   ├── 'Part No'
+│   │   │   │   │   │   │   └── 'Qty'
+│   │   │   │   │   │   ├── 操作记录导入处理 (process_operations_with_parts_import)
+│   │   │   │   │   │   ├── 导入结果处理
+│   │   │   │   │   │   └── 重定向到导入页面
+│   │   │   │   │   ├── GET: 显示导入页面
+│   │   │   │   │   │   ├── 从session获取导入结果
+│   │   │   │   │   │   │   ├── import_errors
+│   │   │   │   │   │   │   ├── error_count
+│   │   │   │   │   │   │   ├── imported_count
+│   │   │   │   │   │   │   ├── updated_parts_count
+│   │   │   │   │   │   │   ├── updated_parts_info_count
+│   │   │   │   │   │   │   ├── import_summary
+│   │   │   │   │   │   │   ├── sync_result
+│   │   │   │   │   │   │   └── detailed_report
+│   │   │   │   │   │   ├── 清除session数据
+│   │   │   │   │   │   └── 渲染import_operations.html模板
+│   │   │   │   │   └── 异常处理机制
+│   │   │   │   ├── @app.route('/export_parts') - 导出备件信息
+│   │   │   │   │   ├── 备件数据查询 (关联库位信息)
+│   │   │   │   │   ├── DataFrame数据构建
+│   │   │   │   │   │   ├── 字段映射
+│   │   │   │   │   │   │   ├── '备件编号' ← part_no
+│   │   │   │   │   │   │   ├── '备件名称' ← name
+│   │   │   │   │   │   │   ├── '类型' ← type
+│   │   │   │   │   │   │   ├── '当前库存' ← current_stock
+│   │   │   │   │   │   │   ├── '最低库存' ← min_stock
+│   │   │   │   │   │   │   ├── '最高库存' ← max_stock
+│   │   │   │   │   │   │   ├── '库位' ← location
+│   │   │   │   │   │   │   ├── '库位状态' ← location_status
+│   │   │   │   │   │   │   ├── '库位描述' ← location_description
+│   │   │   │   │   │   │   ├── '供应商' ← supplier
+│   │   │   │   │   │   │   ├── '单价' ← unit_price
+│   │   │   │   │   │   │   ├── '描述' ← description
+│   │   │   │   │   │   │   ├── '创建时间' ← created_date
+│   │   │   │   │   │   │   └── '更新时间' ← updated_date
+│   │   │   │   │   │   └── 安全类型转换
+│   │   │   │   │   ├── Excel文件生成
+│   │   │   │   │   ├── 自动列宽调整
+│   │   │   │   │   └── 文件下载返回
+│   │   │   │   ├── @app.route('/download_template') - 下载备件导入模板
+│   │   │   │   │   ├── 模板数据构建
+│   │   │   │   │   │   ├── 'Part_No': ['PART-001', 'PART-002', ...]
+│   │   │   │   │   │   ├── 'Description': ['轴承 6205', '螺丝 M6', ...]
+│   │   │   │   │   │   ├── 'Type': ['机械', '电子', ...]
+│   │   │   │   │   │   ├── 'Spare_part_type': ['旋转件', '紧固件', ...]
+│   │   │   │   │   │   ├── 'Key_part': ['是', '否', ...]
+│   │   │   │   │   │   ├── 'LT': [30, 15, ...]
+│   │   │   │   │   │   ├── 'Unit_price': [25.5, 0.8, ...]
+│   │   │   │   │   │   ├── 'Unit': ['个', '包', ...]
+│   │   │   │   │   │   ├── 'Status': [50, 200, ...]
+│   │   │   │   │   │   └── 'Location': ['A-01-01', 'B-02-01', ...]
+│   │   │   │   │   ├── Excel文件生成
+│   │   │   │   │   ├── 说明工作表创建
+│   │   │   │   │   └── 文件下载返回
+│   │   │   │   ├── @app.route('/download_operations_template_import') - 下载操作记录导入模板
+│   │   │   │   │   ├── 模板数据构建
+│   │   │   │   │   │   ├── 'Operation type': ['Stock in', 'Stock out', ...]
+│   │   │   │   │   │   ├── 'Date': ['2024-01-01', '2024-01-02', ...]
+│   │   │   │   │   │   ├── 'Supplier or Recipients': ['供应商A', '部门B', ...]
+│   │   │   │   │   │   ├── 'Location': ['A-01-01', 'B-02-01', ...]
+│   │   │   │   │   │   ├── 'Part No': ['PART-001', 'PART-002', ...]
+│   │   │   │   │   │   ├── '货号 Part no': ['PART-001', 'PART-002', ...]
+│   │   │   │   │   │   ├── 'Description': ['轴承 6205', '螺丝 M6', ...]
+│   │   │   │   │   │   ├── 'Type': ['机械', '电子', ...]
+│   │   │   │   │   │   ├── 'Qty': [10, -5, ...]
+│   │   │   │   │   │   ├── 'Work center': ['生产线A', '维修部', ...]
+│   │   │   │   │   │   ├── '关键备件 Key part': ['是', '否', ...]
+│   │   │   │   │   │   ├── '最低库存 Low stock': [10, 5, ...]
+│   │   │   │   │   │   ├── '最高库存 High stock': [100, 50, ...]
+│   │   │   │   │   │   ├── '交货期 LT (Week)': [2, 1, ...]
+│   │   │   │   │   │   ├── '单价 Unit price (RMB)': [25.5, 0.8, ...]
+│   │   │   │   │   │   └── '单位 Unit': ['个', '包', ...]
+│   │   │   │   │   ├── Excel文件生成
+│   │   │   │   │   ├── 说明工作表创建
+│   │   │   │   │   └── 文件下载返回
+│   │   │   │   └── 错误处理与日志记录
+│   │   │   ├── 辅助函数
+│   │   │   │   ├── process_part_info_only_update(df) - 处理仅更新备件信息的导入
+│   │   │   │   │   ├── 变量初始化
+│   │   │   │   │   │   ├── updated_count = 0
+│   │   │   │   │   │   ├── not_found_count = 0
+│   │   │   │   │   │   ├── error_count = 0
+│   │   │   │   │   │   └── errors = []
+│   │   │   │   │   ├── 导入摘要初始化
+│   │   │   │   │   │   ├── total_rows
+│   │   │   │   │   │   ├── import_start_time
+│   │   │   │   │   │   ├── file_columns
+│   │   │   │   │   │   └── data_statistics
+│   │   │   │   │   ├── DataFrame行遍历处理
+│   │   │   │   │   │   ├── 备件编号提取 (多列名支持)
+│   │   │   │   │   │   ├── 备件存在性检查
+│   │   │   │   │   │   ├── 更新信息提取 (extract_update_info_from_row)
+│   │   │   │   │   │   ├── 备件信息更新 (update_part_specific_fields)
+│   │   │   │   │   │   └── 错误处理
+│   │   │   │   │   ├── 数据库提交
+│   │   │   │   │   ├── 导入摘要更新
+│   │   │   │   │   ├── 详细报告生成 (generate_part_info_update_report)
+│   │   │   │   │   └── 结果返回
+│   │   │   │   ├── debug_column_names(df) - 调试函数：打印DataFrame的列名信息
+│   │   │   │   │   ├── 列名列表输出
+│   │   │   │   │   ├── 列名类型输出
+│   │   │   │   │   ├── 关键词匹配检查
+│   │   │   │   │   │   ├── '货号'
+│   │   │   │   │   │   ├── 'Part'
+│   │   │   │   │   │   └── 'part'
+│   │   │   │   │   └── 详细调试信息输出
+│   │   │   │   ├── update_part_specific_fields(conn, part_id, part_info) - 仅更新备件信息的特定字段
+│   │   │   │   │   ├── 更新字段列表构建
+│   │   │   │   │   │   ├── key_part: 关键备件状态
+│   │   │   │   │   │   ├── min_stock: 最低库存
+│   │   │   │   │   │   ├── max_stock: 最高库存
+│   │   │   │   │   │   ├── lt_weeks: 交货期(周)
+│   │   │   │   │   │   ├── unit_price: 单价
+│   │   │   │   │   │   └── unit: 单位
+│   │   │   │   │   ├── 更新前状态记录
+│   │   │   │   │   ├── SQL更新执行
+│   │   │   │   │   ├── 更新后状态验证
+│   │   │   │   │   ├── 关键字段变更警告
+│   │   │   │   │   └── 更新结果返回
+│   │   │   │   ├── extract_update_info_from_row(row) - 从行数据中提取需要更新的备件信息
+│   │   │   │   │   ├── 关键备件提取 ('关键备件 Key part')
+│   │   │   │   │   │   ├── 多语言布尔值转换
+│   │   │   │   │   │   │   ├── '是', 'yes', 'true', '1', 'y' → True
+│   │   │   │   │   │   │   └── 其他 → False
+│   │   │   │   │   ├── 最低库存提取 ('最低库存 Low stock' 或 'Min stock')
+│   │   │   │   │   ├── 最高库存提取 ('最高库存 High stock' 或 'Max stock')
+│   │   │   │   │   ├── 交货期提取 ('交货期 LT (Week)' 或 'LT')
+│   │   │   │   │   ├── 单价提取 ('单价 Unit price (RMB)' 或 'Unit price')
+│   │   │   │   │   ├── 单位提取 ('单位 Unit' 或 'Unit')
+│   │   │   │   │   └── 非负值保护
+│   │   │   │   ├── generate_part_info_update_report() - 生成备件信息更新的详细报告
+│   │   │   │   │   ├── 报告部分构建
+│   │   │   │   │   │   ├── 成功更新计数
+│   │   │   │   │   │   ├── 未找到计数
+│   │   │   │   │   │   ├── 错误计数
+│   │   │   │   │   │   └── 错误类型统计
+│   │   │   │   │   └── 报告字符串组合
+│   │   │   │   ├── detect_file_type(df) - 检测上传文件的类型
+│   │   │   │   │   ├── 操作记录列检测
+│   │   │   │   │   │   ├── 'Operation type'
+│   │   │   │   │   │   ├── 'Date'
+│   │   │   │   │   │   ├── 'Part No'
+│   │   │   │   │   │   └── 'Qty'
+│   │   │   │   │   ├── 备件信息列检测
+│   │   │   │   │   │   ├── '货号 Part no'
+│   │   │   │   │   │   └── 'Description'
+│   │   │   │   │   ├── 备件更新列检测
+│   │   │   │   │   │   ├── '货号 Part no'
+│   │   │   │   │   │   ├── '关键备件 Key part'
+│   │   │   │   │   │   ├── '最低库存 Low stock'
+│   │   │   │   │   │   └── '最高库存 High stock'
+│   │   │   │   │   ├── 模糊匹配机制
+│   │   │   │   │   └── 文件类型返回
+│   │   │   │   ├── clean_operations_dataframe(df) - 清理操作记录DataFrame
+│   │   │   │   │   ├── 空行移除 (dropna)
+│   │   │   │   │   ├── 字符串列清理
+│   │   │   │   │   │   ├── 去空格处理
+│   │   │   │   │   │   ├── 空值替换
+│   │   │   │   │   │   └── 空字符串填充
+│   │   │   │   │   ├── 数值列清理
+│   │   │   │   │   │   ├── 去逗号处理
+│   │   │   │   │   │   ├── 去空格处理
+│   │   │   │   │   │   ├── 数值转换
+│   │   │   │   │   │   └── 空值填充0
+│   │   │   │   │   ├── 布尔列清理 ('关键备件 Key part')
+│   │   │   │   │   │   ├── 字符串标准化
+│   │   │   │   │   │   └── 布尔值转换
+│   │   │   │   │   ├── 日期列清理 ('Date')
+│   │   │   │   │   │   ├── 多格式日期解析
+│   │   │   │   │   │   └── 格式化输出
+│   │   │   │   │   └── 清理完成日志
+│   │   │   │   ├── process_operations_with_parts_import(df) - 处理包含操作记录的导入
+│   │   │   │   │   ├── 变量初始化
+│   │   │   │   │   │   ├── imported_count = 0
+│   │   │   │   │   │   ├── error_count = 0
+│   │   │   │   │   │   ├── updated_parts_count = 0
+│   │   │   │   │   │   ├── updated_parts_info_count = 0
+│   │   │   │   │   │   ├── skipped_duplicates = 0
+│   │   │   │   │   │   └── errors = []
+│   │   │   │   │   ├── 导入摘要初始化
+│   │   │   │   │   ├── 数据库连接建立
+│   │   │   │   │   ├── DataFrame行遍历处理
+│   │   │   │   │   │   ├── 备件信息提取 (extract_part_info_from_row)
+│   │   │   │   │   │   ├── 备件信息处理 (update_or_create_part_info)
+│   │   │   │   │   │   ├── 操作记录处理
+│   │   │   │   │   │   │   ├── 操作类型验证
+│   │   │   │   │   │   │   ├── 操作记录验证 (validate_operation_row)
+│   │   │   │   │   │   │   ├── 备件存在性检查
+│   │   │   │   │   │   │   ├── 重复记录检查 (is_duplicate_operation)
+│   │   │   │   │   │   │   ├── 操作记录插入
+│   │   │   │   │   │   │   └── 影响备件记录
+│   │   │   │   │   │   └── 错误处理
+│   │   │   │   │   ├── 数据库提交
+│   │   │   │   │   ├── 强制同步操作记录 (sync_all_operations)
+│   │   │   │   │   ├── 导入摘要更新
+│   │   │   │   │   ├── 详细报告生成 (generate_detailed_import_report)
+│   │   │   │   │   └── 结果返回
+│   │   │   │   ├── update_or_create_part_info() - 更新或创建备件信息
+│   │   │   │   ├── create_part_info_only() - 仅创建备件信息
+│   │   │   │   ├── create_or_update_part_from_import() - 从导入数据创建或更新备件信息
+│   │   │   │   ├── update_existing_part_info() - 更新现有备件信息
+│   │   │   │   ├── generate_detailed_import_report() - 生成详细的导入报告
+│   │   │   │   ├── extract_part_info_from_row() - 从行数据中提取备件信息
+│   │   │   │   ├── validate_operation_row() - 验证操作记录行的数据
+│   │   │   │   ├── create_error() - 创建标准化的错误信息
+│   │   │   │   ├── get_data_preview() - 获取数据预览
+│   │   │   │   ├── calculate_operation_similarity() - 计算两个操作记录的相似度
+│   │   │   │   └── is_duplicate_operation() - 检查是否为重复操作记录
+│   │   │   └── 日志记录与异常处理
+│   │   ├── 📄 location_routes.py - 位置管理 (详细内容如下)
+│   │   │   ├── setup_location_routes(app) - 设置库位管理路由
+│   │   │   │   ├── @app.route('/location_management', methods=['GET', 'POST']) - 库位管理页面 - 优化版本
+│   │   │   │   │   ├── POST请求处理 - 添加新库位
+│   │   │   │   │   │   ├── 表单数据获取与安全转换
+│   │   │   │   │   │   │   ├── location_code (库位代码)
+│   │   │   │   │   │   │   ├── description (描述)
+│   │   │   │   │   │   │   ├── capacity (容量)
+│   │   │   │   │   │   │   └── size_type (库位大小类型)
+│   │   │   │   │   │   ├── 数据验证
+│   │   │   │   │   │   │   ├── 库位代码非空检查
+│   │   │   │   │   │   │   ├── 容量大于0检查
+│   │   │   │   │   │   │   └── 库位代码唯一性检查
+│   │   │   │   │   │   ├── 新库位插入数据库
+│   │   │   │   │   │   ├── 库位状态更新 (update_location_status)
+│   │   │   │   │   │   └── 操作结果反馈
+│   │   │   │   │   ├── GET请求处理 - 显示库位列表
+│   │   │   │   │   │   ├── 分页参数处理 (page, per_page=20)
+│   │   │   │   │   │   ├── 筛选条件处理 (status_filter, search)
+│   │   │   │   │   │   ├── 动态查询条件构建
+│   │   │   │   │   │   ├── 库位统计信息获取
+│   │   │   │   │   │   │   ├── 基础统计 (总库位数、空闲数、使用中数、低库存数)
+│   │   │   │   │   │   │   ├── 容量统计 (总容量、总备件数、平均使用率)
+│   │   │   │   │   │   │   ├── 货架分组统计 (按A/B/C/D区统计)
+│   │   │   │   │   │   │   └── 热门库位统计 (使用率最高的库位)
+│   │   │   │   │   │   ├── 分页计算 (calculate_pagination)
+│   │   │   │   │   │   ├── 库位数据获取 (关联备件信息)
+│   │   │   │   │   │   ├── 日期格式化处理
+│   │   │   │   │   │   └── 渲染location_management.html模板
+│   │   │   │   │   └── 异常处理机制
+│   │   │   │   ├── @app.route('/delete_location/<int:location_id>') - 删除库位
+│   │   │   │   │   ├── 库位使用情况检查
+│   │   │   │   │   ├── 备件关联验证
+│   │   │   │   │   ├── 安全删除执行
+│   │   │   │   │   ├── 操作日志记录
+│   │   │   │   │   └── 结果反馈与重定向
+│   │   │   │   ├── @app.route('/edit_location/<int:location_id>', methods=['GET', 'POST']) - 编辑库位
+│   │   │   │   │   ├── GET请求处理 - 显示编辑表单
+│   │   │   │   │   │   ├── 库位数据加载
+│   │   │   │   │   │   ├── 日期格式化处理
+│   │   │   │   │   │   └── 渲染edit_location.html模板
+│   │   │   │   │   ├── POST请求处理 - 更新库位信息
+│   │   │   │   │   │   ├── 表单数据验证
+│   │   │   │   │   │   ├── 库位代码唯一性检查
+│   │   │   │   │   │   ├── 库位信息更新
+│   │   │   │   │   │   ├── 关联备件库位同步更新
+│   │   │   │   │   │   ├── 库位状态更新
+│   │   │   │   │   │   └── 操作结果反馈
+│   │   │   │   │   └── 异常处理机制
+│   │   │   │   ├── @app.route('/update_locations_status') - 手动更新所有库位状态
+│   │   │   │   │   ├── 批量状态更新执行 (update_all_locations_status)
+│   │   │   │   │   ├── 更新计数统计
+│   │   │   │   │   └── 结果反馈与重定向
+│   │   │   │   ├── @app.route('/location_detail/<string:location_code>') - 库位详情页面
+│   │   │   │   │   ├── 库位基本信息获取
+│   │   │   │   │   ├── 关联备件列表获取
+│   │   │   │   │   ├── 使用率计算
+│   │   │   │   │   ├── 操作记录获取 (最近20条)
+│   │   │   │   │   ├── 日期格式化处理
+│   │   │   │   │   └── 渲染location_detail.html模板
+│   │   │   │   ├── @app.route('/api/locations') - API: 获取库位列表
+│   │   │   │   │   ├── 库位数据查询
+│   │   │   │   │   ├── 使用率计算
+│   │   │   │   │   ├── 日期格式化处理
+│   │   │   │   │   └── JSON格式返回
+│   │   │   │   ├── @app.route('/api/shelf_simulation/<string:shelf_name>') - API: 获取指定货架的模拟数据 - 修复版本
+│   │   │   │   │   ├── 货架库位数据查询
+│   │   │   │   │   ├── 库位代码解析 (区域、行、列提取)
+│   │   │   │   │   ├── 备件预览信息获取
+│   │   │   │   │   ├── 使用率计算
+│   │   │   │   │   └── JSON格式返回
+│   │   │   │   ├── @app.route('/api/test_shelf/<string:shelf_name>') - 测试货架API
+│   │   │   │   │   ├── 简单测试查询
+│   │   │   │   │   └── JSON格式返回
+│   │   │   │   ├── @app.route('/export_locations') - 导出库位信息
+│   │   │   │   │   ├── 库位数据查询 (关联备件信息)
+│   │   │   │   │   ├── DataFrame数据构建
+│   │   │   │   │   ├── Excel文件生成
+│   │   │   │   │   ├── 自动列宽调整
+│   │   │   │   │   └── 文件下载返回
+│   │   │   │   ├── @app.route('/import_locations', methods=['GET', 'POST']) - 导入库位信息 - 优化版本
+│   │   │   │   │   ├── POST请求处理 - 处理库位导入
+│   │   │   │   │   │   ├── 文件上传验证
+│   │   │   │   │   │   ├── Excel文件读取
+│   │   │   │   │   │   ├── 列名调试信息
+│   │   │   │   │   │   ├── 数据样例记录
+│   │   │   │   │   │   ├── 库位导入处理 (process_locations_import)
+│   │   │   │   │   │   ├── 导入结果处理
+│   │   │   │   │   │   └── session数据存储
+│   │   │   │   │   ├── GET请求处理 - 显示导入页面
+│   │   │   │   │   │   ├── session数据获取
+│   │   │   │   │   │   ├── session数据清理
+│   │   │   │   │   │   └── 渲染import_locations.html模板
+│   │   │   │   │   └── 异常处理机制
+│   │   │   │   ├── @app.route('/download_locations_template') - 下载库位导入模板
+│   │   │   │   │   ├── 模板数据构建
+│   │   │   │   │   ├── Excel文件生成
+│   │   │   │   │   ├── 导入说明工作表创建
+│   │   │   │   │   └── 文件下载返回
+│   │   │   │   └── 辅助函数
+│   │   │   │       ├── process_locations_import(df) - 处理库位导入 - 优化版本
+│   │   │   │       │   ├── 变量初始化
+│   │   │   │       │   ├── 有效库位大小类型定义
+│   │   │   │       │   ├── DataFrame行遍历处理
+│   │   │   │       │   │   ├── 库位代码提取 (多列名支持)
+│   │   │   │       │   │   ├── 空行跳过处理
+│   │   │   │       │   │   ├── 字段数据获取与验证
+│   │   │   │       │   │   │   ├── rack (货架)
+│   │   │   │       │   │   │   ├── level (层数)
+│   │   │   │       │   │   │   ├── position (位置)
+│   │   │   │       │   │   │   ├── side (边)
+│   │   │   │       │   │   │   ├── state (状态)
+│   │   │   │       │   │   │   ├── capacity (容量)
+│   │   │   │       │   │   │   ├── size_type (库位大小)
+│   │   │   │       │   │   │   └── description (描述)
+│   │   │   │       │   │   ├── 容量验证与默认值设置
+│   │   │   │       │   │   ├── 库位大小类型验证
+│   │   │   │       │   │   ├── 自动描述生成
+│   │   │   │       │   │   ├── 库位存在性检查
+│   │   │   │       │   │   ├── 库位创建或更新
+│   │   │   │       │   │   └── 错误处理与统计
+│   │   │   │       │   ├── 数据库提交
+│   │   │   │       │   ├── 库位状态批量更新
+│   │   │   │       │   ├── 详细报告生成 (generate_import_report)
+│   │   │   │       │   └── 结果返回
+│   │   │   │       ├── generate_import_report(total_rows, imported_count, error_count, skipped_count, errors) - 生成详细的导入报告
+│   │   │   │       │   ├── 报告部分构建
+│   │   │   │       │   ├── 错误分类统计
+│   │   │   │       │   └── 报告字符串组合
+│   │   │   │       ├── extract_area_from_code(location_code) - 从库位代码提取区域
+│   │   │   │       ├── extract_row_from_code(location_code) - 从库位代码提取行号
+│   │   │   │       └── extract_column_from_code(location_code) - 从库位代码提取列号
+│   │   │   └── 错误处理与日志记录机制
+│   │   ├── 📄 parts_routes.py - 备件管理
+│   │   │   ├── setup_parts_routes(app) - 设置备件管理路由
+│   │   │   │   ├── @app.route('/add_part', methods=['GET', 'POST']) - 添加备件
+│   │   │   │   │   ├── POST: 处理备件添加表单
+│   │   │   │   │   │   ├── 安全数据获取与转换 (safe_str, safe_int, safe_float)
+│   │   │   │   │   │   ├── 数据验证 (validate_part_data)
+│   │   │   │   │   │   ├── 库存范围验证 (min_stock <= max_stock)
+│   │   │   │   │   │   ├── 库位存在性验证
+│   │   │   │   │   │   ├── 备件重复性检查 (part_no + name 组合)
+│   │   │   │   │   │   ├── 初始库存为0插入
+│   │   │   │   │   │   ├── 初始库存>0时创建入库操作记录
+│   │   │   │   │   │   ├── 强制库存更新 (update_stock_for_part)
+│   │   │   │   │   │   ├── 库位状态更新 (update_location_status)
+│   │   │   │   │   │   └── 成功重定向到备件列表
+│   │   │   │   │   └── GET: 显示添加备件表单
+│   │   │   │   │       ├── 加载所有库位数据
+│   │   │   │   │       └── 渲染add_part.html模板
+│   │   │   │   ├── @app.route('/parts') - 备件列表页面，支持分页和搜索
+│   │   │   │   │   ├── 搜索参数获取 (search, type_filter, location_filter, stock_status, key_part_filter)
+│   │   │   │   │   ├── 分页参数处理 (page, per_page=20)
+│   │   │   │   │   ├── 动态查询条件构建
+│   │   │   │   │   │   ├── 文本搜索 (name, part_no, description, supplier, type)
+│   │   │   │   │   │   ├── 类型筛选
+│   │   │   │   │   │   ├── 库位筛选
+│   │   │   │   │   │   ├── 库存状态筛选 (low, out, normal, over)
+│   │   │   │   │   │   └── 关键备件筛选
+│   │   │   │   │   ├── 分页计算 (calculate_pagination)
+│   │   │   │   │   ├── 备件数据获取 (关联库位信息)
+│   │   │   │   │   ├── 库存状态计算 (is_low_stock, is_over_stock, is_out_of_stock)
+│   │   │   │   │   ├── 库位使用率计算
+│   │   │   │   │   ├── 日期字段安全处理
+│   │   │   │   │   ├── 筛选选项获取 (types, locations_list)
+│   │   │   │   │   └── 渲染parts_list.html模板
+│   │   │   │   ├── @app.route('/part/<int:part_id>') - 备件详情页面
+│   │   │   │   │   ├── 备件基本信息获取 (关联库位信息)
+│   │   │   │   │   ├── 库位使用率计算
+│   │   │   │   │   ├── 库存状态计算
+│   │   │   │   │   ├── 出库记录获取 (最近10条)
+│   │   │   │   │   ├── 入库记录获取 (最近10条)
+│   │   │   │   │   ├── 操作记录获取 (最近20条)
+│   │   │   │   │   ├── 日期字段安全处理
+│   │   │   │   │   └── 渲染part_detail.html模板
+│   │   │   │   ├── @app.route('/edit_part/<int:part_id>', methods=['GET', 'POST']) - 编辑备件信息
+│   │   │   │   │   ├── POST: 处理备件编辑表单
+│   │   │   │   │   │   ├── 安全数据获取与转换
+│   │   │   │   │   │   ├── 数据验证
+│   │   │   │   │   │   ├── 库位存在性验证
+│   │   │   │   │   │   ├── 原备件信息获取
+│   │   │   │   │   │   ├── 备件信息更新
+│   │   │   │   │   │   ├── 库存重新计算 (如果part_no或name改变)
+│   │   │   │   │   │   ├── 库位状态更新 (新旧库位)
+│   │   │   │   │   │   └── 成功重定向到备件详情
+│   │   │   │   │   └── GET: 显示编辑表单
+│   │   │   │   │       ├── 备件数据加载
+│   │   │   │   │       ├── 库位列表加载
+│   │   │   │   │       └── 渲染edit_part.html模板
+│   │   │   │   ├── @app.route('/search_parts') - 备件搜索页面 - 增强版
+│   │   │   │   │   ├── 搜索参数获取 (query, field, stock_status, key_part_filter, type_filter, location_filter)
+│   │   │   │   │   ├── 动态查询条件构建
+│   │   │   │   │   │   ├── 全字段搜索或指定字段搜索
+│   │   │   │   │   │   ├── 高级筛选条件
+│   │   │   │   │   │   └── 库存状态智能排序 (缺货优先)
+│   │   │   │   │   ├── 搜索结果处理
+│   │   │   │   │   └── 渲染search_parts.html模板
+│   │   │   │   ├── @app.route('/api/search_parts_detailed') - API: 搜索备件 - 增强版全字段模糊搜索
+│   │   │   │   │   ├── 搜索参数验证
+│   │   │   │   │   ├── 全字段模糊搜索或指定字段搜索
+│   │   │   │   │   ├── 智能排序 (缺货优先)
+│   │   │   │   │   ├── 结果数量限制 (100条)
+│   │   │   │   │   └── JSON格式返回
+│   │   │   │   ├── @app.route('/purchase_low_stock/<int:part_id>') - 采购低库存备件
+│   │   │   │   │   ├── 备件存在性验证
+│   │   │   │   │   ├── 采购需求记录
+│   │   │   │   │   └── 重定向到低库存报警页面
+│   │   │   │   ├── @app.route('/batch_operations', methods=['GET', 'POST']) - 批量操作页面
+│   │   │   │   │   ├── POST: 处理批量操作
+│   │   │   │   │   │   ├── 操作类型识别 (delete, update_min_stock, update_max_stock, update_location, update_key_part)
+│   │   │   │   │   │   ├── 备件ID列表验证
+│   │   │   │   │   │   ├── 批量删除操作
+│   │   │   │   │   │   ├── 批量更新最低库存
+│   │   │   │   │   │   ├── 批量更新最高库存
+│   │   │   │   │   │   ├── 批量更新库位
+│   │   │   │   │   │   ├── 批量更新关键备件状态
+│   │   │   │   │   │   └── 操作结果反馈
+│   │   │   │   │   └── GET: 显示批量操作页面
+│   │   │   │   │       ├── 库位列表加载
+│   │   │   │   │       └── 渲染batch_operations.html模板
+│   │   │   │   ├── @app.route('/outbound_part/<int:part_id>') - 备件出库页面
+│   │   │   │   │   ├── 备件存在性验证
+│   │   │   │   │   └── 渲染outbound_part.html模板
+│   │   │   │   ├── @app.route('/api/part_stock/<int:part_id>') - API: 获取备件库存信息
+│   │   │   │   │   ├── 备件基本信息获取
+│   │   │   │   │   ├── 操作记录数量统计
+│   │   │   │   │   ├── 最近操作记录获取
+│   │   │   │   │   └── JSON格式返回
+│   │   │   │   ├── @app.route('/recalculate_part_stock/<int:part_id>') - 手动重新计算单个备件的库存
+│   │   │   │   │   ├── 备件存在性验证
+│   │   │   │   │   ├── 库存更新执行 (update_stock_for_part)
+│   │   │   │   │   ├── 操作结果反馈
+│   │   │   │   │   └── 重定向到备件详情
+│   │   │   │   ├── @app.route('/api/parts_stats') - API: 获取备件统计信息
+│   │   │   │   │   ├── 多维度统计计算
+│   │   │   │   │   │   ├── 总备件数
+│   │   │   │   │   │   ├── 低库存数量
+│   │   │   │   │   │   ├── 缺货数量
+│   │   │   │   │   │   ├── 超储数量
+│   │   │   │   │   │   ├── 关键备件数量
+│   │   │   │   │   │   └── 总库存价值
+│   │   │   │   │   └── JSON格式返回
+│   │   │   │   ├── @app.route('/over_stock_alerts') - 超储库存提醒页面
+│   │   │   │   │   ├── 超储备件查询 (current_stock > max_stock)
+│   │   │   │   │   ├── 超储数量计算
+│   │   │   │   │   └── 渲染over_stock_alerts.html模板
+│   │   │   │   ├── @app.route('/key_parts') - 关键备件页面
+│   │   │   │   │   ├── 关键备件查询 (key_part = 1)
+│   │   │   │   │   ├── 库存状态计算
+│   │   │   │   │   └── 渲染key_parts.html模板
+│   │   │   │   ├── @app.route('/delete_part/<int:part_id>') - 删除备件
+│   │   │   │   │   ├── 备件存在性验证
+│   │   │   │   │   ├── 备件删除执行
+│   │   │   │   │   ├── 库位状态更新
+│   │   │   │   │   ├── 操作日志记录
+│   │   │   │   │   └── 重定向到备件列表
+│   │   │   │   ├── @app.route('/fix_parts_stock') - 修复所有备件的库存
+│   │   │   │   │   ├── 库存不一致修复执行 (fix_all_stock_inconsistencies)
+│   │   │   │   │   ├── 修复结果统计
+│   │   │   │   │   └── 重定向到备件列表
+│   │   │   │   ├── @app.route('/validate_parts_stock') - 验证所有备件的库存准确性
+│   │   │   │   │   ├── 库存验证执行 (validate_all_stock)
+│   │   │   │   │   ├── 不一致信息存入session
+│   │   │   │   │   └── 重定向到备件列表
+│   │   │   │   ├── @app.route('/parts_stock_report') - 显示备件库存报告
+│   │   │   │   │   ├── 从session获取不一致信息
+│   │   │   │   │   ├── session数据清理
+│   │   │   │   │   └── 渲染parts_stock_report.html模板
+│   │   │   │   ├── @app.route('/low_stock_alerts') - 低库存报警页面
+│   │   │   │   │   ├── 低库存备件获取 (stock_alert_service.get_low_stock_parts)
+│   │   │   │   │   ├── 低库存统计获取 (stock_alert_service.get_low_stock_statistics)
+│   │   │   │   │   └── 渲染low_stock_alerts.html模板
+│   │   │   │   └── @app.route('/send_low_stock_email', methods=['POST']) - 发送低库存报警邮件
+│   │   │   │       ├── 低库存报警检查与发送 (stock_alert_service.check_low_stock_and_alert)
+│   │   │   │       ├── 发送结果处理
+│   │   │   │       └── 重定向到低库存报警页面
+│   │   │   └── 错误处理与日志记录机制
+│   │   ├── 📄 operation_routes.py - 操作管理
+│   │   │   ├── 导入模块
+│   │   │   │   ├── flask模块 (render_template, request, redirect, url_for, flash, send_file, jsonify, current_app, session)
+│   │   │   │   ├── pandas (pd)
+│   │   │   │   ├── io (BytesIO)
+│   │   │   │   ├── datetime (datetime, timedelta)
+│   │   │   │   ├── models.database (DatabaseManager)
+│   │   │   │   ├── utils工具函数
+│   │   │   │   │   ├── safe_int, safe_str, calculate_pagination
+│   │   │   │   │   ├── sync_all_operations, recalculate_all_stock
+│   │   │   │   │   ├── update_stock_for_part, validate_all_stock
+│   │   │   │   │   └── fix_all_stock_inconsistencies
+│   │   │   │   └── logging
+│   │   │   ├── setup_operation_routes(app) - 设置操作记录路由
+│   │   │   │   ├── @app.route('/smart_inbound', methods=['GET', 'POST']) - 智能入库页面
+│   │   │   │   │   ├── POST请求处理
+│   │   │   │   │   │   ├── 表单数据获取与安全转换
+│   │   │   │   │   │   │   ├── part_no (备件编号)
+│   │   │   │   │   │   │   ├── part_name (备件名称)
+│   │   │   │   │   │   │   ├── part_type (备件类型)
+│   │   │   │   │   │   │   ├── quantity (数量)
+│   │   │   │   │   │   │   ├── location (库位)
+│   │   │   │   │   │   │   ├── supplier (供应商)
+│   │   │   │   │   │   │   ├── operator (操作员)
+│   │   │   │   │   │   │   ├── purpose (目的)
+│   │   │   │   │   │   │   └── work_center (工作中心)
+│   │   │   │   │   │   ├── 必要数据验证
+│   │   │   │   │   │   │   ├── 备件编号和名称非空检查
+│   │   │   │   │   │   │   └── 入库数量大于0检查
+│   │   │   │   │   │   ├── 数据库连接建立
+│   │   │   │   │   │   ├── 备件存在性检查
+│   │   │   │   │   │   │   ├── 已有备件处理流程
+│   │   │   │   │   │   │   │   ├── 获取现有备件信息
+│   │   │   │   │   │   │   │   ├── 库位更新 (如果提供新库位)
+│   │   │   │   │   │   │   │   └── 设置操作类型为 'Stock in'
+│   │   │   │   │   │   │   └── 新备件处理流程
+│   │   │   │   │   │   │       ├── 创建新备件记录
+│   │   │   │   │   │   │       │   ├── part_no, name, type
+│   │   │   │   │   │   │       │   ├── current_stock (初始为0)
+│   │   │   │   │   │   │       │   ├── min_stock, max_stock (默认0)
+│   │   │   │   │   │   │       │   ├── key_part (默认False)
+│   │   │   │   │   │   │       │   ├── lt_weeks (默认0)
+│   │   │   │   │   │   │       │   ├── unit_price (默认0)
+│   │   │   │   │   │   │       │   ├── unit (默认空)
+│   │   │   │   │   │   │       │   ├── location, supplier
+│   │   │   │   │   │   │       │   └── description (使用part_name)
+│   │   │   │   │   │   │       └── 设置操作类型为 'Stock in - new part'
+│   │   │   │   │   │   ├── 创建操作记录
+│   │   │   │   │   │   │   ├── operation_type
+│   │   │   │   │   │   │   ├── operation_date (当前时间)
+│   │   │   │   │   │   │   ├── supplier_recipient
+│   │   │   │   │   │   │   ├── location
+│   │   │   │   │   │   │   ├── part_no
+│   │   │   │   │   │   │   ├── description
+│   │   │   │   │   │   │   ├── part_type
+│   │   │   │   │   │   │   ├── quantity
+│   │   │   │   │   │   │   └── work_center
+│   │   │   │   │   │   ├── 数据库提交
+│   │   │   │   │   │   ├── 强制更新该备件库存 (update_stock_for_part)
+│   │   │   │   │   │   ├── 更新库位状态 (update_location_status)
+│   │   │   │   │   │   ├── 成功提示消息
+│   │   │   │   │   │   └── 重定向到备件详情页
+│   │   │   │   │   ├── GET请求处理
+│   │   │   │   │   │   ├── 数据库连接建立
+│   │   │   │   │   │   ├── 获取所有库位列表
+│   │   │   │   │   │   │   ├── SELECT location_code, description FROM locations
+│   │   │   │   │   │   │   └── 按location_code排序
+│   │   │   │   │   │   ├── 获取最近使用的备件
+│   │   │   │   │   │   │   ├── SELECT DISTINCT part_no, description FROM operation_records
+│   │   │   │   │   │   │   ├── part_no IS NOT NULL条件
+│   │   │   │   │   │   │   ├── 按operation_date DESC排序
+│   │   │   │   │   │   │   └── LIMIT 10
+│   │   │   │   │   │   ├── 渲染smart_inbound.html模板
+│   │   │   │   │   │   │   ├── locations参数
+│   │   │   │   │   │   │   └── recent_parts参数
+│   │   │   │   │   │   └── 错误处理
+│   │   │   │   │   └── 异常处理机制
+│   │   │   │   ├── @app.route('/clean_duplicate_operations') - 清理重复的操作记录
+│   │   │   │   │   ├── 数据库连接建立
+│   │   │   │   │   ├── 重复记录删除SQL执行
+│   │   │   │   │   │   ├── DELETE FROM operation_records WHERE id NOT IN (SELECT MIN(id) FROM operation_records GROUP BY operation_type, operation_date, part_no, quantity)
+│   │   │   │   │   │   └── 获取删除行数 (rowcount)
+│   │   │   │   │   ├── 数据库提交
+│   │   │   │   │   ├── 结果消息反馈
+│   │   │   │   │   │   ├── 成功清理消息 (包含删除数量)
+│   │   │   │   │   │   └── 无重复记录消息
+│   │   │   │   │   ├── 重定向到operation_records页面
+│   │   │   │   │   └── 异常处理机制
+│   │   │   │   ├── @app.route('/operation_records') - 操作记录页面，支持分页和筛选
+│   │   │   │   │   ├── 请求参数获取
+│   │   │   │   │   │   ├── page (页码，默认1)
+│   │   │   │   │   │   ├── per_page (每页数量，固定50)
+│   │   │   │   │   │   ├── operation_type (操作类型筛选)
+│   │   │   │   │   │   ├── date_from (开始日期)
+│   │   │   │   │   │   ├── date_to (结束日期)
+│   │   │   │   │   │   ├── part_no (备件编号筛选)
+│   │   │   │   │   │   └── location (库位筛选)
+│   │   │   │   │   ├── 数据库连接建立
+│   │   │   │   │   ├── 查询条件构建
+│   │   │   │   │   │   ├── where_conditions列表构建
+│   │   │   │   │   │   ├── params参数列表构建
+│   │   │   │   │   │   ├── 各筛选条件处理
+│   │   │   │   │   │   │   ├── operation_type: 精确匹配
+│   │   │   │   │   │   │   ├── date_from: date(operation_date) >= ?
+│   │   │   │   │   │   │   ├── date_to: date(operation_date) <= ?
+│   │   │   │   │   │   │   ├── part_no: LIKE %pattern%
+│   │   │   │   │   │   │   └── location: LIKE %pattern%
+│   │   │   │   │   │   └── where_clause组合
+│   │   │   │   │   ├── 总数查询
+│   │   │   │   │   │   ├── SELECT COUNT(*) as count FROM operation_records WHERE where_clause
+│   │   │   │   │   │   └── 获取count值
+│   │   │   │   │   ├── 分页计算 (calculate_pagination)
+│   │   │   │   │   │   ├── total_count, page, per_page参数
+│   │   │   │   │   │   └── 返回分页信息字典
+│   │   │   │   │   ├── 操作记录数据获取
+│   │   │   │   │   │   ├── 偏移量计算 (offset = (page - 1) * per_page)
+│   │   │   │   │   │   ├── SELECT * FROM operation_records WHERE where_clause ORDER BY operation_date DESC LIMIT ? OFFSET ?
+│   │   │   │   │   │   └── 获取所有记录
+│   │   │   │   │   ├── 操作类型列表获取
+│   │   │   │   │   │   ├── SELECT DISTINCT operation_type FROM operation_records ORDER BY operation_type
+│   │   │   │   │   │   └── 提取操作类型字符串列表
+│   │   │   │   │   ├── 日期范围默认值设置
+│   │   │   │   │   │   ├── thirty_days_ago: 当前时间-30天
+│   │   │   │   │   │   ├── today: 当前时间
+│   │   │   │   │   │   └── 为空时使用默认值
+│   │   │   │   │   ├── 渲染operation_records.html模板
+│   │   │   │   │   │   ├── operations参数
+│   │   │   │   │   │   ├── pagination参数
+│   │   │   │   │   │   ├── operation_type参数
+│   │   │   │   │   │   ├── date_from参数
+│   │   │   │   │   │   ├── date_to参数
+│   │   │   │   │   │   ├── part_no参数
+│   │   │   │   │   │   ├── location参数
+│   │   │   │   │   │   └── operation_types参数
+│   │   │   │   │   └── 异常处理机制
+│   │   │   │   ├── @app.route('/outbound_records') - 出库记录页面
+│   │   │   │   │   ├── 前置同步操作 (sync_all_operations)
+│   │   │   │   │   │   ├── 尝试执行同步
+│   │   │   │   │   │   ├── 同步结果检查
+│   │   │   │   │   │   │   ├── outbound_synced > 0
+│   │   │   │   │   │   │   └── stock_updated > 0
+│   │   │   │   │   │   ├── 同步成功提示消息
+│   │   │   │   │   │   └── 同步异常处理
+│   │   │   │   │   ├── 请求参数获取
+│   │   │   │   │   │   ├── page (页码，默认1)
+│   │   │   │   │   │   ├── per_page (每页数量，固定50)
+│   │   │   │   │   │   ├── date_from (开始日期)
+│   │   │   │   │   │   ├── date_to (结束日期)
+│   │   │   │   │   │   └── part_name (备件名称筛选)
+│   │   │   │   │   ├── 数据库连接建立
+│   │   │   │   │   ├── 查询条件构建
+│   │   │   │   │   │   ├── where_conditions列表构建
+│   │   │   │   │   │   ├── params参数列表构建
+│   │   │   │   │   │   ├── 各筛选条件处理
+│   │   │   │   │   │   │   ├── date_from: date(o.outbound_date) >= ?
+│   │   │   │   │   │   │   ├── date_to: date(o.outbound_date) <= ?
+│   │   │   │   │   │   │   └── part_name: (p.name LIKE ? OR p.part_no LIKE ?)
+│   │   │   │   │   │   └── where_clause组合
+│   │   │   │   │   ├── 总数查询
+│   │   │   │   │   │   ├── SELECT COUNT(*) as count FROM outbound_records o JOIN spare_parts p ON o.part_id = p.id WHERE where_clause
+│   │   │   │   │   │   └── 获取count值
+│   │   │   │   │   ├── 分页计算 (calculate_pagination)
+│   │   │   │   │   ├── 出库记录数据获取
+│   │   │   │   │   │   ├── 偏移量计算
+│   │   │   │   │   │   ├── SELECT o.*, p.name, p.part_no, p.type FROM outbound_records o JOIN spare_parts p ON o.part_id = p.id WHERE where_clause ORDER BY o.outbound_date DESC LIMIT ? OFFSET ?
+│   │   │   │   │   │   └── 获取所有记录
+│   │   │   │   │   ├── 数据安全转换
+│   │   │   │   │   │   ├── 遍历原始记录
+│   │   │   │   │   │   ├── 字段安全转换
+│   │   │   │   │   │   │   ├── id: safe_int
+│   │   │   │   │   │   │   ├── outbound_date: safe_str
+│   │   │   │   │   │   │   ├── name: safe_str
+│   │   │   │   │   │   │   ├── part_no: safe_str
+│   │   │   │   │   │   │   ├── type: safe_str
+│   │   │   │   │   │   │   ├── quantity: safe_int
+│   │   │   │   │   │   │   ├── operator: safe_str
+│   │   │   │   │   │   │   ├── purpose: safe_str
+│   │   │   │   │   │   │   └── work_center: safe_str
+│   │   │   │   │   │   └── 构建记录字典列表
+│   │   │   │   │   ├── 日期范围默认值设置
+│   │   │   │   │   │   ├── thirty_days_ago: 当前时间-30天
+│   │   │   │   │   │   ├── today: 当前时间
+│   │   │   │   │   │   └── 为空时使用默认值
+│   │   │   │   │   ├── 渲染outbound_records.html模板
+│   │   │   │   │   │   ├── records参数
+│   │   │   │   │   │   ├── pagination参数
+│   │   │   │   │   │   ├── date_from参数
+│   │   │   │   │   │   ├── date_to参数
+│   │   │   │   │   │   └── part_name参数
+│   │   │   │   │   └── 异常处理机制
+│   │   │   │   ├── @app.route('/inbound_records') - 入库记录页面
+│   │   │   │   │   ├── 前置同步操作 (sync_all_operations)
+│   │   │   │   │   │   ├── 尝试执行同步
+│   │   │   │   │   │   ├── 同步结果检查
+│   │   │   │   │   │   │   ├── inbound_synced > 0
+│   │   │   │   │   │   │   └── stock_updated > 0
+│   │   │   │   │   │   ├── 同步成功提示消息
+│   │   │   │   │   │   └── 同步异常处理
+│   │   │   │   │   ├── 请求参数获取
+│   │   │   │   │   │   ├── page (页码，默认1)
+│   │   │   │   │   │   ├── per_page (每页数量，固定50)
+│   │   │   │   │   │   ├── date_from (开始日期)
+│   │   │   │   │   │   ├── date_to (结束日期)
+│   │   │   │   │   │   ├── part_name (备件名称筛选)
+│   │   │   │   │   │   └── supplier (供应商筛选)
+│   │   │   │   │   ├── 数据库连接建立
+│   │   │   │   │   ├── 查询条件构建
+│   │   │   │   │   │   ├── where_conditions列表构建
+│   │   │   │   │   │   ├── params参数列表构建
+│   │   │   │   │   │   ├── 各筛选条件处理
+│   │   │   │   │   │   │   ├── date_from: date(i.inbound_date) >= ?
+│   │   │   │   │   │   │   ├── date_to: date(i.inbound_date) <= ?
+│   │   │   │   │   │   │   ├── part_name: (p.name LIKE ? OR p.part_no LIKE ?)
+│   │   │   │   │   │   │   └── supplier: i.supplier LIKE ?
+│   │   │   │   │   │   └── where_clause组合
+│   │   │   │   │   ├── 总数查询
+│   │   │   │   │   │   ├── SELECT COUNT(*) as count FROM inbound_records i JOIN spare_parts p ON i.part_id = p.id WHERE where_clause
+│   │   │   │   │   │   └── 获取count值
+│   │   │   │   │   ├── 分页计算 (calculate_pagination)
+│   │   │   │   │   ├── 入库记录数据获取
+│   │   │   │   │   │   ├── 偏移量计算
+│   │   │   │   │   │   ├── SELECT i.*, p.name, p.part_no, p.type FROM inbound_records i JOIN spare_parts p ON i.part_id = p.id WHERE where_clause ORDER BY i.inbound_date DESC LIMIT ? OFFSET ?
+│   │   │   │   │   │   └── 获取所有记录
+│   │   │   │   │   ├── 数据安全转换
+│   │   │   │   │   │   ├── 遍历原始记录
+│   │   │   │   │   │   ├── 字段安全转换
+│   │   │   │   │   │   │   ├── id: safe_int
+│   │   │   │   │   │   │   ├── inbound_date: safe_str
+│   │   │   │   │   │   │   ├── name: safe_str
+│   │   │   │   │   │   │   ├── part_no: safe_str
+│   │   │   │   │   │   │   ├── type: safe_str
+│   │   │   │   │   │   │   ├── quantity: safe_int
+│   │   │   │   │   │   │   ├── operator: safe_str
+│   │   │   │   │   │   │   ├── supplier: safe_str
+│   │   │   │   │   │   │   ├── purpose: safe_str
+│   │   │   │   │   │   │   └── work_center: safe_str
+│   │   │   │   │   │   └── 构建记录字典列表
+│   │   │   │   │   ├── 供应商列表获取
+│   │   │   │   │   │   ├── SELECT DISTINCT supplier FROM inbound_records WHERE supplier IS NOT NULL ORDER BY supplier
+│   │   │   │   │   │   └── 提取供应商字符串列表
+│   │   │   │   │   ├── 日期范围默认值设置
+│   │   │   │   │   │   ├── thirty_days_ago: 当前时间-30天
+│   │   │   │   │   │   ├── today: 当前时间
+│   │   │   │   │   │   └── 为空时使用默认值
+│   │   │   │   │   ├── 渲染inbound_records.html模板
+│   │   │   │   │   │   ├── records参数
+│   │   │   │   │   │   ├── pagination参数
+│   │   │   │   │   │   ├── date_from参数
+│   │   │   │   │   │   ├── date_to参数
+│   │   │   │   │   │   ├── part_name参数
+│   │   │   │   │   │   ├── supplier参数
+│   │   │   │   │   │   └── suppliers参数
+│   │   │   │   │   └── 异常处理机制
+│   │   │   │   ├── @app.route('/sync_records') - 手动同步操作记录到出入库记录
+│   │   │   │   │   ├── 执行同步操作 (sync_all_operations)
+│   │   │   │   │   │   ├── 获取同步结果
+│   │   │   │   │   │   │   ├── outbound_synced
+│   │   │   │   │   │   │   ├── inbound_synced
+│   │   │   │   │   │   │   └── stock_updated
+│   │   │   │   │   ├── 强制重新计算所有库存 (recalculate_all_stock)
+│   │   │   │   │   │   ├── 获取库存更新数量
+│   │   │   │   │   ├── 同步结果判断
+│   │   │   │   │   │   ├── 有同步记录或库存更新: 成功消息
+│   │   │   │   │   │   └── 无同步记录: 信息消息
+│   │   │   │   │   ├── 重定向到operation_records页面
+│   │   │   │   │   └── 异常处理机制
+│   │   │   │   ├── @app.route('/recalculate_stock') - 强制重新计算所有库存
+│   │   │   │   │   ├── 执行库存重算 (recalculate_all_stock)
+│   │   │   │   │   │   ├── 获取重算结果
+│   │   │   │   │   ├── 结果判断
+│   │   │   │   │   │   ├── 成功重算: 成功消息
+│   │   │   │   │   │   └── 重算出错: 错误消息
+│   │   │   │   │   ├── 重定向到operation_records页面
+│   │   │   │   │   └── 异常处理机制
+│   │   │   │   ├── @app.route('/fix_stock_inconsistencies') - 修复库存不一致问题
+│   │   │   │   │   ├── 库存验证执行 (validate_all_stock)
+│   │   │   │   │   │   ├── 获取不一致列表
+│   │   │   │   │   ├── 不一致检查
+│   │   │   │   │   │   ├── 无不一致: 信息消息，直接重定向
+│   │   │   │   │   │   └── 有不一致: 继续修复流程
+│   │   │   │   │   ├── 不一致修复执行 (fix_all_stock_inconsistencies)
+│   │   │   │   │   │   ├── 获取修复数量
+│   │   │   │   │   ├── 修复结果判断
+│   │   │   │   │   │   ├── 成功修复: 成功消息
+│   │   │   │   │   │   └── 无修复: 信息消息
+│   │   │   │   │   ├── 重定向到operation_records页面
+│   │   │   │   │   └── 异常处理机制
+│   │   │   │   ├── @app.route('/validate_stock') - 验证库存准确性
+│   │   │   │   │   ├── 库存验证执行 (validate_all_stock)
+│   │   │   │   │   │   ├── 获取不一致列表
+│   │   │   │   │   ├── 验证结果判断
+│   │   │   │   │   │   ├── 无不一致: 成功消息
+│   │   │   │   │   │   └── 有不一致: 警告消息
+│   │   │   │   │   ├── 不一致信息存入session
+│   │   │   │   │   │   ├── session['stock_inconsistencies'] = inconsistencies
+│   │   │   │   │   ├── 重定向到operation_records页面
+│   │   │   │   │   └── 异常处理机制
+│   │   │   │   ├── @app.route('/stock_inconsistencies_report') - 显示库存不一致报告
+│   │   │   │   │   ├── 从session获取不一致信息
+│   │   │   │   │   │   ├── inconsistencies = session.get('stock_inconsistencies', [])
+│   │   │   │   │   ├── 清除session数据
+│   │   │   │   │   │   ├── session.pop('stock_inconsistencies')
+│   │   │   │   │   ├── 渲染stock_inconsistencies_report.html模板
+│   │   │   │   │   │   └── inconsistencies参数
+│   │   │   │   │   └── 异常处理机制
+│   │   │   │   ├── @app.route('/export_operations') - 导出操作记录
+│   │   │   │   │   ├── 请求参数获取
+│   │   │   │   │   │   ├── operation_type (操作类型筛选)
+│   │   │   │   │   │   ├── date_from (开始日期)
+│   │   │   │   │   │   └── date_to (结束日期)
+│   │   │   │   │   ├── 数据库连接建立
+│   │   │   │   │   ├── 查询条件构建
+│   │   │   │   │   │   ├── where_conditions列表构建
+│   │   │   │   │   │   ├── params参数列表构建
+│   │   │   │   │   │   ├── 各筛选条件处理
+│   │   │   │   │   │   │   ├── operation_type: 精确匹配
+│   │   │   │   │   │   │   ├── date_from: date(operation_date) >= ?
+│   │   │   │   │   │   │   └── date_to: date(operation_date) <= ?
+│   │   │   │   │   │   └── where_clause组合
+│   │   │   │   │   ├── 操作记录数据获取
+│   │   │   │   │   │   ├── SELECT * FROM operation_records WHERE where_clause ORDER BY operation_date DESC
+│   │   │   │   │   │   └── 获取所有记录
+│   │   │   │   │   ├── DataFrame创建
+│   │   │   │   │   │   ├── 遍历操作记录
+│   │   │   │   │   │   ├── 字段映射字典构建
+│   │   │   │   │   │   │   ├── 操作类型 → operation_type
+│   │   │   │   │   │   │   ├── 操作日期 → operation_date
+│   │   │   │   │   │   │   ├── 供应商/接收方 → supplier_recipient
+│   │   │   │   │   │   │   ├── 库位 → location
+│   │   │   │   │   │   │   ├── Part No → part_no
+│   │   │   │   │   │   │   ├── Description → description
+│   │   │   │   │   │   │   ├── Type → part_type
+│   │   │   │   │   │   │   ├── 数量 → quantity
+│   │   │   │   │   │   │   ├── 工作中心 → work_center
+│   │   │   │   │   │   │   └── 创建时间 → created_date
+│   │   │   │   │   │   ├── 安全类型转换应用
+│   │   │   │   │   │   └── pd.DataFrame创建
+│   │   │   │   │   ├── Excel文件生成
+│   │   │   │   │   │   ├── BytesIO内存文件创建
+│   │   │   │   │   │   ├── pd.ExcelWriter创建 (openpyxl引擎)
+│   │   │   │   │   │   ├── DataFrame写入Excel (sheet_name='操作记录')
+│   │   │   │   │   │   ├── 自动调整列宽
+│   │   │   │   │   │   │   ├── 遍历所有列
+│   │   │   │   │   │   │   ├── 计算最大长度 (列名和数据的最大值)
+│   │   │   │   │   │   │   └── 设置列宽 (最小值和最大值限制)
+│   │   │   │   │   │   └── output.seek(0)
+│   │   │   │   │   ├── 文件下载返回
+│   │   │   │   │   │   ├── 文件名生成 (操作记录导出_时间戳.xlsx)
+│   │   │   │   │   │   ├── send_file调用
+│   │   │   │   │   │   │   ├── mimetype: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+│   │   │   │   │   │   │   ├── as_attachment: True
+│   │   │   │   │   │   │   └── download_name: 文件名
+│   │   │   │   │   ├── 重定向到operation_records页面 (异常时)
+│   │   │   │   │   └── 异常处理机制
+│   │   │   │   ├── @app.route('/operation_analytics') - 操作记录分析
+│   │   │   │   │   ├── 数据库连接建立
+│   │   │   │   │   ├── 最近30天日期计算
+│   │   │   │   │   │   ├── thirty_days_ago = 当前时间-30天
+│   │   │   │   │   ├── 按操作类型统计
+│   │   │   │   │   │   ├── SELECT operation_type, COUNT(*) as count, SUM(quantity) as total_quantity FROM operation_records WHERE date(operation_date) >= ? GROUP BY operation_type ORDER BY count DESC
+│   │   │   │   │   │   └── 获取统计结果
+│   │   │   │   │   ├── 按日期统计
+│   │   │   │   │   │   ├── SELECT date(operation_date) as date, COUNT(*) as count FROM operation_records WHERE date(operation_date) >= ? GROUP BY date(operation_date) ORDER BY date DESC LIMIT 30
+│   │   │   │   │   │   └── 获取统计结果
+│   │   │   │   │   ├── 最常操作的备件统计
+│   │   │   │   │   │   ├── SELECT part_no, description, COUNT(*) as operation_count, SUM(CASE WHEN operation_type IN ('Stock in', 'Stock in - disassemble', 'Stock in - return') THEN quantity ELSE -quantity END) as net_quantity FROM operation_records WHERE date(operation_date) >= ? GROUP BY part_no, description ORDER BY operation_count DESC LIMIT 10
+│   │   │   │   │   │   └── 获取统计结果
+│   │   │   │   │   ├── 库位活动统计
+│   │   │   │   │   │   ├── SELECT location, COUNT(*) as operation_count FROM operation_records WHERE date(operation_date) >= ? GROUP BY location ORDER BY operation_count DESC LIMIT 10
+│   │   │   │   │   │   └── 获取统计结果
+│   │   │   │   │   ├── 渲染operation_analytics.html模板
+│   │   │   │   │   │   ├── type_stats参数
+│   │   │   │   │   │   ├── date_stats参数
+│   │   │   │   │   │   ├── top_parts参数
+│   │   │   │   │   │   ├── location_stats参数
+│   │   │   │   │   │   └── thirty_days_ago参数
+│   │   │   │   │   └── 异常处理机制
+│   │   │   │   ├── @app.route('/download_operations_template') - 下载操作记录导入模板
+│   │   │   │   │   ├── 模板DataFrame创建
+│   │   │   │   │   │   ├── 模板数据字典构建
+│   │   │   │   │   │   │   ├── Operation type: ['Stock in', 'Stock out', '']
+│   │   │   │   │   │   │   ├── Date: ['2024-01-01', '2024-01-02', '']
+│   │   │   │   │   │   │   ├── Supplier or Recipients: ['供应商A', '部门B', '']
+│   │   │   │   │   │   │   ├── Location: ['A-01-01', 'B-02-01', '']
+│   │   │   │   │   │   │   ├── Part No: ['PART-001', 'PART-002', '']
+│   │   │   │   │   │   │   ├── Description: ['轴承 6205', '螺丝 M6', '']
+│   │   │   │   │   │   │   ├── Type: ['机械', '电子', '']
+│   │   │   │   │   │   │   ├── Qty: [10, -5, '']
+│   │   │   │   │   │   │   └── Work center: ['生产线A', '维修部', '']
+│   │   │   │   │   │   └── pd.DataFrame创建
+│   │   │   │   │   ├── Excel文件生成
+│   │   │   │   │   │   ├── BytesIO内存文件创建
+│   │   │   │   │   │   ├── pd.ExcelWriter创建 (openpyxl引擎)
+│   │   │   │   │   │   ├── 模板DataFrame写入Excel (sheet_name='操作记录模板')
+│   │   │   │   │   │   ├── 说明工作表创建
+│   │   │   │   │   │   │   ├── 列名: ['列名', '说明', '示例', '备注']
+│   │   │   │   │   │   │   ├── 数据行构建
+│   │   │   │   │   │   │   │   ├── Operation type: ['操作类型 (Stock in/Stock out)', 'Stock in', '必填']
+│   │   │   │   │   │   │   │   ├── Date: ['操作日期', '2024-01-01', '必填，格式: YYYY-MM-DD']
+│   │   │   │   │   │   │   │   ├── Supplier or Recipients: ['供应商或接收方', '供应商A', '可选']
+│   │   │   │   │   │   │   │   ├── Location: ['库位代码', 'A-01-01', '必填']
+│   │   │   │   │   │   │   │   ├── Part No: ['备件编号', 'PART-001', '必填']
+│   │   │   │   │   │   │   │   ├── Description: ['备件描述', '轴承 6205', '必填']
+│   │   │   │   │   │   │   │   ├── Type: ['备件类型', '机械', '可选']
+│   │   │   │   │   │   │   │   ├── Qty: ['数量 (正数入库，负数出库)', '10', '必填，不能为0']
+│   │   │   │   │   │   │   │   └── Work center: ['工作中心', '生产线A', '可选']
+│   │   │   │   │   │   │   ├── pd.DataFrame创建
+│   │   │   │   │   │   │   └── 写入Excel (sheet_name='导入说明')
+│   │   │   │   │   │   └── output.seek(0)
+│   │   │   │   │   ├── 文件下载返回
+│   │   │   │   │   │   ├── 文件名: '操作记录导入模板.xlsx'
+│   │   │   │   │   │   ├── send_file调用
+│   │   │   │   │   │   │   ├── mimetype: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+│   │   │   │   │   │   │   ├── as_attachment: True
+│   │   │   │   │   │   │   └── download_name: 文件名
+│   │   │   │   │   ├── 重定向到import_operations页面 (异常时)
+│   │   │   │   │   └── 异常处理机制
+│   │   │   │   ├── @app.route('/api/update_stock', methods=['POST']) - API: 更新备件库存
+│   │   │   │   │   ├── JSON数据获取
+│   │   │   │   │   │   ├── request.get_json()
+│   │   │   │   │   │   ├── part_id (备件ID)
+│   │   │   │   │   │   ├── quantity (数量)
+│   │   │   │   │   │   └── operation_type (操作类型: 'in' or 'out')
+│   │   │   │   │   ├── 参数验证
+│   │   │   │   │   │   ├── 必要参数检查
+│   │   │   │   │   │   └── 缺失参数错误返回
+│   │   │   │   │   ├── 数据库连接建立
+│   │   │   │   │   ├── 备件存在性检查
+│   │   │   │   │   │   ├── SELECT current_stock FROM spare_parts WHERE id = ?
+│   │   │   │   │   │   ├── 备件不存在错误返回
+│   │   │   │   │   │   └── 获取当前库存
+│   │   │   │   │   ├── 库存计算
+│   │   │   │   │   │   ├── operation_type == 'in': new_stock = current_stock + quantity
+│   │   │   │   │   │   ├── operation_type == 'out': 库存不足检查，new_stock = current_stock - quantity
+│   │   │   │   │   │   └── 无效操作类型错误返回
+│   │   │   │   │   ├── 库存更新执行
+│   │   │   │   │   │   ├── UPDATE spare_parts SET current_stock = ?, updated_date = CURRENT_TIMESTAMP WHERE id = ?
+│   │   │   │   │   ├── 操作记录创建
+│   │   │   │   │   │   ├── operation_type == 'in': 插入inbound_records
+│   │   │   │   │   │   ├── operation_type == 'out': 插入outbound_records
+│   │   │   │   │   │   ├── operator: '系统API'
+│   │   │   │   │   │   └── purpose: 'API入库'/'API出库'
+│   │   │   │   │   ├── 数据库提交
+│   │   │   │   │   ├── JSON成功返回
+│   │   │   │   │   │   ├── success: True
+│   │   │   │   │   │   ├── message: 库存更新成功信息
+│   │   │   │   │   │   └── new_stock: 新库存值
+│   │   │   │   │   └── 异常处理机制
+│   │   │   │   ├── @app.route('/api/operation_stats') - API: 获取操作统计
+│   │   │   │   │   ├── 数据库连接建立
+│   │   │   │   │   ├── 最近7天日期计算
+│   │   │   │   │   │   ├── seven_days_ago = 当前时间-7天
+│   │   │   │   │   ├── 按日期统计操作数量
+│   │   │   │   │   │   ├── SELECT date(operation_date) as date, COUNT(*) as count, SUM(CASE WHEN operation_type IN ('Stock in', 'Stock in - disassemble', 'Stock in - return') THEN quantity ELSE 0 END) as inbound_qty, SUM(CASE WHEN operation_type = 'Stock out' THEN ABS(quantity) ELSE 0 END) as outbound_qty FROM operation_records WHERE date(operation_date) >= ? GROUP BY date(operation_date) ORDER BY date DESC
+│   │   │   │   │   │   └── 获取统计结果
+│   │   │   │   │   ├── 操作类型分布统计
+│   │   │   │   │   │   ├── SELECT operation_type, COUNT(*) as count FROM operation_records WHERE date(operation_date) >= ? GROUP BY operation_type ORDER BY count DESC
+│   │   │   │   │   │   └── 获取统计结果
+│   │   │   │   │   ├── 统计数据构建
+│   │   │   │   │   │   ├── daily_stats列表构建
+│   │   │   │   │   │   │   ├── date: safe_str
+│   │   │   │   │   │   │   ├── count: safe_int
+│   │   │   │   │   │   │   ├── inbound_qty: safe_int
+│   │   │   │   │   │   │   └── outbound_qty: safe_int
+│   │   │   │   │   │   ├── type_distribution列表构建
+│   │   │   │   │   │   │   ├── operation_type: safe_str
+│   │   │   │   │   │   │   └── count: safe_int
+│   │   │   │   │   │   └── stats字典构建
+│   │   │   │   │   ├── JSON成功返回
+│   │   │   │   │   │   ├── success: True
+│   │   │   │   │   │   └── data: stats
+│   │   │   │   │   └── 异常处理机制
+│   │   │   │   ├── @app.route('/clean_orphan_operations') - 清理孤立的操作记录
+│   │   │   │   │   ├── 数据库连接建立
+│   │   │   │   │   ├── 孤立操作记录查找
+│   │   │   │   │   │   ├── SELECT o.id, o.part_no, o.description FROM operation_records o LEFT JOIN spare_parts p ON o.part_no = p.part_no AND o.description = p.name WHERE p.id IS NULL
+│   │   │   │   │   │   └── 获取所有孤立记录
+│   │   │   │   │   ├── 孤立记录数量统计
+│   │   │   │   │   ├── 孤立记录删除
+│   │   │   │   │   │   ├── 数量>0: 执行DELETE操作
+│   │   │   │   │   │   ├── DELETE FROM operation_records WHERE id IN (子查询)
+│   │   │   │   │   │   └── 数据库提交
+│   │   │   │   │   ├── 结果消息反馈
+│   │   │   │   │   │   ├── 有孤立记录: 成功清理消息
+│   │   │   │   │   │   └── 无孤立记录: 信息消息
+│   │   │   │   │   ├── 重定向到operation_records页面
+│   │   │   │   │   └── 异常处理机制
+│   │   │   │   ├── @app.route('/import_operations', methods=['GET', 'POST']) - 导入操作记录
+│   │   │   │   │   ├── POST请求处理
+│   │   │   │   │   │   ├── 文件上传检查
+│   │   │   │   │   │   │   ├── 'file' not in request.files: 错误消息
+│   │   │   │   │   │   │   ├── file.filename == '': 错误消息
+│   │   │   │   │   │   │   └── 重定向到当前URL
+│   │   │   │   │   │   ├── 文件格式验证 (validate_excel_file)
+│   │   │   │   │   │   │   ├── 无效格式: 错误消息
+│   │   │   │   │   │   │   └── 重定向到当前URL
+│   │   │   │   │   │   ├── 导入开始时间记录
+│   │   │   │   │   │   ├── Excel文件读取
+│   │   │   │   │   │   │   ├── pd.read_excel(file)
+│   │   │   │   │   │   │   ├── 文件形状日志记录
+│   │   │   │   │   │   │   └── 读取异常处理
+│   │   │   │   │   │   ├── 操作记录导入处理 (process_operations_import)
+│   │   │   │   │   │   │   ├── 传入DataFrame
+│   │   │   │   │   │   │   └── 获取处理结果
+│   │   │   │   │   │   ├── 导入结束时间记录
+│   │   │   │   │   │   ├── 导入耗时计算
+│   │   │   │   │   │   ├── 强制重新计算所有库存 (recalculate_all_stock)
+│   │   │   │   │   │   ├── 导入结果处理
+│   │   │   │   │   │   │   ├── 成功导入: 成功消息，清除session错误信息
+│   │   │   │   │   │   │   └── 导入失败: 警告/错误消息，存储错误信息到session
+│   │   │   │   │   │   ├── session数据存储
+│   │   │   │   │   │   │   ├── import_errors
+│   │   │   │   │   │   │   ├── error_count
+│   │   │   │   │   │   │   ├── imported_count
+│   │   │   │   │   │   │   ├── total_rows
+│   │   │   │   │   │   │   ├── skipped_count
+│   │   │   │   │   │   │   └── import_summary
+│   │   │   │   │   │   ├── 重定向到import_operations页面
+│   │   │   │   │   │   └── 异常处理机制
+│   │   │   │   │   ├── GET请求处理
+│   │   │   │   │   │   ├── 从session获取导入结果数据
+│   │   │   │   │   │   │   ├── import_errors
+│   │   │   │   │   │   │   ├── error_count
+│   │   │   │   │   │   │   ├── imported_count
+│   │   │   │   │   │   │   ├── total_rows
+│   │   │   │   │   │   │   ├── skipped_count
+│   │   │   │   │   │   │   └── import_summary
+│   │   │   │   │   │   ├── 清除session中的导入数据
+│   │   │   │   │   │   │   ├── 遍历session_keys列表
+│   │   │   │   │   │   │   └── session.pop(key)
+│   │   │   │   │   │   ├── 渲染import_operations.html模板
+│   │   │   │   │   │   │   ├── import_errors参数
+│   │   │   │   │   │   │   ├── error_count参数
+│   │   │   │   │   │   │   ├── imported_count参数
+│   │   │   │   │   │   │   ├── total_rows参数
+│   │   │   │   │   │   │   ├── skipped_count参数
+│   │   │   │   │   │   │   └── import_summary参数
+│   │   │   │   │   │   └── 异常处理机制
+│   │   │   │   │   └── 异常处理机制
+│   │   │   │   ├── process_operations_import(df) - 处理操作记录导入 (辅助函数)
+│   │   │   │   │   ├── 变量初始化
+│   │   │   │   │   │   ├── imported_count = 0
+│   │   │   │   │   │   ├── error_count = 0
+│   │   │   │   │   │   ├── skipped_count = 0
+│   │   │   │   │   │   └── errors = []
+│   │   │   │   │   ├── 总行数记录
+│   │   │   │   │   │   ├── total_rows = len(df)
+│   │   │   │   │   ├── 数据库连接建立
+│   │   │   │   │   ├── DataFrame行遍历处理
+│   │   │   │   │   │   ├── 行号计算 (row_number = index + 2)
+│   │   │   │   │   │   ├── 单行数据处理try块
+│   │   │   │   │   │   │   ├── 字段数据获取与安全转换
+│   │   │   │   │   │   │   │   ├── operation_type: safe_str, strip
+│   │   │   │   │   │   │   │   ├── operation_date: safe_str
+│   │   │   │   │   │   │   │   ├── supplier_recipient: safe_str
+│   │   │   │   │   │   │   │   ├── location: safe_str, strip, upper
+│   │   │   │   │   │   │   │   ├── part_no: safe_str, strip
+│   │   │   │   │   │   │   │   ├── description: safe_str, strip
+│   │   │   │   │   │   │   │   ├── part_type: safe_str
+│   │   │   │   │   │   │   │   ├── quantity: safe_int
+│   │   │   │   │   │   │   │   └── work_center: safe_str
+│   │   │   │   │   │   │   ├── 必要字段验证
+│   │   │   │   │   │   │   │   ├── operation_type, operation_date, part_no, description非空检查
+│   │   │   │   │   │   │   │   ├── quantity != 0检查
+│   │   │   │   │   │   │   │   ├── 验证失败: skipped_count增加，错误记录，continue
+│   │   │   │   │   │   │   ├── 操作类型验证
+│   │   │   │   │   │   │   │   ├── 有效操作类型列表: ['Stock in', 'Stock out', 'Stock in - disassemble', 'Stock in - return']
+│   │   │   │   │   │   │   │   ├── 无效类型: 错误记录，自动修正为 'Stock in' 或 'Stock out'
+│   │   │   │   │   │   │   ├── 日期格式验证
+│   │   │   │   │   │   │   │   ├── datetime.strptime(operation_date, '%Y-%m-%d')
+│   │   │   │   │   │   │   │   ├── 格式错误: 错误记录，使用当前日期作为默认值
+│   │   │   │   │   │   │   ├── 备件存在性检查
+│   │   │   │   │   │   │   │   ├── SELECT id FROM spare_parts WHERE part_no = ? AND name = ?
+│   │   │   │   │   │   │   │   ├── 不存在: 创建新备件
+│   │   │   │   │   │   │   │   │   ├── INSERT INTO spare_parts (part_no, name, type, current_stock, min_stock, max_stock, key_part, lt_weeks, unit_price, unit, location, supplier, description)
+│   │   │   │   │   │   │   │   │   ├── 初始库存为0
+│   │   │   │   │   │   │   │   │   ├── 默认值设置
+│   │   │   │   │   │   │   │   │   └── 供应商设置 (入库操作使用supplier_recipient)
+│   │   │   │   │   │   │   ├── 操作记录插入
+│   │   │   │   │   │   │   │   ├── INSERT INTO operation_records (operation_type, operation_date, supplier_recipient, location, part_no, description, part_type, quantity, work_center)
+│   │   │   │   │   │   │   │   └── imported_count增加
+│   │   │   │   │   │   │   ├── 成功导入日志记录
+│   │   │   │   │   │   │   └── 单行异常处理
+│   │   │   │   │   │   │       ├── 错误消息记录
+│   │   │   │   │   │   │       ├── 错误详情日志
+│   │   │   │   │   │   │       ├── 错误信息添加到errors列表
+│   │   │   │   │   │   │       └── error_count增加
+│   │   │   │   │   │   ├── 数据库提交
+│   │   │   │   │   │   ├── 详细报告生成 (generate_import_report)
+│   │   │   │   │   │   ├── 成功返回结果
+│   │   │   │   │   │   │   ├── success: True
+│   │   │   │   │   │   │   ├── message: 报告
+│   │   │   │   │   │   │   ├── total_rows
+│   │   │   │   │   │   │   ├── imported_count
+│   │   │   │   │   │   │   ├── error_count
+│   │   │   │   │   │   │   ├── skipped_count
+│   │   │   │   │   │   │   └── errors
+│   │   │   │   │   │   └── 系统异常处理
+│   │   │   │   │   └── 异常处理机制
+│   │   │   │   └── generate_import_report(total_rows, imported_count, error_count, skipped_count, errors) - 生成详细的导入报告 (辅助函数)
+│   │   │   │       ├── 报告部分列表初始化
+│   │   │   │       ├── 报告摘要构建
+│   │   │   │       │   ├── 总行数
+│   │   │   │       │   ├── 成功导入数量 (如果有)
+│   │   │   │       │   ├── 错误数量 (如果有)
+│   │   │   │       │   └── 跳过行数 (如果有)
+│   │   │   │       ├── 错误分类统计
+│   │   │   │       │   ├── 遍历errors列表
+│   │   │   │       │   ├── 按severity分类计数
+│   │   │   │       │   ├── 错误分类报告构建
+│   │   │   │       │   │   ├── 警告: ⚠️
+│   │   │   │       │   │   └── 错误: ❌
+│   │   │   │       │   └── 分类统计添加到报告
+│   │   │   │       └── 报告字符串组合返回
+│   │   │   └── 错误处理与日志记录机制
+│   │   ├── 📄 import_export_routes.py - 数据交换
+│   │   ├── 📄 settings_routes.py - 系统设置
+│   │   │   ├── setup_settings_routes(app) - 设置系统设置路由
+│   │   │   │   ├── @app.route('/system_settings') - 系统设置页面
+│   │   │   │   │   ├── 邮件设置获取 (system_settings.get_mail_config)
+│   │   │   │   │   ├── 库存设置获取 (system_settings.get_inventory_settings)
+│   │   │   │   │   ├── 定时任务设置获取 (system_settings.get_schedule_settings)
+│   │   │   │   │   ├── 系统基本信息获取 (get_all_system_settings('system'))
+│   │   │   │   │   ├── 安全设置获取 (get_all_system_settings('security'))
+│   │   │   │   │   └── 渲染system_settings.html模板
+│   │   │   │   ├── @app.route('/update_email_settings', methods=['POST']) - 更新邮件设置
+│   │   │   │   │   ├── 表单数据获取与清理
+│   │   │   │   │   ├── 邮件配置字典构建
+│   │   │   │   │   │   ├── 邮件服务器配置 (mail_server, mail_port)
+│   │   │   │   │   │   ├── 加密配置 (mail_use_tls, mail_use_ssl)
+│   │   │   │   │   │   ├── 认证信息 (mail_username, mail_password)
+│   │   │   │   │   │   ├── 发件人配置 (mail_default_sender)
+│   │   │   │   │   │   ├── 接收人列表 (low_stock_alert_recipients)
+│   │   │   │   │   │   └── 报警开关 (enable_email_alerts)
+│   │   │   │   │   ├── 邮件配置更新 (system_settings.update_mail_config)
+│   │   │   │   │   └── 操作结果反馈与重定向
+│   │   │   │   ├── @app.route('/update_inventory_settings', methods=['POST']) - 更新库存设置
+│   │   │   │   │   ├── 低库存阈值获取
+│   │   │   │   │   ├── 系统设置更新 (set_system_setting)
+│   │   │   │   │   └── 操作结果反馈与重定向
+│   │   │   │   ├── @app.route('/update_schedule_settings', methods=['POST']) - 更新定时任务设置
+│   │   │   │   │   ├── 定时任务配置字典构建
+│   │   │   │   │   │   ├── 低库存报警启用状态 (low_stock_alert_enabled)
+│   │   │   │   │   │   ├── 低库存报警调度时间 (low_stock_alert_schedule)
+│   │   │   │   │   │   ├── 自动备份启用状态 (auto_backup_enabled)
+│   │   │   │   │   │   └── 自动备份调度时间 (auto_backup_schedule)
+│   │   │   │   │   ├── 批量更新系统设置 (set_system_setting)
+│   │   │   │   │   ├── 更新结果统计
+│   │   │   │   │   └── 操作结果反馈与重定向
+│   │   │   │   ├── @app.route('/api/system_settings') - API: 获取系统设置
+│   │   │   │   │   ├── 分类设置数据获取
+│   │   │   │   │   │   ├── 邮件设置
+│   │   │   │   │   │   ├── 库存设置
+│   │   │   │   │   │   ├── 定时任务设置
+│   │   │   │   │   │   ├── 系统信息
+│   │   │   │   │   │   └── 安全设置
+│   │   │   │   │   └── JSON格式返回
+│   │   │   │   └── @app.route('/test_email_connection') - 测试邮件连接
+│   │   │   │       ├── 邮件发送器导入 (email_sender)
+│   │   │   │       ├── 连接测试执行 (email_sender.test_connection)
+│   │   │   │       ├── 测试结果处理
+│   │   │   │       └── 重定向到系统设置页面
+│   │   │   └── 错误处理与日志记录机制
+│   ├── 📁 utils/ (工具服务层)
+│   │   ├── 📄 __init__.py - 工具包初始化文件
+│   │   ├── 📄 email_sender.py - 邮件服务
+│   │   │   ├── 日志记录器配置 (logger = logging.getLogger(__name__))
+│   │   │   ├── EmailSender类 (邮件发送器)
+│   │   │   │   ├── __init__() - 构造函数
+│   │   │   │   │   ├── app属性初始化
+│   │   │   │   │   └── config属性初始化
+│   │   │   │   ├── init_app() - 应用初始化方法
+│   │   │   │   │   ├── 应用实例绑定
+│   │   │   │   │   ├── 配置信息加载
+│   │   │   │   │   ├── 初始化日志记录
+│   │   │   │   │   └── _debug_config() - 配置调试输出
+│   │   │   │   ├── _debug_config() - 配置调试方法
+│   │   │   │   │   ├── 邮件配置项遍历
+│   │   │   │   │   │   ├── MAIL_SERVER配置
+│   │   │   │   │   │   ├── MAIL_PORT配置
+│   │   │   │   │   │   ├── MAIL_USERNAME配置
+│   │   │   │   │   │   ├── MAIL_PASSWORD配置 (安全掩码)
+│   │   │   │   │   │   ├── MAIL_USE_TLS配置
+│   │   │   │   │   │   └── MAIL_USE_SSL配置
+│   │   │   │   │   └── 接收人配置检查 (LOW_STOCK_ALERT_RECIPIENTS)
+│   │   │   │   ├── send_low_stock_alert() - 低库存报警邮件发送
+│   │   │   │   │   ├── 配置验证检查
+│   │   │   │   │   ├── 接收人列表获取
+│   │   │   │   │   ├── 低库存数据验证
+│   │   │   │   │   ├── 邮件配置完整性检查
+│   │   │   │   │   ├── 邮件主题构建
+│   │   │   │   │   ├── HTML邮件内容构建
+│   │   │   │   │   └── 邮件发送执行
+│   │   │   │   ├── _check_mail_config() - 邮件配置完整性检查
+│   │   │   │   │   ├── 必需配置项验证
+│   │   │   │   │   │   ├── MAIL_SERVER检查
+│   │   │   │   │   │   ├── MAIL_USERNAME检查
+│   │   │   │   │   │   └── MAIL_PASSWORD检查
+│   │   │   │   │   └── 接收人配置验证 (LOW_STOCK_ALERT_RECIPIENTS)
+│   │   │   │   ├── _build_low_stock_email_content() - 低库存邮件内容构建
+│   │   │   │   │   ├── 库存统计信息计算
+│   │   │   │   │   │   ├── 总低库存数量统计
+│   │   │   │   │   │   ├── 缺货备件计数
+│   │   │   │   │   │   └── 关键备件低库存计数
+│   │   │   │   │   ├── 当前时间获取
+│   │   │   │   │   ├── HTML邮件模板生成
+│   │   │   │   │   │   ├── CSS样式定义
+│   │   │   │   │   │   │   ├── 头部样式 (红色警示)
+│   │   │   │   │   │   │   ├── 摘要样式 (灰色背景)
+│   │   │   │   │   │   │   ├── 表格样式 (边框和填充)
+│   │   │   │   │   │   │   ├── 缺货行样式 (红色背景)
+│   │   │   │   │   │   │   ├── 关键备件样式 (黄色背景)
+│   │   │   │   │   │   │   └── 建议操作样式 (蓝色背景)
+│   │   │   │   │   │   ├── 库存概况表格
+│   │   │   │   │   │   ├── 低库存详情表格
+│   │   │   │   │   │   │   ├── 表头定义
+│   │   │   │   │   │   │   │   ├── 备件编号列
+│   │   │   │   │   │   │   │   ├── 备件名称列
+│   │   │   │   │   │   │   │   ├── 类型列
+│   │   │   │   │   │   │   │   ├── 当前库存列
+│   │   │   │   │   │   │   │   ├── 最低库存列
+│   │   │   │   │   │   │   │   ├── 库位列
+│   │   │   │   │   │   │   │   ├── 关键备件列
+│   │   │   │   │   │   │   │   └── 状态列
+│   │   │   │   │   │   │   └── 数据行生成
+│   │   │   │   │   │   │       ├── 状态分类逻辑
+│   │   │   │   │   │   │       │   ├── 缺货状态判断
+│   │   │   │   │   │   │       │   ├── 关键备件状态判断
+│   │   │   │   │   │   │       │   └── 普通低库存状态
+│   │   │   │   │   │   │       ├── 行样式应用
+│   │   │   │   │   │   │       └── 状态文本生成
+│   │   │   │   │   │   ├── 建议操作部分
+│   │   │   │   │   │   └── 页脚信息
+│   │   │   │   │   └── 完整HTML文档组装
+│   │   │   │   ├── _send_email() - 核心邮件发送方法
+│   │   │   │   │   ├── MIME邮件对象创建
+│   │   │   │   │   │   ├── MIMEMultipart容器创建 (HTML邮件)
+│   │   │   │   │   │   ├── MIMEText内容附加
+│   │   │   │   │   │   └── UTF-8编码设置
+│   │   │   │   │   ├── 邮件头信息设置
+│   │   │   │   │   │   ├── From字段编码处理 (formataddr + Header)
+│   │   │   │   │   │   ├── To字段收件人列表
+│   │   │   │   │   │   └── Subject字段UTF-8编码
+│   │   │   │   │   ├── SMTP服务器连接
+│   │   │   │   │   │   ├── SMTP_SSL连接 (SSL加密)
+│   │   │   │   │   │   ├── SMTP普通连接
+│   │   │   │   │   │   ├── 超时设置 (30秒)
+│   │   │   │   │   │   └── TLS加密启用 (STARTTLS)
+│   │   │   │   │   ├── 服务器登录认证
+│   │   │   │   │   │   ├── 用户名密码验证
+│   │   │   │   │   │   └── 登录成功日志
+│   │   │   │   │   ├── 邮件消息发送
+│   │   │   │   │   ├── 连接安全关闭
+│   │   │   │   │   └── 异常处理机制
+│   │   │   │   │       ├── SMTPException捕获
+│   │   │   │   │       ├── 通用异常捕获
+│   │   │   │   │       └── 连接安全清理
+│   │   │   │   ├── test_connection() - 邮件连接测试
+│   │   │   │   │   ├── 配置初始化检查
+│   │   │   │   │   ├── 配置完整性验证
+│   │   │   │   │   ├── SMTP服务器连接测试
+│   │   │   │   │   ├── TLS加密测试
+│   │   │   │   │   ├── 登录认证测试
+│   │   │   │   │   └── 测试结果返回
+│   │   │   │   ├── _get_mail_config() - 数据库邮件配置获取
+│   │   │   │   │   ├── SystemSettings模型导入
+│   │   │   │   │   ├── 邮件服务器配置获取
+│   │   │   │   │   ├── 端口配置获取
+│   │   │   │   │   ├── 加密配置获取 (TLS/SSL)
+│   │   │   │   │   ├── 认证信息获取
+│   │   │   │   │   ├── 发件人配置获取
+│   │   │   │   │   └── 接收人列表解析 (逗号分隔)
+│   │   │   │   └── 全局实例创建 (email_sender = EmailSender())
+│   │   ├── 📄 helpers.py - 辅助工具函数库
+│   │   │   ├── 安全类型转换函数
+│   │   │   │   ├── safe_int() - 安全转换为整数
+│   │   │   │   │   ├── None值处理
+│   │   │   │   │   ├── 字符串清理 (去空格、去逗号)
+│   │   │   │   │   ├── 浮点数兼容处理
+│   │   │   │   │   └── 异常捕获与默认值返回
+│   │   │   │   ├── safe_float() - 安全转换为浮点数
+│   │   │   │   │   ├── None值处理
+│   │   │   │   │   ├── 字符串清理 (去空格、去逗号)
+│   │   │   │   │   └── 异常捕获与默认值返回
+│   │   │   │   ├── safe_str() - 安全转换为字符串
+│   │   │   │   │   ├── datetime对象特殊处理
+│   │   │   │   │   ├── 字符串清理 (去空格)
+│   │   │   │   │   └── 异常捕获与默认值返回
+│   │   │   │   ├── safe_bool() - 安全转换为布尔值
+│   │   │   │   │   ├── 布尔类型直接返回
+│   │   │   │   │   ├── 数字类型转换
+│   │   │   │   │   ├── 字符串类型多语言支持
+│   │   │   │   │   │   ├── 真值识别 (true, yes, 1, 是, ok, on)
+│   │   │   │   │   │   └── 假值识别 (false, no, 0, 否, off)
+│   │   │   │   │   └── 默认值支持
+│   │   │   │   └── safe_datetime() - 安全转换为datetime对象
+│   │   │   │       ├── datetime对象直接返回
+│   │   │   │       ├── pandas Timestamp兼容处理
+│   │   │   │       ├── 多格式字符串解析
+│   │   │   │       │   ├── 标准格式 (%Y-%m-%d %H:%M:%S)
+│   │   │   │       │   ├── 日期格式 (%Y-%m-%d)
+│   │   │   │       │   ├── 斜杠格式 (%Y/%m/%d)
+│   │   │   │       │   ├── 欧洲格式 (%d/%m/%Y)
+│   │   │   │       │   ├── 紧凑格式 (%Y%m%d%H%M%S)
+│   │   │   │       │   └── 纯日期格式 (%Y%m%d)
+│   │   │   │       └── 解析失败默认值返回
+│   │   │   ├── 业务逻辑计算函数
+│   │   │   │   ├── calculate_location_status() - 计算库位状态
+│   │   │   │   │   ├── 空闲状态判断 (part_count == 0)
+│   │   │   │   │   ├── 低库存状态判断 (has_low_stock == True)
+│   │   │   │   │   └── 使用中状态 (其他情况)
+│   │   │   │   ├── calculate_stock_status() - 计算库存状态
+│   │   │   │   │   ├── 缺货状态判断 (current_stock == 0)
+│   │   │   │   │   ├── 低库存状态判断 (current_stock <= min_stock)
+│   │   │   │   │   └── 正常状态 (其他情况)
+│   │   │   │   ├── calculate_age() - 计算年龄
+│   │   │   │   │   ├── 生日日期验证
+│   │   │   │   │   ├── 年份差值计算
+│   │   │   │   │   └── 生日是否已过调整
+│   │   │   │   ├── calculate_percentage() - 计算百分比
+│   │   │   │   │   ├── 零值保护
+│   │   │   │   │   ├── 百分比计算
+│   │   │   │   │   └── 小数位数控制
+│   │   │   │   └── parse_operation_type() - 解析操作类型
+│   │   │   │       ├── 入库类型识别 (stock in相关)
+│   │   │   │       ├── 出库类型识别 (stock out)
+│   │   │   │       └── 未知类型处理
+│   │   │   ├── 数据验证函数
+│   │   │   │   ├── validate_email() - 验证邮箱格式
+│   │   │   │   │   └── 正则表达式验证
+│   │   │   │   ├── validate_phone() - 验证手机号格式
+│   │   │   │   │   └── 中国手机号正则验证
+│   │   │   │   ├── validate_excel_file() - 验证Excel文件
+│   │   │   │   │   └── 文件扩展名检查 (xlsx, xls)
+│   │   │   │   ├── validate_part_data() - 验证备件数据
+│   │   │   │   │   ├── 名称非空验证
+│   │   │   │   │   ├── 库存非负验证
+│   │   │   │   │   ├── 最低库存非负验证
+│   │   │   │   │   └── 单价非负验证
+│   │   │   │   ├── validate_location_code() - 验证库位代码格式
+│   │   │   │   │   └── 字母数字横线下划线验证
+│   │   │   │   ├── validate_password_strength() - 验证密码强度
+│   │   │   │   │   ├── 长度验证 (至少8位)
+│   │   │   │   │   ├── 数字包含验证
+│   │   │   │   │   ├── 字母包含验证
+│   │   │   │   │   └── 详细错误信息返回
+│   │   │   │   ├── validate_date_range() - 验证日期范围
+│   │   │   │   │   ├── 日期格式验证
+│   │   │   │   │   ├── 开始结束时间逻辑验证
+│   │   │   │   │   └── 详细错误信息返回
+│   │   │   │   ├── validate_chinese_text() - 验证中文字符
+│   │   │   │   │   └── 中文字符Unicode范围检查
+│   │   │   │   ├── validate_id_card() - 验证身份证号格式
+│   │   │   │   │   └── 身份证号正则验证
+│   │   │   │   └── is_valid_url() - 验证URL格式
+│   │   │   │       └── URL正则验证
+│   │   │   ├── 数据格式化函数
+│   │   │   │   ├── format_file_size() - 格式化文件大小
+│   │   │   │   │   ├── 字节单位转换 (B, KB, MB, GB)
+│   │   │   │   │   └── 智能单位选择
+│   │   │   │   ├── format_datetime() - 格式化日期时间
+│   │   │   │   │   ├── 字符串到datetime转换
+│   │   │   │   │   └── 自定义格式输出
+│   │   │   │   ├── format_currency() - 格式化货币金额
+│   │   │   │   │   ├── 千位分隔符
+│   │   │   │   │   ├── 小数位控制
+│   │   │   │   │   └── 货币符号支持
+│   │   │   │   ├── format_duration() - 格式化时间间隔
+│   │   │   │   │   ├── 秒数转换 (秒, 分钟, 小时, 天)
+│   │   │   │   │   └── 智能单位选择
+│   │   │   │   └── truncate_text() - 截断文本
+│   │   │   │       ├── 长度控制
+│   │   │   │       ├── 后缀添加
+│   │   │   │       └── 原始文本保护
+│   │   │   ├── 数据处理函数
+│   │   │   │   ├── generate_batch_number() - 生成批次号
+│   │   │   │   │   └── 时间戳+前缀格式
+│   │   │   │   ├── sanitize_filename() - 清理文件名
+│   │   │   │   │   └── 非法字符移除
+│   │   │   │   ├── paginate_query() - 分页查询
+│   │   │   │   │   ├── 页码验证
+│   │   │   │   │   ├── 偏移量计算
+│   │   │   │   │   └── SQL LIMIT/OFFSET应用
+│   │   │   │   ├── calculate_pagination() - 计算分页信息
+│   │   │   │   │   ├── 总页数计算
+│   │   │   │   │   ├── 当前页调整
+│   │   │   │   │   ├── 前后页判断
+│   │   │   │   │   └── 完整分页信息返回
+│   │   │   │   ├── parse_quantity() - 解析数量
+│   │   │   │   │   ├── 正负数符号处理
+│   │   │   │   │   └── 绝对值转换
+│   │   │   │   ├── generate_random_string() - 生成随机字符串
+│   │   │   │   │   └── 字母数字组合
+│   │   │   │   ├── convert_to_list() - 将字符串转换为列表
+│   │   │   │   │   ├── 分隔符支持
+│   │   │   │   │   └── 空值过滤
+│   │   │   │   ├── remove_duplicates() - 移除列表中的重复项
+│   │   │   │   │   └── 顺序保持
+│   │   │   │   ├── get_file_extension() - 获取文件扩展名
+│   │   │   │   ├── extract_numbers() - 从文本中提取所有数字
+│   │   │   │   ├── normalize_text() - 标准化文本
+│   │   │   │   │   ├── 多余空格移除
+│   │   │   │   │   └── 换行符统一
+│   │   │   │   ├── mask_sensitive_data() - 掩码敏感数据
+│   │   │   │   │   └── 部分字符显示
+│   │   │   │   ├── camel_to_snake() - 驼峰命名转蛇形命名
+│   │   │   │   ├── snake_to_camel() - 蛇形命名转驼峰命名
+│   │   │   │   └── get_current_timestamp() - 获取当前时间戳
+│   │   │   ├── 安全数据访问函数
+│   │   │   │   ├── safe_dict_get() - 安全获取字典值
+│   │   │   │   ├── safe_list_get() - 安全获取列表元素
+│   │   │   │   ├── deep_get() - 深度获取嵌套字典的值
+│   │   │   │   └── is_empty() - 检查值是否为空
+│   │   │   │       ├── None值检查
+│   │   │   │       ├── 空字符串检查
+│   │   │   │       ├── 空集合检查
+│   │   │   │       └── 空字典检查
+│   │   │   ├── 数学计算函数
+│   │   │   │   ├── is_numeric() - 检查值是否为数字
+│   │   │   │   └── safe_round() - 安全四舍五入
+│   │   │   └── 模板过滤器注册函数
+│   │   │       └── register_template_filters() - 注册模板过滤器
+│   │   │           ├── format_datetime_filter - 日期时间格式化过滤器
+│   │   │           ├── format_currency_filter - 货币格式化过滤器
+│   │   │           ├── format_file_size_filter - 文件大小格式化过滤器
+│   │   │           ├── truncate_text_filter - 文本截断过滤器
+│   │   │           ├── calculate_stock_status_filter - 库存状态计算过滤器
+│   │   │           ├── calculate_percentage_filter - 百分比计算过滤器
+│   │   │           ├── mask_sensitive_data_filter - 敏感数据掩码过滤器
+│   │   │           ├── format_duration_filter - 时间间隔格式化过滤器
+│   │   │           ├── safe_int_filter - 安全整数转换过滤器
+│   │   │           ├── safe_float_filter - 安全浮点数转换过滤器
+│   │   │           ├── safe_str_filter - 安全字符串转换过滤器
+│   │   │           └── safe_bool_filter - 安全布尔值转换过滤器
+│   │   ├── 📄 scheduler.py - 定时任务调度器
+│   │   │   ├── APScheduler可用性检查
+│   │   │   │   ├── 尝试导入APScheduler
+│   │   │   │   ├── 导入失败虚拟类创建
+│   │   │   │   └── 可用性状态标记
+│   │   │   ├── TaskScheduler类 (定时任务调度器)
+│   │   │   │   ├── __init__() - 构造函数
+│   │   │   │   │   ├── scheduler实例初始化
+│   │   │   │   │   ├── 运行状态标记
+│   │   │   │   │   └── APScheduler可用性标记
+│   │   │   │   ├── init_scheduler() - 初始化调度器
+│   │   │   │   │   ├── APScheduler可用性检查
+│   │   │   │   │   ├── BackgroundScheduler实例创建
+│   │   │   │   │   ├── 应用实例绑定
+│   │   │   │   │   ├── 低库存报警任务设置
+│   │   │   │   │   ├── 自动备份任务设置
+│   │   │   │   │   ├── 调度器启动
+│   │   │   │   │   └── 运行状态更新
+│   │   │   │   ├── _setup_low_stock_alert_job() - 设置低库存报警任务
+│   │   │   │   │   ├── 低库存报警启用检查
+│   │   │   │   │   ├── 调度时间配置获取
+│   │   │   │   │   ├── 时间解析 (小时、分钟)
+│   │   │   │   │   ├── CronTrigger任务创建
+│   │   │   │   │   └── 任务ID和名称设置
+│   │   │   │   ├── _setup_auto_backup_job() - 设置自动备份任务
+│   │   │   │   │   ├── 自动备份启用检查
+│   │   │   │   │   ├── 调度时间配置获取
+│   │   │   │   │   ├── 时间解析 (小时、分钟)
+│   │   │   │   │   ├── CronTrigger任务创建
+│   │   │   │   │   └── 任务ID和名称设置
+│   │   │   │   ├── _send_low_stock_alert() - 发送低库存报警 (应用上下文)
+│   │   │   │   │   ├── 应用上下文激活
+│   │   │   │   │   ├── 邮件报警启用检查
+│   │   │   │   │   ├── 库存报警服务调用
+│   │   │   │   │   ├── 执行结果处理
+│   │   │   │   │   └── 详细日志记录
+│   │   │   │   ├── _auto_backup_database() - 自动备份数据库
+│   │   │   │   │   ├── 应用上下文激活
+│   │   │   │   │   ├── 备份逻辑执行
+│   │   │   │   │   └── 完成日志记录
+│   │   │   │   ├── update_schedule() - 更新任务调度
+│   │   │   │   │   ├── 现有任务移除
+│   │   │   │   │   ├── 新任务重新设置
+│   │   │   │   │   └── 更新状态日志
+│   │   │   │   ├── stop_scheduler() - 停止调度器
+│   │   │   │   │   ├── 调度器关闭
+│   │   │   │   │   ├── 运行状态更新
+│   │   │   │   │   └── 停止日志记录
+│   │   │   │   ├── get_status() - 获取调度器状态
+│   │   │   │   │   ├── 运行状态返回
+│   │   │   │   │   ├── APScheduler可用性返回
+│   │   │   │   │   ├── 下次低库存报警时间
+│   │   │   │   │   └── 下次自动备份时间
+│   │   │   │   └── _get_next_schedule_time() - 获取下次执行时间
+│   │   │   │       ├── 任务存在性检查
+│   │   │   │       ├── 下次运行时间获取
+│   │   │   │       └── 时间格式化返回
+│   │   │   └── 全局实例创建 (task_scheduler = TaskScheduler())
+│   │   ├── 📄 stock_alert.py - 库存报警服务
+│   │   │   ├── StockAlertService类 (库存报警服务)
+│   │   │   │   ├── __init__() - 构造函数
+│   │   │   │   │   └── email_sender延迟初始化
+│   │   │   │   ├── _get_email_sender() - 延迟获取邮件发送器
+│   │   │   │   │   └── 单例模式邮件发送器获取
+│   │   │   │   ├── check_low_stock_and_alert() - 检查低库存并发送报警邮件
+│   │   │   │   │   ├── 数据库配置获取
+│   │   │   │   │   ├── 邮件报警启用检查
+│   │   │   │   │   ├── 低库存备件获取
+│   │   │   │   │   ├── 邮件发送执行
+│   │   │   │   │   ├── 成功失败处理
+│   │   │   │   │   └── 详细结果返回
+│   │   │   │   ├── get_low_stock_parts() - 获取低库存备件列表
+│   │   │   │   │   ├── 低库存阈值配置获取
+│   │   │   │   │   ├── 数据库查询执行
+│   │   │   │   │   │   ├── 低库存条件 (当前库存 <= 最低库存)
+│   │   │   │   │   │   ├── 阈值条件 (当前库存 <= 低库存阈值)
+│   │   │   │   │   │   └── 排序规则 (缺货优先、关键备件优先)
+│   │   │   │   │   ├── 结果数据转换
+│   │   │   │   │   └── 安全类型处理
+│   │   │   │   └── get_low_stock_statistics() - 获取低库存统计信息
+│   │   │   │       ├── 低库存阈值配置获取
+│   │   │   │       ├── 统计SQL查询
+│   │   │   │       │   ├── 总低库存计数
+│   │   │   │       │   ├── 缺货计数
+│   │   │   │       │   └── 关键备件低库存计数
+│   │   │   │       ├── 统计结果处理
+│   │   │   │       └── 安全类型转换
+│   │   │   └── 全局实例创建 (stock_alert_service = StockAlertService())
+│   │   ├── 📄 stock_validator.py - 库存验证工具
+│   │   │   ├── validate_all_stock() - 验证所有备件的库存是否准确
+│   │   │   │   ├── 所有备件数据获取
+│   │   │   │   ├── 记录库存与计算库存对比
+│   │   │   │   ├── 不一致数据收集
+│   │   │   │   └── 不一致详情返回
+│   │   │   └── fix_all_stock_inconsistencies() - 修复所有库存不一致的备件
+│   │   │       ├── 库存不一致验证
+│   │   │       ├── 逐个备件库存修复
+│   │   │       ├── 修复计数统计
+│   │   │       └── 修复结果返回
+│   │   ├── 📄 sync_utils.py - 数据同步工具
+│   │   │   ├── calculate_stock_from_operations() - 从操作记录计算库存
+│   │   │   │   ├── 总入库数量计算
+│   │   │   │   │   ├── 入库类型操作筛选
+│   │   │   │   │   ├── 正数量条件
+│   │   │   │   │   └── 数量求和
+│   │   │   │   ├── 总出库数量计算
+│   │   │   │   │   ├── 出库类型操作筛选
+│   │   │   │   │   ├── 负数量条件
+│   │   │   │   │   └── 绝对值求和
+│   │   │   │   ├── 当前库存计算 (入库 - 出库)
+│   │   │   │   ├── 负数库存保护
+│   │   │   │   └── 详细计算日志
+│   │   │   ├── update_stock_for_part() - 更新单个备件的库存
+│   │   │   │   ├── 库存计算调用
+│   │   │   │   ├── 数据库库存更新
+│   │   │   │   ├── 时间戳更新
+│   │   │   │   └── 更新结果返回
+│   │   │   ├── recalculate_all_stock() - 重新计算所有备件的库存
+│   │   │   │   ├── 所有备件遍历
+│   │   │   │   ├── 逐个库存计算
+│   │   │   │   ├── 批量数据库更新
+│   │   │   │   ├── 库位状态更新
+│   │   │   │   └── 更新计数返回
+│   │   │   ├── update_stock_from_operations() - 根据操作记录更新库存
+│   │   │   │   ├── 所有备件遍历
+│   │   │   │   ├── 库存计算与更新
+│   │   │   │   ├── 事务提交
+│   │   │   │   └── 更新计数返回
+│   │   │   ├── sync_operations_to_outbound() - 同步操作记录到出库记录
+│   │   │   │   ├── 未同步出库操作获取
+│   │   │   │   ├── 备件ID查找
+│   │   │   │   ├── 出库记录插入
+│   │   │   │   ├── 数量绝对值处理
+│   │   │   │   └── 同步计数返回
+│   │   │   ├── sync_operations_to_inbound() - 同步操作记录到入库记录
+│   │   │   │   ├── 未同步入库操作获取
+│   │   │   │   ├── 备件ID查找
+│   │   │   │   ├── 入库记录插入
+│   │   │   │   ├── 正数量处理
+│   │   │   │   └── 同步计数返回
+│   │   │   ├── sync_all_operations() - 同步所有操作记录
+│   │   │   │   ├── 入库记录同步
+│   │   │   │   ├── 出库记录同步
+│   │   │   │   ├── 库存更新
+│   │   │   │   ├── 库位状态更新
+│   │   │   │   └── 完整同步结果返回
+│   │   │   ├── update_location_status() - 更新指定库位的状态
+│   │   │   │   ├── 库位备件信息获取
+│   │   │   │   ├── 备件计数统计
+│   │   │   │   ├── 低库存状态判断
+│   │   │   │   ├── 状态确定逻辑
+│   │   │   │   └── 数据库状态更新
+│   │   │   └── update_all_locations_status() - 更新所有库位的状态
+│   │   │       ├── 所有库位遍历
+│   │   │       ├── 逐个状态更新
+│   │   │       ├── 更新计数统计
+│   │   │       └── 统计结果返回
+│   │   └── 📄 system_settings.py - 系统设置工具
+│   │       ├── SystemSettings类 (系统设置管理)
+│   │       │   ├── get_mail_config() - 获取邮件配置
+│   │       │   │   ├── 数据库邮件设置获取
+│   │       │   │   ├── 默认配置回退
+│   │       │   │   └── 配置字典返回
+│   │       │   ├── update_mail_config() - 更新邮件配置
+│   │       │   │   ├── 邮件设置项遍历更新
+│   │       │   │   ├── 类型识别与转换
+│   │       │   │   ├── 收件人列表字符串处理
+│   │       │   │   ├── 邮件报警开关更新
+│   │       │   │   └── 更新结果返回
+│   │       │   ├── get_inventory_settings() - 获取库存设置
+│   │       │   │   ├── 数据库库存设置获取
+│   │       │   │   ├── 默认设置合并
+│   │       │   │   └── 库存阈值配置返回
+│   │       │   └── get_schedule_settings() - 获取定时任务设置
+│   │       │       ├── 数据库定时设置获取
+│   │       │       ├── 默认设置合并
+│   │       │       └── 定时任务配置返回
+│   │       └── 全局实例创建 (system_settings = SystemSettings())
+│   ├── 📁 templates/ (视图模板层)
+│   │   ├── 📄 404.html (404错误页面)
+│   │   ├── 📄 500.html (500错误页面)
+│   │   ├── 📄 add_part.html (添加备件页面)
+│   │   ├── 📄 base.html (基础模板)
+│   │   ├── 📄 dashboard.html (仪表板页面)
+│   │   ├── 📄 database_info.html (数据库信息页面)
+│   │   ├── 📄 edit_location.html (编辑库位页面)
+│   │   ├── 📄 edit_part.html (编辑备件页面)
+│   │   ├── 📄 import.html (数据导入页面)
+│   │   ├── 📄 import_locations.html (库位信息导入页面)
+│   │   ├── 📄 import_operations.html (操作记录导入页面)
+│   │   ├── 📄 import_part_info_only.html (仅导入备件信息页面)
+│   │   ├── 📄 import_parts.html (备件信息导入页面)
+│   │   ├── 📄 inbound.html (备件入库页面)
+│   │   ├── 📄 inbound_records.html (入库记录页面)
+│   │   ├── 📄 index.html (系统首页/仪表板)
+│   │   ├── 📄 inventory_check.html (备件盘点页面)
+│   │   ├── 📄 key_parts.html (关键备件管理页面)
+│   │   ├── 📄 location_detail.html (库位详情页面)
+│   │   ├── 📄 location_management.html (库位管理主页面)
+│   │   ├── 📄 login.html (用户登录页面)
+│   │   ├── 📄 low_stock_alerts.html (低库存报警页面)
+│   │   ├── 📄 operation_records.html (操作记录页面)
+│   │   ├── 📄 outbound.html (备件出库页面)
+│   │   ├── 📄 outbound_records.html (出库记录页面)
+│   │   ├── 📄 over_stock_alerts.html (超储库存提醒页面)
+│   │   ├── 📄 part_detail.html (备件详情页面)
+│   │   ├── 📄 parts_list.html (备件列表页面)
+│   │   ├── 📄 purchase_low_stock.html (采购低库存备件页面)
+│   │   ├── 📄 requirements.txt (Python依赖包列表)
+│   │   ├── 📄 search_parts.html (备件搜索页面)
+│   │   ├── 📄 search_results.html (搜索结果页面)
+│   │   ├── 📄 set_min_stock.html (设置最低库存页面)
+│   │   ├── 📄 settings.html (系统设置页面)
+│   │   └── 📄 smart_inbound.html (智能入库页面)
+│   ├── 📁 uploads/ (文件存储)
+│   ├── 📁 backups/ (数据备份)
+│   └── 📁 static/ (静态资源)
+│
+├── 🔧 核心架构特性
+│   ├── 模块化设计
+│   │   ├── 工厂模式应用创建
+│   │   ├── 清晰的MVC分层
+│   │   ├── 插件式路由注册
+│   │   ├── 面向对象设置管理
+│   │   └── 服务组件化设计
+│   ├── 多环境配置管理
+│   │   ├── 开发环境 (DevelopmentConfig)
+│   │   ├── 生产环境 (ProductionConfig)
+│   │   ├── 测试环境 (TestingConfig)
+│   │   └── 预发布环境 (StagingConfig)
+│   ├── 数据持久化架构
+│   │   ├── SQLite数据库
+│   │   ├── 单例模式连接管理
+│   │   ├── 上下文管理器连接获取
+│   │   ├── 数据库性能优化 (PRAGMA设置)
+│   │   ├── 自动表迁移与初始化
+│   │   ├── 3次重试初始化机制
+│   │   ├── 条件触发自动备份
+│   │   ├── 完整的数据表结构
+│   │   │   ├── 核心业务表 (spare_parts)
+│   │   │   ├── 出入库记录表 (inbound/outbound_records)
+│   │   │   ├── 位置管理表 (locations)
+│   │   │   ├── 操作记录表 (operation_records)
+│   │   │   └── 系统设置表 (system_settings)
+│   │   ├── 外键约束与数据完整性
+│   │   ├── 性能索引优化
+│   │   └── 系统设置动态管理
+│   ├── 工具服务架构
+│   │   ├── 辅助工具函数库 (helpers.py)
+│   │   │   ├── 安全类型转换体系
+│   │   │   │   ├── 多数据类型支持
+│   │   │   │   ├── 异常安全处理
+│   │   │   │   ├── 默认值机制
+│   │   │   │   └── 业务逻辑集成
+│   │   │   ├── 业务计算逻辑
+│   │   │   │   ├── 状态计算函数
+│   │   │   │   ├── 验证逻辑函数
+│   │   │   │   ├── 格式化函数
+│   │   │   │   └── 数据处理函数
+│   │   │   ├── 数据验证体系
+│   │   │   │   ├── 格式验证函数
+│   │   │   │   ├── 业务规则验证
+│   │   │   │   ├── 多语言支持
+│   │   │   │   └── 详细错误信息
+│   │   │   ├── 模板过滤器集成
+│   │   │   │   ├── 格式化过滤器
+│   │   │   │   ├── 计算过滤器
+│   │   │   │   ├── 安全转换过滤器
+│   │   │   │   └── 自动注册机制
+│   │   │   └── 通用工具函数
+│   │   │       ├── 字符串处理
+│   │   │       ├── 文件操作
+│   │   │       ├── 数据转换
+│   │   │       └── 安全访问
+│   │   ├── 定时任务调度器 (scheduler.py)
+│   │   │   ├── APScheduler集成
+│   │   │   │   ├── 可选依赖处理
+│   │   │   │   ├── 虚拟类备选方案
+│   │   │   │   └── 优雅降级支持
+│   │   │   ├── 任务管理机制
+│   │   │   │   ├── 任务动态配置
+│   │   │   │   ├── 应用上下文支持
+│   │   │   │   ├── 调度时间解析
+│   │   │   │   └── 任务状态管理
+│   │   │   ├── 业务任务集成
+│   │   │   │   ├── 低库存报警任务
+│   │   │   │   ├── 自动备份任务
+│   │   │   │   └── 自定义任务扩展
+│   │   │   └── 调度器生命周期
+│   │   │       ├── 初始化启动
+│   │   │       ├── 动态更新
+│   │   │       ├── 优雅停止
+│   │   │       └── 状态监控
+│   │   ├── 库存报警服务 (stock_alert.py)
+│   │   │   ├── 延迟服务初始化
+│   │   │   │   └── 邮件服务按需加载
+│   │   │   ├── 报警检查流程
+│   │   │   │   ├── 配置验证
+│   │   │   │   ├── 数据查询
+│   │   │   │   ├── 阈值判断
+│   │   │   │   └── 结果处理
+│   │   │   ├── 低库存检测逻辑
+│   │   │   │   ├── 多条件查询
+│   │   │   │   ├── 智能排序
+│   │   │   │   ├── 安全数据处理
+│   │   │   │   └── 统计信息计算
+│   │   │   └── 邮件服务集成
+│   │   │       ├── 服务调用封装
+│   │   │       ├── 错误处理机制
+│   │   │       ├── 结果反馈
+│   │   │       └── 日志记录
+│   │   ├── 库存验证工具 (stock_validator.py)
+│   │   │   ├── 数据一致性验证
+│   │   │   │   ├── 记录库存检查
+│   │   │   │   ├── 计算库存对比
+│   │   │   │   ├── 差异识别
+│   │   │   │   └── 详细报告生成
+│   │   │   └── 自动修复机制
+│   │   │       ├── 批量修复执行
+│   │   │       ├── 进度跟踪
+│   │   │       ├── 错误处理
+│   │   │       └── 修复统计
+│   │   ├── 数据同步工具 (sync_utils.py)
+│   │   │   ├── 库存计算引擎
+│   │   │   │   ├── 操作记录分析
+│   │   │   │   ├── 入库出库统计
+│   │   │   │   ├── 负数保护机制
+│   │   │   │   └── 准确库存计算
+│   │   │   ├── 数据同步机制
+│   │   │   │   ├── 操作记录到出入库记录同步
+│   │   │   │   ├── 重复数据避免
+│   │   │   │   ├── 备件匹配逻辑
+│   │   │   │   └── 批量同步执行
+│   │   │   ├── 库存更新流程
+│   │   │   │   ├── 单个备件更新
+│   │   │   │   ├── 批量库存重算
+│   │   │   │   ├── 事务安全保证
+│   │   │   │   └── 更新效率优化
+│   │   │   └── 库位状态管理
+│   │   │       ├── 状态计算逻辑
+│   │   │       ├── 实时状态更新
+│   │   │       ├── 批量状态刷新
+│   │   │       └── 状态持久化
+│   │   └── 系统设置工具 (system_settings.py)
+│   │       ├── 配置管理抽象
+│   │       │   ├── 邮件配置管理
+│   │       │   ├── 库存配置管理
+│   │       │   ├── 定时配置管理
+│   │       │   └── 默认配置回退
+│   │       ├── 配置更新机制
+│   │       │   ├── 类型自动识别
+│   │       │   ├── 值格式转换
+│   │       │   ├── 批量更新支持
+│   │       │   └── 更新结果返回
+│   │       └── 配置获取接口
+│   │           ├── 分类配置获取
+│   │           ├── 合并默认配置
+│   │           ├── 统一接口返回
+│   │           └── 错误处理机制
+│   ├── 邮件服务架构
+│   │   ├── 面向对象邮件发送器
+│   │   │   ├── 应用初始化集成
+│   │   │   ├── 配置调试输出
+│   │   │   ├── 低库存报警专用方法
+│   │   │   ├── 配置完整性验证
+│   │   │   ├── HTML邮件模板生成
+│   │   │   ├── 多协议SMTP支持
+│   │   │   ├── 连接测试功能
+│   │   │   └── 数据库配置集成
+│   │   ├── 编码安全处理
+│   │   │   ├── UTF-8邮件内容编码
+│   │   │   ├── 邮件头安全格式化
+│   │   │   ├── 中文主题支持
+│   │   │   └── 发件人名称编码
+│   │   ├── 多加密协议支持
+│   │   │   ├── SSL加密连接
+│   │   │   ├── TLS加密升级
+│   │   │   └── 普通连接支持
+│   │   ├── 邮件模板系统
+│   │   │   ├── 内联CSS样式
+│   │   │   ├── 响应式表格设计
+│   │   │   ├── 状态可视化
+│   │   │   │   ├── 缺货红色高亮
+│   │   │   │   ├── 关键备件黄色警示
+│   │   │   │   └── 状态文本分类
+│   │   │   ├── 统计信息集成
+│   │   │   ├── 建议操作部分
+│   │   │   └── 自动化内容生成
+│   │   ├── 错误处理机制
+│   │   │   ├── SMTP异常捕获
+│   │   │   ├── 连接超时处理
+│   │   │   ├── 认证失败处理
+│   │   │   ├── 配置缺失处理
+│   │   │   └── 安全连接清理
+│   │   └── 测试与诊断
+│   │       ├── 连接测试方法
+│   │       ├── 配置调试输出
+│   │       ├── 详细日志记录
+│   │       └── 错误信息返回
+│   ├── 设置管理系统
+│   │   ├── 双重设置管理接口
+│   │   │   ├── 函数式接口 (database.py)
+│   │   │   └── 面向对象接口 (settings.py)
+│   │   ├── 类型安全的值转换
+│   │   │   ├── 布尔值转换
+│   │   │   ├── 数字值转换
+│   │   │   └── 字符串处理
+│   │   ├── 分类管理机制
+│   │   │   ├── 按分类查询
+│   │   │   ├── 多分类合并
+│   │   │   └── 分类特定功能
+│   │   ├── 操作审计支持
+│   │   │   ├── 更新时间记录
+│   │   │   ├── 操作者追踪
+│   │   │   └── 变更日志记录
+│   │   └── 错误处理机制
+│   │       ├── 设置存在性验证
+│   │       ├── 类型转换安全
+│   │       └── 数据库异常处理
+│   ├── 错误处理机制
+│   │   ├── 数据库层重试+重建
+│   │   ├── 连接异常处理
+│   │   ├── 应用层全局错误处理
+│   │   ├── 系统层优雅关闭
+│   │   └── 详细分级日志记录
+│   └── 生命周期管理
+│       ├── 完整启动序列
+│       │   ├── 环境检测→配置加载→目录初始化
+│       │   ├── 数据库初始化→服务注册→路由绑定
+│       │   └── 模板系统→错误处理→启动完成
+│       └── 优雅关闭清理
+│           ├── 条件数据备份
+│           ├── 临时文件清理
+│           ├── 定时任务停止
+│           └── 资源释放
+│
+├── 📊 监控诊断体系
+│   ├── 健康检查端点 (/health)
+│   ├── 系统信息端点 (/system-info)
+│   ├── 邮件测试端点 (/test-email-connection)
+│   ├── 端口占用检测
+│   ├── 配置验证系统
+│   ├── 数据库状态监控
+│   ├── 设置管理审计
+│   ├── 邮件配置调试输出
+│   │   ├── 服务器配置显示
+│   │   ├── 端口配置显示
+│   │   ├── 认证配置显示 (密码掩码)
+│   │   ├── 加密配置显示
+│   │   └── 接收人配置显示
+│   ├── 定时任务状态监控
+│   │   ├── 调度器运行状态
+│   │   ├── 任务下次执行时间
+│   │   ├── APScheduler可用性
+│   │   └── 任务执行日志
+│   ├── 库存一致性检查
+│   │   ├── 自动库存验证
+│   │   ├── 不一致报告生成
+│   │   ├── 一键修复功能
+│   │   └── 验证结果统计
+│   ├── 数据同步监控
+│   │   ├── 操作记录同步状态
+│   │   ├── 库存计算准确性
+│   │   ├── 库位状态实时性
+│   │   └── 同步操作统计
+│   └── 启动信息完整输出
+│
+├── 🔄 业务流程架构
+│   ├── 系统启动流程
+│   │   └── 环境检测→配置加载→目录初始化→数据库初始化→服务注册→路由绑定
+│   ├── 备件入库流程
+│   │   └── 表单验证→库存更新→操作日志→库存验证
+│   ├── 备件出库流程
+│   │   └── 库存检查→数量扣减→操作记录→库存警报
+│   ├── 低库存邮件报警流程
+│   │   ├── 低库存数据收集→配置验证→统计计算
+│   │   ├── HTML模板生成→邮件组装→编码处理
+│   │   ├── SMTP连接→认证→发送→关闭
+│   │   └── 结果日志记录→状态返回
+│   ├── 定时任务执行流程
+│   │   ├── 调度器初始化→任务配置→时间触发
+│   │   ├── 应用上下文激活→业务逻辑执行→结果处理
+│   │   └── 状态更新→日志记录→下次调度
+│   ├── 库存验证流程
+│   │   ├── 所有备件遍历→记录库存获取→计算库存对比
+│   │   ├── 不一致识别→详细报告生成→修复建议
+│   │   └── 自动修复执行→修复结果统计
+│   ├── 数据同步流程
+│   │   ├── 操作记录分析→出入库记录匹配→数据同步
+│   │   ├── 库存重新计算→库位状态更新→同步统计
+│   │   └── 事务提交→日志记录→结果返回
+│   ├── 数据导入流程
+│   │   └── 文件上传→格式解析→数据验证→批量插入→结果反馈
+│   ├── 系统备份流程
+│   │   └── 条件检查→数据库转储→备份文件命名→存储管理
+│   └── 设置管理流程
+│       ├── 设置查询→类型转换→结果返回
+│       ├── 设置更新→值验证→格式转换→数据库更新
+│       └── 分类管理→多分类合并→特定功能处理
+│
+├── ⚙️ 配置特性详解
+│   ├── 安全性配置
+│   │   ├── SECRET_KEY管理
+│   │   ├── 会话安全设置
+│   │   ├── 密码策略
+│   │   ├── 登录保护机制
+│   │   └── 邮件密码掩码显示
+│   ├── 性能配置
+│   │   ├── 缓存策略
+│   │   ├── 分页设置
+│   │   ├── 批量操作优化
+│   │   ├── 数据库PRAGMA优化
+│   │   ├── 报表性能调优
+│   │   └── SMTP连接超时优化
+│   ├── 邮件系统配置
+│   │   ├── SMTP服务器设置
+│   │   ├── 端口配置 (465/587)
+│   │   ├── 加密协议配置 (TLS/SSL)
+│   │   ├── 认证信息配置
+│   │   ├── 发件人默认配置
+│   │   ├── 邮件模板管理
+│   │   ├── 报警接收人配置
+│   │   ├── 邮件发送控制
+│   │   ├── 定时任务调度
+│   │   └── 连接测试配置
+│   ├── 定时任务配置
+│   │   ├── 低库存报警调度
+│   │   ├── 自动备份调度
+│   │   ├── 任务启用开关
+│   │   ├── 执行时间配置
+│   │   └── 依赖管理配置
+│   ├── 库存管理配置
+│   │   ├── 低库存阈值配置
+│   │   ├── 库存验证设置
+│   │   ├── 自动同步配置
+│   │   ├── 状态计算规则
+│   │   └── 报警触发条件
+│   ├── 业务功能配置
+│   │   ├── 低库存报警阈值
+│   │   ├── 自动任务间隔
+│   │   ├── 功能开关管理
+│   │   └── 数据验证规则
+│   └── 环境特定配置
+│       ├── 开发环境: 调试工具+详细日志
+│       ├── 生产环境: 安全加固+性能优化
+│       ├── 测试环境: 内存数据库+邮件模拟
+│       └── 预发布环境: 生产配置+邮件模拟
+│
+├── 🗃️ 数据库设计特性
+│   ├── 表结构设计
+│   │   ├── 备件表 (spare_parts): 核心业务数据存储
+│   │   ├── 出入库记录表: 业务操作追踪
+│   │   ├── 位置表: 库位管理
+│   │   ├── 操作记录表: 完整操作历史
+│   │   └── 系统设置表: 动态配置管理
+│   ├── 数据完整性
+│   │   ├── 主键约束
+│   │   ├── 外键约束 (级联删除)
+│   │   ├── 唯一约束
+│   │   ├── 检查约束 (非负值验证)
+│   │   └── 默认值设置
+│   ├── 性能优化
+│   │   ├── 索引策略 (查询优化)
+│   │   ├── WAL日志模式
+│   │   ├── 缓存设置
+│   │   ├── 连接池管理
+│   │   ├── 批量操作支持
+│   │   └── 设置缓存优化
+│   ├── 扩展性设计
+│   │   ├── 系统设置动态管理
+│   │   ├── 类型安全的值转换
+│   │   ├── 分类管理机制
+│   │   ├── 灵活的配置存储
+│   │   ├── 双重接口支持
+│   │   └── 邮件配置集成
+│   └── 维护功能
+│       ├── 自动备份机制
+│       ├── 状态检查功能
+│       ├── 日志记录系统
+│       ├── 错误恢复机制
+│       └── 设置审计追踪
+│
+├── ⚙️ 设置管理架构
+│   ├── 数据模型设计
+│   │   ├── SystemSettings类封装
+│   │   ├── 静态方法设计
+│   │   ├── 统一的数据库访问
+│   │   ├── 类型安全接口
+│   │   └── 邮件配置集成
+│   ├── 功能特性
+│   │   ├── 完整CRUD操作
+│   │   ├── 类型自动转换
+│   │   ├── 分类管理支持
+│   │   ├── 操作审计记录
+│   │   ├── 错误处理机制
+│   │   └── 多分类合并查询
+│   ├── 接口设计
+│   │   ├── 获取所有设置 (get_all_settings)
+│   │   ├── 获取单个设置 (get_setting)
+│   │   ├── 更新设置 (set_setting)
+│   │   ├── 按分类获取 (get_settings_by_category)
+│   │   └── 特定功能获取 (get_mail_settings)
+│   └── 集成特性
+│       ├── 与database.py函数互补
+│       ├── 统一的错误处理
+│       ├── 完整的日志记录
+│       ├── 类型安全的返回值
+│       └── 邮件服务深度集成
+│
+├── 🛠️ 工具服务架构详解
+│   ├── 辅助工具体系 (helpers.py)
+│   │   ├── 类型安全转换层
+│   │   │   ├── 防御式编程设计
+│   │   │   ├── 多数据类型兼容
+│   │   │   ├── 业务逻辑集成
+│   │   │   └── 统一错误处理
+│   │   ├── 业务计算引擎
+│   │   │   ├── 状态计算逻辑
+│   │   │   ├── 验证规则体系
+│   │   │   ├── 格式化标准
+│   │   │   └── 数据处理管道
+│   │   ├── 数据验证框架
+│   │   │   ├── 格式验证器
+│   │   │   ├── 业务规则验证器
+│   │   │   ├── 多语言支持
+│   │   │   └── 详细错误反馈
+│   │   ├── 模板集成系统
+│   │   │   ├── 过滤器自动注册
+│   │   │   ├── 格式化功能集成
+│   │   │   ├── 计算功能暴露
+│   │   │   └── 安全转换支持
+│   │   └── 通用工具库
+│   │       ├── 字符串处理工具
+│   │       ├── 文件操作工具
+│   │       ├── 数据转换工具
+│   │       ├── 安全访问工具
+│   │       └── 数学计算工具
+│   ├── 定时调度体系 (scheduler.py)
+│   │   ├── 依赖管理策略
+│   │   │   ├── 可选依赖检测
+│   │   │   ├── 优雅降级机制
+│   │   │   ├── 虚拟类备选
+│   │   │   └── 功能可用性标记
+│   │   ├── 任务调度引擎
+│   │   │   ├── 动态任务配置
+│   │   │   ├── 时间触发机制
+│   │   │   ├── 应用上下文集成
+│   │   │   ├── 任务状态管理
+│   │   │   └── 调度生命周期
+│   │   ├── 业务任务集成
+│   │   │   ├── 低库存报警任务
+│   │   │   ├── 自动备份任务
+│   │   │   ├── 自定义任务扩展
+│   │   │   └── 任务依赖管理
+│   │   └── 监控管理接口
+│   │       ├── 状态查询接口
+│   │       ├── 动态更新接口
+│   │       ├── 优雅停止接口
+│   │       ├── 执行时间查询
+│   │       └── 详细日志记录
+│   ├── 库存报警体系 (stock_alert.py)
+│   │   ├── 服务初始化策略
+│   │   │   ├── 延迟加载机制
+│   │   │   ├── 单例模式实现
+│   │   │   ├── 依赖服务按需初始化
+│   │   │   └── 资源优化利用
+│   │   ├── 报警检测引擎
+│   │   │   ├── 配置驱动检测
+│   │   │   ├── 多条件查询优化
+│   │   │   ├── 智能排序算法
+│   │   │   ├── 安全数据处理
+│   │   │   └── 统计计算集成
+│   │   ├── 邮件集成层
+│   │   │   ├── 服务调用封装
+│   │   │   ├── 错误处理机制
+│   │   │   ├── 结果反馈系统
+│   │   │   ├── 详细日志记录
+│   │   │   └── 状态跟踪机制
+│   │   └── 统计报告系统
+│   │       ├── 实时统计计算
+│   │       ├── 多维度数据分析
+│   │       ├── 报告生成引擎
+│   │       ├── 数据可视化支持
+│   │       └── 历史趋势分析
+│   ├── 数据验证体系 (stock_validator.py)
+│   │   ├── 一致性验证引擎
+│   │   │   ├── 全量数据扫描
+│   │   │   ├── 记录计算对比
+│   │   │   ├── 差异精确识别
+│   │   │   ├── 详细报告生成
+│   │   │   └── 验证结果统计
+│   │   └── 自动修复系统
+│   │       ├── 批量修复执行
+│   │       ├── 进度实时跟踪
+│   │       ├── 错误隔离处理
+│   │       ├── 修复结果统计
+│   │       └── 修复日志记录
+│   ├── 数据同步体系 (sync_utils.py)
+│   │   ├── 库存计算引擎
+│   │   │   ├── 操作记录分析算法
+│   │   │   ├── 入库出库统计逻辑
+│   │   │   ├── 负数保护机制
+│   │   │   ├── 准确库存计算
+│   │   │   └── 性能优化策略
+│   │   ├── 数据同步机制
+│   │   │   ├── 操作记录解析
+│   │   │   ├── 出入库记录匹配
+│   │   │   ├── 重复数据检测
+│   │   │   ├── 备件关联逻辑
+│   │   │   └── 批量同步优化
+│   │   ├── 库存更新系统
+│   │   │   ├── 单个备件更新
+│   │   │   ├── 批量重算引擎
+│   │   │   ├── 事务安全保证
+│   │   │   ├── 更新效率优化
+│   │   │   └── 并发控制机制
+│   │   └── 状态管理系统
+│   │       ├── 库位状态计算
+│   │       ├── 实时状态更新
+│   │       ├── 批量状态刷新
+│   │       ├── 状态持久化
+│   │       └── 状态变化追踪
+│   └── 配置管理体系 (system_settings.py)
+│       ├── 配置抽象层
+│       │   ├── 邮件配置管理
+│       │   ├── 库存配置管理
+│       │   ├── 定时配置管理
+│       │   ├── 默认配置策略
+│       │   └── 配置合并逻辑
+│       ├── 配置更新系统
+│       │   ├── 类型自动识别
+│       │   ├── 值格式转换
+│       │   ├── 批量更新支持
+│       │   ├── 事务安全保证
+│       │   └── 更新结果反馈
+│       └── 配置访问接口
+│           ├── 分类配置获取
+│           ├── 统一返回格式
+│           ├── 错误处理机制
+│           ├── 缓存优化策略
+│           └── 实时更新支持
+│
+└── 🎯 系统优势总结
+    ├── 高可靠性
+    │   ├── 多重错误处理机制
+    │   ├── 数据一致性保障
+    │   ├── 自动恢复能力
+    │   ├── 配置验证系统
+    │   ├── 事务完整性保证
+    │   ├── 设置操作安全
+    │   ├── 邮件发送容错
+    │   ├── 连接安全清理
+    │   ├── 资源释放保障
+    │   ├── 库存准确性验证
+    │   ├── 数据同步可靠性
+    │   └── 定时任务稳定性
+    ├── 易维护性
+    │   ├── 清晰架构分层
+    │   ├── 模块化设计
+    │   ├── 标准化接口
+    │   ├── 详细配置文档
+    │   ├── 完善的日志系统
+    │   ├── 面向对象设计
+    │   ├── 配置调试工具
+    │   ├── 错误诊断支持
+    │   ├── 测试功能完备
+    │   ├── 工具函数统一
+    │   ├── 代码可读性高
+    │   └── 维护文档完整
+    ├── 可扩展性
+    │   ├── 配置驱动开发
+    │   ├── 插件式架构
+    │   ├── 多环境支持
+    │   ├── 动态设置管理
+    │   ├── 双重接口设计
+    │   ├── 易于功能扩展
+    │   ├── 协议扩展支持
+    │   ├── 模板系统灵活
+    │   ├── 多配置源集成
+    │   ├── 任务调度可扩展
+    │   ├── 报警规则可配置
+    │   └── 数据验证可定制
+    ├── 生产就绪
+    │   ├── 完整监控体系
+    │   ├── 健壮错误处理
+    │   ├── 自动化运维支持
+    │   ├── 安全配置管理
+    │   ├── 性能优化配置
+    │   ├── 操作审计追踪
+    │   ├── 邮件服务稳定
+    │   ├── 连接测试完备
+    │   ├── 诊断工具齐全
+    │   ├── 库存准确性保证
+    │   ├── 数据同步可靠
+    │   └── 系统监控全面
+    └── 企业级特性
+        ├── 多环境部署支持
+        ├── 数据安全保障
+        ├── 业务流程完整
+        ├── 系统监控完备
+        ├── 设置管理专业
+        ├── 维护工具齐全
+        ├── 邮件服务专业
+        ├── 报警机制完善
+        ├── 用户体验优秀
+        ├── 库存管理精准
+        ├── 数据一致性高
+        └── 系统稳定性强

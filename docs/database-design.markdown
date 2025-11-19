@@ -1,0 +1,23 @@
+# 数据库设计文档
+
+## 核心表结构
+### `spare_parts` 表
+字段说明...
+
+### `operation_records` 表
+字段说明...
+
+### `locations` 表
+字段说明...
+
+### `inbound_records` 和 `outbound_records` 表
+字段说明...
+
+## 索引策略
+为提高查询性能创建的索引...
+
+## 外键约束
+保证数据一致性的外键关系...
+
+## 性能优化配置
+SQLite的PRAGMA设置参数...
