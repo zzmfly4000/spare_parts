@@ -74,4 +74,8 @@ RESTful API的输入输出规范...
 - `StockAlertService.check_low_stock_and_alert()`: 检查低库存并发送报警邮件
 - `StockAlertService.get_low_stock_statistics()`: 获取低库存统计信息
 
+### 数据统计分析接口
+- `DataAnalyticsService.get_part_usage_statistics(days)`: 获取备件使用频率统计
+- `DataAnalyticsService.get_inventory_trend(part_no, days)`: 获取备件库存变化趋势
+- `DataAnalyticsService.get_location_usage_statistics()`: 获取库位使用率统计
 

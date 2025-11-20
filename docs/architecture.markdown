@@ -61,3 +61,7 @@
 ### 低库存报警服务
 - `utils/stock_alert.py`: 库存报警服务模块，提供低库存检查和邮件报警功能
 - `StockAlertService` 类负责定时检查低库存备件并发送报警邮件
+
+### 数据统计分析服务
+- `utils/data_analytics.py`: 数据统计分析模块，提供数据统计和分析功能
+- `DataAnalyticsService` 类负责备件使用频率统计、库存变化趋势分析等功能
