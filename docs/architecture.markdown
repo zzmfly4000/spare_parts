@@ -138,3 +138,7 @@
 ### 系统集成服务
 - `utils/system_integration_api.py`: 系统集成模块，提供系统集成API功能
 - `SystemIntegrationAPI` 类负责RESTful API接口、第三方系统对接和数据同步
+
+### 用户行为分析服务
+- `utils/user_behavior_analyzer.py`: 用户行为分析模块，提供用户行为分析功能
+- `UserBehaviorAnalyzer` 类负责用户操作轨迹记录、用户偏好分析和行为统计

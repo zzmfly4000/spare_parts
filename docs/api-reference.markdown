@@ -167,3 +167,7 @@ RESTful API的输入输出规范...
 - `GET /api/v1/parts/<part_no>`: 获取备件信息API
 - `PUT /api/v1/parts/<part_no>/stock`: 更新备件库存API
 - `SystemIntegrationAPI._register_routes()`: 注册API路由
+
+### 用户行为分析接口
+- `UserBehaviorAnalyzer.record_user_action(user_id, action_type, action_target)`: 记录用户操作行为
+- `UserBehaviorAnalyzer.get_user_visit_frequency(days)`: 获取用户访问频率统计
