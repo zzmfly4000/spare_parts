@@ -134,3 +134,7 @@
 ### 数据导出服务
 - `utils/data_exporter.py`: 数据导出模块，提供数据导出和报表生成功能
 - `DataExporter` 类负责多种格式数据导出、自定义报表模板和报表生成
+
+### 系统集成服务
+- `utils/system_integration_api.py`: 系统集成模块，提供系统集成API功能
+- `SystemIntegrationAPI` 类负责RESTful API接口、第三方系统对接和数据同步

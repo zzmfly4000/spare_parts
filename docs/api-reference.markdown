@@ -162,3 +162,8 @@ RESTful API的输入输出规范...
 ### 数据导出接口
 - `DataExporter.export_parts_to_excel()`: 导出备件信息到Excel
 - `DataExporter.export_operations_to_csv(start_date, end_date)`: 导出操作记录到CSV
+
+### 系统集成API接口
+- `GET /api/v1/parts/<part_no>`: 获取备件信息API
+- `PUT /api/v1/parts/<part_no>/stock`: 更新备件库存API
+- `SystemIntegrationAPI._register_routes()`: 注册API路由
