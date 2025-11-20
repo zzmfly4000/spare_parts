@@ -198,3 +198,7 @@ RESTful API的输入输出规范...
 ### 容器化部署接口
 - `ContainerDeploymentManager.build_docker_image(service_name, dockerfile_path)`: 构建Docker镜像
 - `ContainerDeploymentManager.deploy_to_kubernetes(service_name, deployment_config)`: 部署到Kubernetes
+
+### API网关接口
+- `APIGateway.register_route(path, service_url)`: 注册路由映射
+- `APIGateway.jwt_required(f)`: JWT认证装饰器

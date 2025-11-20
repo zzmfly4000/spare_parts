@@ -167,3 +167,7 @@
 ### 容器化部署服务
 - `utils/container_deployment_manager.py`: 容器化部署模块，提供容器化部署支持功能
 - `ContainerDeploymentManager` 类负责Docker镜像构建和管理、Kubernetes部署配置
+
+### API网关服务
+- `utils/api_gateway.py`: API网关模块，提供API网关和统一认证功能
+- `APIGateway` 类负责请求路由和转发、身份验证和授权、API访问控制和限流
