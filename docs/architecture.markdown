@@ -194,3 +194,6 @@
 - `utils/ab_test_manager.py`: A/B测试模块，提供A/B测试和灰度发布功能
 - `ABTestManager` 类负责用户分组和流量分配、实验数据收集和分析、功能开关和版本控制
 
+### 智能推荐服务
+- `utils/intelligent_recommendation_engine.py`: 智能推荐模块，提供智能推荐和预测分析功能
+- `IntelligentRecommendationEngine` 类负责备件需求预测算法、个性化推荐和智能补货、历史数据分析和模式识别

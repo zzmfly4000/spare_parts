@@ -226,3 +226,8 @@ RESTful API的输入输出规范...
 ### A/B测试接口
 - `ABTestManager.create_experiment(experiment_name, variants, traffic_ratio)`: 创建A/B测试实验
 - `ABTestManager.assign_user_to_variant(user_id, experiment_name)`: 将用户分配到实验变体
+
+### 智能推荐接口
+- `IntelligentRecommendationEngine.predict_part_demand(part_id, days)`: 预测备件需求
+- `IntelligentRecommendationEngine._get_consumption_history(part_id, days)`: 获取备件消耗历史
+- `IntelligentRecommendationEngine._linear_regression_predict(data)`: 线性回归预测
