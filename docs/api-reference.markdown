@@ -127,3 +127,8 @@ RESTful API的输入输出规范...
 ### 数据可视化接口
 - `DataVisualization.generate_inventory_trend_chart(part_no, days)`: 生成备件库存趋势图表
 - `DataVisualization.generate_location_usage_chart()`: 生成库位使用率可视化图表
+
+### 移动端适配接口
+- `MobileAdapter.is_mobile_device(user_agent)`: 检测是否为移动设备
+- `MobileAdapter.get_device_type(screen_width)`: 根据屏幕宽度判断设备类型
+- `MobileAdapter.generate_responsive_css()`: 生成响应式CSS样式

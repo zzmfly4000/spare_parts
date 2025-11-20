@@ -103,3 +103,7 @@
 ### 数据可视化服务
 - `utils/data_visualization.py`: 数据可视化模块，提供数据可视化展示功能
 - `DataVisualization` 类负责图表生成和展示、数据报表生成
+
+### 移动端适配服务
+- `utils/mobile_adapter.py`: 移动端适配模块，提供移动端适配功能
+- `MobileAdapter` 类负责响应式布局适配、设备检测和触摸操作优化
