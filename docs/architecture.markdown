@@ -107,3 +107,7 @@
 ### 移动端适配服务
 - `utils/mobile_adapter.py`: 移动端适配模块，提供移动端适配功能
 - `MobileAdapter` 类负责响应式布局适配、设备检测和触摸操作优化
+
+### 多语言支持服务
+- `utils/language_manager.py`: 多语言支持模块，提供多语言支持功能
+- `LanguageManager` 类负责语言包加载和管理、语言切换和文本国际化

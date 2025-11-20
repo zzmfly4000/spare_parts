@@ -132,3 +132,8 @@ RESTful API的输入输出规范...
 - `MobileAdapter.is_mobile_device(user_agent)`: 检测是否为移动设备
 - `MobileAdapter.get_device_type(screen_width)`: 根据屏幕宽度判断设备类型
 - `MobileAdapter.generate_responsive_css()`: 生成响应式CSS样式
+
+### 多语言支持接口
+- `LanguageManager.set_language(language_code)`: 设置当前语言
+- `LanguageManager.get_text(key_path, language_code)`: 获取指定语言的文本
+- `LanguageManager._load_language_packs()`: 加载语言包
