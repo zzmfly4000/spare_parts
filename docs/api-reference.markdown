@@ -212,3 +212,9 @@ RESTful API的输入输出规范...
 - `CIManager.trigger_build(project_name)`: 触发构建
 - `CDManager.configure_deployment(project_name, deployment_config)`: 配置部署任务
 - `CDManager.deploy_to_environment(project_name, environment)`: 部署到指定环境
+
+### 性能压测接口
+- `PerformanceTester.run_load_test(url, concurrent_users, duration)`: 运行负载测试
+- `PerformanceTester._simulate_user_requests(url)`: 模拟用户请求
+- `PerformanceTester._calculate_rps()`: 计算每秒请求数
+- `PerformanceTester._calculate_avg_response_time()`: 计算平均响应时间

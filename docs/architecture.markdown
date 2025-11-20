@@ -181,3 +181,7 @@
 - `utils/cd_manager.py`: CD管理模块，提供持续部署功能
 - `CIManager` 类负责代码自动构建和测试、代码质量检查和自动化测试
 - `CDManager` 类负责自动化部署、多环境部署流水线、部署状态监控和回滚
+
+### 性能压测服务
+- `utils/performance_tester.py`: 性能压测模块，提供系统性能压测功能
+- `PerformanceTester` 类负责并发请求模拟和压力测试、性能指标收集和分析
