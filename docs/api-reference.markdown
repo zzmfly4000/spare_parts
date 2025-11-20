@@ -185,3 +185,8 @@ RESTful API的输入输出规范...
 ### 容灾备份接口
 - `DisasterRecoveryManager.create_encrypted_backup(password)`: 创建加密备份
 - `DisasterRecoveryManager.sync_backup_to_locations(backup_file)`: 同步备份到多个位置
+
+### 集群管理接口
+- `ClusterManager.register_node(node_info)`: 注册节点
+- `ClusterManager.send_heartbeat()`: 发送心跳信号
+- `ClusterManager.check_cluster_health()`: 检查集群健康状态

@@ -155,3 +155,7 @@
 ### 容灾备份服务
 - `utils/disaster_recovery_manager.py`: 容灾备份模块，提供系统容灾备份功能
 - `DisasterRecoveryManager` 类负责异地备份存储、灾难恢复计划、数据备份加密和压缩
+
+### 集群管理服务
+- `utils/cluster_manager.py`: 集群管理模块，提供多节点集群管理功能
+- `ClusterManager` 类负责节点发现和注册、集群状态监控、节点间通信和数据同步
