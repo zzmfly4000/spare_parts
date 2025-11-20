@@ -185,3 +185,7 @@
 ### 性能压测服务
 - `utils/performance_tester.py`: 性能压测模块，提供系统性能压测功能
 - `PerformanceTester` 类负责并发请求模拟和压力测试、性能指标收集和分析
+
+### 智能运维服务
+- `utils/smart_ops_manager.py`: 智能运维模块，提供智能运维和故障自愈功能
+- `SmartOpsManager` 类负责系统异常自动检测、故障自动修复和恢复、系统健康状态实时监控

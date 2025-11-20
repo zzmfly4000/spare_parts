@@ -218,3 +218,7 @@ RESTful API的输入输出规范...
 - `PerformanceTester._simulate_user_requests(url)`: 模拟用户请求
 - `PerformanceTester._calculate_rps()`: 计算每秒请求数
 - `PerformanceTester._calculate_avg_response_time()`: 计算平均响应时间
+
+### 智能运维接口
+- `SmartOpsManager.detect_anomalies()`: 检测系统异常
+- `SmartOpsManager.auto_recovery(anomaly)`: 自动恢复故障
