@@ -171,3 +171,7 @@
 ### API网关服务
 - `utils/api_gateway.py`: API网关模块，提供API网关和统一认证功能
 - `APIGateway` 类负责请求路由和转发、身份验证和授权、API访问控制和限流
+
+### 服务网格服务
+- `utils/service_mesh_manager.py`: 服务网格模块，提供服务网格和流量管理功能
+- `ServiceMeshManager` 类负责服务间通信治理、流量控制和负载均衡、熔断器和降级

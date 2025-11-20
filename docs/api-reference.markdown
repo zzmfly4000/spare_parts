@@ -202,3 +202,7 @@ RESTful API的输入输出规范...
 ### API网关接口
 - `APIGateway.register_route(path, service_url)`: 注册路由映射
 - `APIGateway.jwt_required(f)`: JWT认证装饰器
+
+### 服务网格接口
+- `ServiceMeshManager.register_service(service_name, service_info)`: 注册服务
+- `ServiceMeshManager.discover_service(service_name)`: 发现服务
