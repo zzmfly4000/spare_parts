@@ -121,3 +121,7 @@
 ### 系统升级服务
 - `utils/system_updater.py`: 系统升级模块，提供系统升级和维护功能
 - `SystemUpdater` 类负责版本检查和更新、数据库迁移和系统维护
+
+### 系统安全服务
+- `utils/security_manager.py`: 系统安全模块，提供系统安全加固功能
+- `SecurityManager` 类负责用户身份验证、密码加密存储和安全防护

@@ -147,3 +147,9 @@ RESTful API的输入输出规范...
 - `SystemUpdater.check_for_updates()`: 检查系统更新
 - `SystemUpdater.perform_backup()`: 执行系统备份
 - `SystemUpdater._compare_versions(version1, version2)`: 比较版本号
+
+### 系统安全接口
+- `SecurityManager.hash_password(password)`: 密码哈希处理
+- `SecurityManager.verify_password(password, hashed_password)`: 验证密码
+- `SecurityManager.check_password_strength(password)`: 检查密码强度
+- `SecurityManager.generate_secure_token()`: 生成安全令牌
