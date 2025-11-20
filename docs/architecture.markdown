@@ -73,3 +73,7 @@
 ### 用户权限管理服务
 - `utils/user_manager.py`: 用户权限管理模块，提供用户认证和权限管理功能
 - `UserManager` 类负责用户登录、注销、身份验证和权限控制等功能
+
+### 系统备份服务
+- `utils/backup_manager.py`: 系统备份管理模块，提供系统备份和恢复功能
+- `BackupManager` 类负责数据库备份、备份文件管理和恢复功能

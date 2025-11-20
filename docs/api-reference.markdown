@@ -90,3 +90,7 @@ RESTful API的输入输出规范...
 - `UserManager.logout_user()`: 用户注销
 - `UserManager.is_logged_in()`: 检查用户是否已登录
 - `UserManager.check_permission(required_role)`: 检查用户权限
+
+### 系统备份接口
+- `BackupManager.backup_database()`: 执行数据库备份
+- `BackupManager.list_backups()`: 列出所有备份文件
