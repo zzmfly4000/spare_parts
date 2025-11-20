@@ -142,3 +142,7 @@
 ### 用户行为分析服务
 - `utils/user_behavior_analyzer.py`: 用户行为分析模块，提供用户行为分析功能
 - `UserBehaviorAnalyzer` 类负责用户操作轨迹记录、用户偏好分析和行为统计
+
+### 自动化运维服务
+- `utils/auto_ops_manager.py`: 自动化运维模块，提供系统自动化运维功能
+- `AutoOpsManager` 类负责定时任务调度、自动化监控和告警、系统自动备份

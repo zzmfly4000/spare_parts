@@ -171,3 +171,8 @@ RESTful API的输入输出规范...
 ### 用户行为分析接口
 - `UserBehaviorAnalyzer.record_user_action(user_id, action_type, action_target)`: 记录用户操作行为
 - `UserBehaviorAnalyzer.get_user_visit_frequency(days)`: 获取用户访问频率统计
+
+### 自动化运维接口
+- `AutoOpsManager.start_scheduler()`: 启动定时任务调度器
+- `AutoOpsManager._perform_auto_backup()`: 执行自动备份任务
+- `AutoOpsManager._perform_system_monitoring()`: 执行系统监控任务
