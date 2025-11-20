@@ -190,3 +190,11 @@ RESTful API的输入输出规范...
 - `ClusterManager.register_node(node_info)`: 注册节点
 - `ClusterManager.send_heartbeat()`: 发送心跳信号
 - `ClusterManager.check_cluster_health()`: 检查集群健康状态
+
+### 微服务接口
+- `MicroserviceManager.register_service(service_name, service_info)`: 注册微服务
+- `MicroserviceManager.discover_service(service_name)`: 发现微服务
+
+### 容器化部署接口
+- `ContainerDeploymentManager.build_docker_image(service_name, dockerfile_path)`: 构建Docker镜像
+- `ContainerDeploymentManager.deploy_to_kubernetes(service_name, deployment_config)`: 部署到Kubernetes

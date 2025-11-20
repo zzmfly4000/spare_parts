@@ -159,3 +159,11 @@
 ### 集群管理服务
 - `utils/cluster_manager.py`: 集群管理模块，提供多节点集群管理功能
 - `ClusterManager` 类负责节点发现和注册、集群状态监控、节点间通信和数据同步
+
+### 微服务架构
+- `utils/microservice_manager.py`: 微服务架构模块，提供微服务架构改造功能
+- `MicroserviceManager` 类负责服务拆分和独立部署、服务间通信机制
+
+### 容器化部署服务
+- `utils/container_deployment_manager.py`: 容器化部署模块，提供容器化部署支持功能
+- `ContainerDeploymentManager` 类负责Docker镜像构建和管理、Kubernetes部署配置
