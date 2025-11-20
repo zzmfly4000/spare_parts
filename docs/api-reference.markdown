@@ -103,3 +103,8 @@ RESTful API的输入输出规范...
 ### API测试接口
 - `GET /api/docs`: API文档页面，展示所有API接口说明
 - `POST /api/test`: 测试API端点，接收端点信息和参数并返回测试结果
+
+### 系统日志管理接口
+- `LogManager.log_operation(user, operation, details)`: 记录操作日志
+- `LogManager.log_system_event(event, level, details)`: 记录系统事件日志
+- `LogManager.get_log_entries(level, limit)`: 获取日志条目

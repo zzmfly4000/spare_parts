@@ -82,3 +82,7 @@
 - `utils/api_documentation.py`: API文档管理模块，提供API文档生成和管理功能
 - `APIDocumentation` 类负责API端点信息注册和文档生成
 - `routes/api_test_routes.py`: API测试路由模块，提供交互式API测试界面
+
+### 系统日志服务
+- `utils/log_manager.py`: 系统日志管理模块，提供日志记录和管理功能
+- `LogManager` 类负责操作日志记录、系统事件日志记录和日志文件管理
