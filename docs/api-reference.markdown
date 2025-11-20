@@ -249,3 +249,6 @@ RESTful API的输入输出规范...
 - `QuantumOptimizer.solve_inventory_optimization(inventory_data)`: 求解库存优化问题
 - `QuantumOptimizer._simulate_quantum_optimization(problem_data)`: 模拟量子优化求解
 - `QuantumOptimizer._calculate_objective_function(solution)`: 计算目标函数值
+
+### 应用入口接口
+- `create_app(config_name)`: 应用工厂函数，创建Flask应用实例
