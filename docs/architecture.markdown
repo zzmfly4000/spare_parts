@@ -77,3 +77,8 @@
 ### 系统备份服务
 - `utils/backup_manager.py`: 系统备份管理模块，提供系统备份和恢复功能
 - `BackupManager` 类负责数据库备份、备份文件管理和恢复功能
+
+### API文档服务
+- `utils/api_documentation.py`: API文档管理模块，提供API文档生成和管理功能
+- `APIDocumentation` 类负责API端点信息注册和文档生成
+- `routes/api_test_routes.py`: API测试路由模块，提供交互式API测试界面

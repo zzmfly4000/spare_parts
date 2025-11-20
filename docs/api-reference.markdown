@@ -94,3 +94,12 @@ RESTful API的输入输出规范...
 ### 系统备份接口
 - `BackupManager.backup_database()`: 执行数据库备份
 - `BackupManager.list_backups()`: 列出所有备份文件
+
+### API文档管理接口
+- `APIDocumentation.register_endpoint(endpoint, method, description, parameters, response_example)`: 注册API端点信息
+- `APIDocumentation.generate_api_docs()`: 生成API文档
+- `APIDocumentation.get_endpoint_info(endpoint)`: 获取特定端点的信息
+
+### API测试接口
+- `GET /api/docs`: API文档页面，展示所有API接口说明
+- `POST /api/test`: 测试API端点，接收端点信息和参数并返回测试结果
