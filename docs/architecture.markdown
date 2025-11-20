@@ -226,3 +226,10 @@
 - `templates/parts_list.html`: 备件管理页面模板
 - `static/css/style.css`: 自定义样式文件
 - `static/js/main.js`: 主要JavaScript文件
+
+### 测试架构层
+- `tests/`: 测试目录，包含所有测试文件
+- `tests/system_tester.py`: 系统测试管理模块，提供系统整体测试功能
+- `tests/test_database.py`: 数据库单元测试模块
+- `utils/database_optimizer.py`: 数据库优化模块，提供数据库查询优化和索引调整功能
+- `utils/cache_manager.py`: 缓存管理模块，提供缓存机制和内存优化功能

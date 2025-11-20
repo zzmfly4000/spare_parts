@@ -261,3 +261,11 @@ RESTful API的输入输出规范...
 - `GET /edit_part/<int:part_id>`: 编辑备件页面
 - `POST /edit_part/<int:part_id>`: 处理编辑备件表单
 
+### 测试接口
+- `SystemTester.run_unit_tests()`: 运行单元测试
+- `SystemTester.run_performance_tests()`: 运行性能测试
+- `TestDatabase.test_database_connection()`: 测试数据库连接
+- `DatabaseOptimizer.analyze_query_performance(query)`: 分析查询性能
+- `DatabaseOptimizer.suggest_index_optimizations()`: 建议索引优化
+- `CacheManager.get(key)`: 获取缓存值
+- `CacheManager.set(key, value, ttl)`: 设置缓存值
