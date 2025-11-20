@@ -279,3 +279,11 @@ RESTful API的输入输出规范...
 - `docs/user_manual.md`: 系统功能说明文档
 - `docs/operation_guide.md`: 操作指南文档
 - `docs/training_materials.md`: 培训材料文档
+
+
+### 验收测试接口
+- `UserAcceptanceTester.design_test_cases()`: 设计测试用例
+- `UserAcceptanceTester.execute_test_case(test_case)`: 执行测试用例
+- `BusinessProcessTests.test_spare_part_management_flow()`: 测试备件管理流程
+- `BusinessProcessTests.test_inventory_operation_flow()`: 测试库存操作流程
+- `BusinessProcessTests.test_data_integrity_validation()`: 数据完整性和一致性验证

@@ -246,3 +246,9 @@
 - `docs/operation_guide.md`: 操作指南文档，提供详细操作步骤
 - `docs/training_materials.md`: 培训材料文档，提供培训课件内容
 - `docs/faq.md`: 常见问题解答文档
+
+
+### 测试架构层
+- `tests/user_acceptance_tester.py`: 用户验收测试模块，提供用户验收测试功能
+- `tests/business_process_tests.py`: 核心业务流程测试模块
+- `UserAcceptanceTester` 类负责测试用例设计和执行、测试结果收集和报告生成
