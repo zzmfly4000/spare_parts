@@ -146,3 +146,8 @@
 ### 自动化运维服务
 - `utils/auto_ops_manager.py`: 自动化运维模块，提供系统自动化运维功能
 - `AutoOpsManager` 类负责定时任务调度、自动化监控和告警、系统自动备份
+
+
+### 高可用部署服务
+- `utils/high_availability_manager.py`: 高可用部署模块，提供系统高可用部署功能
+- `HighAvailabilityManager` 类负责负载均衡配置、故障自动切换和多实例部署配置

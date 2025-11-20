@@ -176,3 +176,8 @@ RESTful API的输入输出规范...
 - `AutoOpsManager.start_scheduler()`: 启动定时任务调度器
 - `AutoOpsManager._perform_auto_backup()`: 执行自动备份任务
 - `AutoOpsManager._perform_system_monitoring()`: 执行系统监控任务
+
+### 高可用部署接口
+- `HighAvailabilityManager.check_node_health(node_url)`: 检查节点健康状态
+- `HighAvailabilityManager.perform_health_check()`: 执行健康检查
+- `HighAvailabilityManager.get_load_balanced_node()`: 获取负载均衡节点
