@@ -206,3 +206,9 @@ RESTful API的输入输出规范...
 ### 服务网格接口
 - `ServiceMeshManager.register_service(service_name, service_info)`: 注册服务
 - `ServiceMeshManager.discover_service(service_name)`: 发现服务
+
+### CI/CD接口
+- `CIManager.configure_build(project_name, build_config)`: 配置构建任务
+- `CIManager.trigger_build(project_name)`: 触发构建
+- `CDManager.configure_deployment(project_name, deployment_config)`: 配置部署任务
+- `CDManager.deploy_to_environment(project_name, environment)`: 部署到指定环境

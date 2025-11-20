@@ -175,3 +175,9 @@
 ### 服务网格服务
 - `utils/service_mesh_manager.py`: 服务网格模块，提供服务网格和流量管理功能
 - `ServiceMeshManager` 类负责服务间通信治理、流量控制和负载均衡、熔断器和降级
+
+### CI/CD服务
+- `utils/ci_manager.py`: CI管理模块，提供持续集成功能
+- `utils/cd_manager.py`: CD管理模块，提供持续部署功能
+- `CIManager` 类负责代码自动构建和测试、代码质量检查和自动化测试
+- `CDManager` 类负责自动化部署、多环境部署流水线、部署状态监控和回滚
