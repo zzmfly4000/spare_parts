@@ -158,3 +158,7 @@ RESTful API的输入输出规范...
 ### 性能监控接口
 - `PerformanceDashboard.collect_system_metrics()`: 收集系统性能指标
 - `PerformanceDashboard.get_database_metrics()`: 获取数据库性能指标
+
+### 数据导出接口
+- `DataExporter.export_parts_to_excel()`: 导出备件信息到Excel
+- `DataExporter.export_operations_to_csv(start_date, end_date)`: 导出操作记录到CSV

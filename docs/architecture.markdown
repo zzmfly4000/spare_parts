@@ -130,3 +130,7 @@
 ### 性能监控服务
 - `utils/performance_dashboard.py`: 性能监控模块，提供系统性能监控仪表板功能
 - `PerformanceDashboard` 类负责实时性能数据收集、可视化图表展示和系统资源监控
+
+### 数据导出服务
+- `utils/data_exporter.py`: 数据导出模块，提供数据导出和报表生成功能
+- `DataExporter` 类负责多种格式数据导出、自定义报表模板和报表生成
