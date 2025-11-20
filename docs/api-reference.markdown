@@ -123,3 +123,7 @@ RESTful API的输入输出规范...
 ### 系统监控告警接口
 - `AlertManager.check_system_alerts()`: 检查系统告警
 - `AlertManager._send_alert_notifications(alerts)`: 发送告警通知
+
+### 数据可视化接口
+- `DataVisualization.generate_inventory_trend_chart(part_no, days)`: 生成备件库存趋势图表
+- `DataVisualization.generate_location_usage_chart()`: 生成库位使用率可视化图表
