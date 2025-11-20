@@ -153,3 +153,8 @@ RESTful API的输入输出规范...
 - `SecurityManager.verify_password(password, hashed_password)`: 验证密码
 - `SecurityManager.check_password_strength(password)`: 检查密码强度
 - `SecurityManager.generate_secure_token()`: 生成安全令牌
+
+
+### 性能监控接口
+- `PerformanceDashboard.collect_system_metrics()`: 收集系统性能指标
+- `PerformanceDashboard.get_database_metrics()`: 获取数据库性能指标

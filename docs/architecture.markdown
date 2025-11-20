@@ -125,3 +125,8 @@
 ### 系统安全服务
 - `utils/security_manager.py`: 系统安全模块，提供系统安全加固功能
 - `SecurityManager` 类负责用户身份验证、密码加密存储和安全防护
+
+
+### 性能监控服务
+- `utils/performance_dashboard.py`: 性能监控模块，提供系统性能监控仪表板功能
+- `PerformanceDashboard` 类负责实时性能数据收集、可视化图表展示和系统资源监控
