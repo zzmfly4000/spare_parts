@@ -252,3 +252,12 @@ RESTful API的输入输出规范...
 
 ### 应用入口接口
 - `create_app(config_name)`: 应用工厂函数，创建Flask应用实例
+
+### 前端页面接口
+- `GET /`: 首页
+- `GET /parts`: 备件列表页面
+- `GET /add_part`: 添加备件页面
+- `POST /add_part`: 处理添加备件表单
+- `GET /edit_part/<int:part_id>`: 编辑备件页面
+- `POST /edit_part/<int:part_id>`: 处理编辑备件表单
+

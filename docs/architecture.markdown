@@ -218,3 +218,11 @@
 - `app.py`: 主应用工厂模块，提供应用工厂模式创建Flask实例
 - `run.py`: 应用启动模块，负责应用启动和配置加载
 - `create_app(config_name)`: 应用工厂函数，负责配置加载和环境适配、路由注册、服务组件初始化
+
+### 前端界面层
+- `templates/`: 前端模板目录，包含所有HTML模板文件
+- `static/`: 静态资源目录，包含CSS、JavaScript、图片等静态文件
+- `templates/base.html`: 基础HTML模板，包含导航栏和页脚
+- `templates/parts_list.html`: 备件管理页面模板
+- `static/css/style.css`: 自定义样式文件
+- `static/js/main.js`: 主要JavaScript文件
