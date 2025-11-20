@@ -137,3 +137,8 @@ RESTful API的输入输出规范...
 - `LanguageManager.set_language(language_code)`: 设置当前语言
 - `LanguageManager.get_text(key_path, language_code)`: 获取指定语言的文本
 - `LanguageManager._load_language_packs()`: 加载语言包
+
+### 帮助文档接口
+- `HelpDocumentation.get_help_document(doc_name)`: 获取帮助文档内容
+- `HelpDocumentation.search_help_content(keyword)`: 搜索帮助内容
+- `HelpDocumentation._load_help_contents()`: 加载帮助文档内容
