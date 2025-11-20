@@ -116,3 +116,8 @@
 ### 帮助文档服务
 - `utils/help_documentation.py`: 帮助文档模块，提供系统帮助文档功能
 - `HelpDocumentation` 类负责帮助内容管理、在线帮助浏览和搜索功能
+
+
+### 系统升级服务
+- `utils/system_updater.py`: 系统升级模块，提供系统升级和维护功能
+- `SystemUpdater` 类负责版本检查和更新、数据库迁移和系统维护

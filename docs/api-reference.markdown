@@ -142,3 +142,8 @@ RESTful API的输入输出规范...
 - `HelpDocumentation.get_help_document(doc_name)`: 获取帮助文档内容
 - `HelpDocumentation.search_help_content(keyword)`: 搜索帮助内容
 - `HelpDocumentation._load_help_contents()`: 加载帮助文档内容
+
+### 系统升级接口
+- `SystemUpdater.check_for_updates()`: 检查系统更新
+- `SystemUpdater.perform_backup()`: 执行系统备份
+- `SystemUpdater._compare_versions(version1, version2)`: 比较版本号
