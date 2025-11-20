@@ -56,3 +56,9 @@ RESTful API的输入输出规范...
 - `GET /smart_inbound`: 智能入库页面
 - `POST /smart_inbound`: 处理智能入库表单
 - `GET /outbound_part/<int:part_id>`: 备件出库页面
+
+### 系统设置路由接口
+- `GET /settings`: 系统设置页面，显示当前配置
+- `POST /settings`: 保存系统设置，接收系统基本信息配置
+- `POST /update_email_settings`: 更新邮件配置，接收邮件服务器相关设置
+- `POST /update_inventory_settings`: 更新库存设置，接收库存阈值相关配置
