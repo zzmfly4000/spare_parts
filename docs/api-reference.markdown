@@ -240,3 +240,7 @@ RESTful API的输入输出规范...
 - `BlockchainNotarizationService.calculate_data_hash(data)`: 计算数据哈希值
 - `BlockchainNotarizationService.notarize_data(data)`: 对数据进行区块链存证
 - `BlockchainNotarizationService._generate_data_summary(data)`: 生成数据摘要
+
+### AIOps接口
+- `AIOpsEngine.analyze_logs_intelligently(log_pattern)`: 智能日志分析
+- `AIOpsEngine.predict_system_failure(hours_ahead)`: 预测系统故障

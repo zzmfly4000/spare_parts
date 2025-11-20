@@ -205,3 +205,7 @@
 ### 区块链存证服务
 - `utils/blockchain_notarization_service.py`: 区块链存证模块，提供区块链数据存证功能
 - `BlockchainNotarizationService` 类负责数据哈希计算和上链存证、存证查询和验证、关键业务数据的区块链存证
+
+### AIOps服务
+- `utils/aiops_engine.py`: AIOps模块，提供人工智能运维功能
+- `AIOpsEngine` 类负责智能日志分析和异常检测、自动化故障诊断和修复建议、系统性能智能分析和优化建议
