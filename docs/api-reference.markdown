@@ -269,3 +269,8 @@ RESTful API的输入输出规范...
 - `DatabaseOptimizer.suggest_index_optimizations()`: 建议索引优化
 - `CacheManager.get(key)`: 获取缓存值
 - `CacheManager.set(key, value, ttl)`: 设置缓存值
+
+### 部署接口
+- `ProductionConfig`: 生产环境配置类
+- `HealthCheck.check_database_connection()`: 检查数据库连接
+- `HealthCheck.system_health_report()`: 生成系统健康报告

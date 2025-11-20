@@ -233,3 +233,10 @@
 - `tests/test_database.py`: 数据库单元测试模块
 - `utils/database_optimizer.py`: 数据库优化模块，提供数据库查询优化和索引调整功能
 - `utils/cache_manager.py`: 缓存管理模块，提供缓存机制和内存优化功能
+
+### 部署架构层
+- `config/production.py`: 生产环境配置文件
+- `Dockerfile`: Docker部署配置文件
+- `docker-compose.yml`: Docker编排配置文件
+- `scripts/init_database.py`: 数据库初始化脚本
+- `utils/health_check.py`: 系统健康检查模块
