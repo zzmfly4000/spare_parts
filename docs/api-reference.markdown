@@ -235,3 +235,8 @@ RESTful API的输入输出规范...
 ### 数字孪生接口
 - `DigitalTwinEngine.create_system_twin()`: 创建系统数字孪生
 - `DigitalTwinEngine.simulate_operation(operation_data)`: 模拟操作
+
+### 区块链存证接口
+- `BlockchainNotarizationService.calculate_data_hash(data)`: 计算数据哈希值
+- `BlockchainNotarizationService.notarize_data(data)`: 对数据进行区块链存证
+- `BlockchainNotarizationService._generate_data_summary(data)`: 生成数据摘要

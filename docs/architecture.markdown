@@ -201,3 +201,7 @@
 ### 数字孪生服务
 - `utils/digital_twin_engine.py`: 数字孪生模块，提供数字孪生和仿真测试功能
 - `DigitalTwinEngine` 类负责系统状态建模和虚拟映射、仿真环境和测试场景、业务流程仿真和验证
+
+### 区块链存证服务
+- `utils/blockchain_notarization_service.py`: 区块链存证模块，提供区块链数据存证功能
+- `BlockchainNotarizationService` 类负责数据哈希计算和上链存证、存证查询和验证、关键业务数据的区块链存证
