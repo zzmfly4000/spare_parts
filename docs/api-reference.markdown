@@ -244,3 +244,8 @@ RESTful API的输入输出规范...
 ### AIOps接口
 - `AIOpsEngine.analyze_logs_intelligently(log_pattern)`: 智能日志分析
 - `AIOpsEngine.predict_system_failure(hours_ahead)`: 预测系统故障
+
+### 量子计算接口
+- `QuantumOptimizer.solve_inventory_optimization(inventory_data)`: 求解库存优化问题
+- `QuantumOptimizer._simulate_quantum_optimization(problem_data)`: 模拟量子优化求解
+- `QuantumOptimizer._calculate_objective_function(solution)`: 计算目标函数值

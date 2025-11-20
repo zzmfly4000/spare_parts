@@ -209,3 +209,7 @@
 ### AIOps服务
 - `utils/aiops_engine.py`: AIOps模块，提供人工智能运维功能
 - `AIOpsEngine` 类负责智能日志分析和异常检测、自动化故障诊断和修复建议、系统性能智能分析和优化建议
+
+### 量子计算服务
+- `utils/quantum_optimizer.py`: 量子计算模块，提供量子计算优化算法功能
+- `QuantumOptimizer` 类负责复杂优化问题的量子算法求解、量子退火和变分量子特征求解器、库存优化和供应链调度的量子算法
