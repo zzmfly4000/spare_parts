@@ -197,3 +197,7 @@
 ### 智能推荐服务
 - `utils/intelligent_recommendation_engine.py`: 智能推荐模块，提供智能推荐和预测分析功能
 - `IntelligentRecommendationEngine` 类负责备件需求预测算法、个性化推荐和智能补货、历史数据分析和模式识别
+
+### 数字孪生服务
+- `utils/digital_twin_engine.py`: 数字孪生模块，提供数字孪生和仿真测试功能
+- `DigitalTwinEngine` 类负责系统状态建模和虚拟映射、仿真环境和测试场景、业务流程仿真和验证

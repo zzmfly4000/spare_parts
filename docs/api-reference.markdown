@@ -231,3 +231,7 @@ RESTful API的输入输出规范...
 - `IntelligentRecommendationEngine.predict_part_demand(part_id, days)`: 预测备件需求
 - `IntelligentRecommendationEngine._get_consumption_history(part_id, days)`: 获取备件消耗历史
 - `IntelligentRecommendationEngine._linear_regression_predict(data)`: 线性回归预测
+
+### 数字孪生接口
+- `DigitalTwinEngine.create_system_twin()`: 创建系统数字孪生
+- `DigitalTwinEngine.simulate_operation(operation_data)`: 模拟操作
