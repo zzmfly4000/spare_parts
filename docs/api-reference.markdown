@@ -70,3 +70,8 @@ RESTful API的输入输出规范...
 - `POST /import_operations`: 处理操作记录导入，接收Excel文件并解析导入数据
 - `GET /export_data`: 数据导出功能，返回Excel格式的备件数据
 
+### 库存报警接口
+- `StockAlertService.check_low_stock_and_alert()`: 检查低库存并发送报警邮件
+- `StockAlertService.get_low_stock_statistics()`: 获取低库存统计信息
+
+

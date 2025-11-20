@@ -57,3 +57,7 @@
 - `GET /import_operations`: 操作记录导入页面
 - `POST /import_operations`: 处理操作记录导入
 - `GET /export_data`: 数据导出功能
+
+### 低库存报警服务
+- `utils/stock_alert.py`: 库存报警服务模块，提供低库存检查和邮件报警功能
+- `StockAlertService` 类负责定时检查低库存备件并发送报警邮件
