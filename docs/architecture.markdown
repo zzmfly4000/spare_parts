@@ -91,3 +91,7 @@
 ### 性能优化服务
 - `utils/performance_optimizer.py`: 性能优化模块，提供系统性能监控和优化功能
 - `PerformanceOptimizer` 类负责查询性能分析、数据库统计和索引优化建议
+
+### 系统配置管理服务
+- `utils/config_manager.py`: 系统配置管理模块，提供配置加载、保存和管理功能
+- `ConfigManager` 类负责系统参数配置管理、配置文件读写和配置热更新

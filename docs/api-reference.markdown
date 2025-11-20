@@ -113,3 +113,9 @@ RESTful API的输入输出规范...
 - `PerformanceOptimizer.analyze_query_performance(query, params)`: 分析查询性能
 - `PerformanceOptimizer.get_database_stats()`: 获取数据库统计信息
 - `PerformanceOptimizer.suggest_indexes()`: 建议数据库索引优化
+
+### 系统配置管理接口
+- `ConfigManager.load_config()`: 加载配置文件
+- `ConfigManager.save_config()`: 保存配置文件
+- `ConfigManager.get_config(key_path, default)`: 获取配置项值
+- `ConfigManager.set_config(key_path, value)`: 设置配置项值
