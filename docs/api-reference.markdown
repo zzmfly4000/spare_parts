@@ -62,3 +62,11 @@ RESTful API的输入输出规范...
 - `POST /settings`: 保存系统设置，接收系统基本信息配置
 - `POST /update_email_settings`: 更新邮件配置，接收邮件服务器相关设置
 - `POST /update_inventory_settings`: 更新库存设置，接收库存阈值相关配置
+
+### 数据导入导出路由接口
+- `GET /import_parts`: 备件信息导入页面，提供文件上传表单
+- `POST /import_parts`: 处理备件信息导入，接收Excel文件并解析导入数据
+- `GET /import_operations`: 操作记录导入页面，提供文件上传表单
+- `POST /import_operations`: 处理操作记录导入，接收Excel文件并解析导入数据
+- `GET /export_data`: 数据导出功能，返回Excel格式的备件数据
+

@@ -51,3 +51,9 @@
 - `POST /update_email_settings`: 更新邮件配置
 - `POST /update_inventory_settings`: 更新库存设置
 
+### 数据导入导出路由接口
+- `GET /import_parts`: 备件信息导入页面
+- `POST /import_parts`: 处理备件信息导入
+- `GET /import_operations`: 操作记录导入页面
+- `POST /import_operations`: 处理操作记录导入
+- `GET /export_data`: 数据导出功能
