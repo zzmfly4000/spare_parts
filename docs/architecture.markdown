@@ -189,3 +189,8 @@
 ### 智能运维服务
 - `utils/smart_ops_manager.py`: 智能运维模块，提供智能运维和故障自愈功能
 - `SmartOpsManager` 类负责系统异常自动检测、故障自动修复和恢复、系统健康状态实时监控
+
+### A/B测试服务
+- `utils/ab_test_manager.py`: A/B测试模块，提供A/B测试和灰度发布功能
+- `ABTestManager` 类负责用户分组和流量分配、实验数据收集和分析、功能开关和版本控制
+

@@ -222,3 +222,7 @@ RESTful API的输入输出规范...
 ### 智能运维接口
 - `SmartOpsManager.detect_anomalies()`: 检测系统异常
 - `SmartOpsManager.auto_recovery(anomaly)`: 自动恢复故障
+
+### A/B测试接口
+- `ABTestManager.create_experiment(experiment_name, variants, traffic_ratio)`: 创建A/B测试实验
+- `ABTestManager.assign_user_to_variant(user_id, experiment_name)`: 将用户分配到实验变体
