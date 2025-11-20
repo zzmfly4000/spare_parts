@@ -65,3 +65,7 @@
 ### 数据统计分析服务
 - `utils/data_analytics.py`: 数据统计分析模块，提供数据统计和分析功能
 - `DataAnalyticsService` 类负责备件使用频率统计、库存变化趋势分析等功能
+
+### 系统监控服务
+- `utils/system_monitor.py`: 系统监控模块，提供系统监控和健康检查功能
+- `SystemMonitor` 类负责数据库状态检查、系统资源监控等功能

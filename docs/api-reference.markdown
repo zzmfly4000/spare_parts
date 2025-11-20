@@ -79,3 +79,8 @@ RESTful API的输入输出规范...
 - `DataAnalyticsService.get_inventory_trend(part_no, days)`: 获取备件库存变化趋势
 - `DataAnalyticsService.get_location_usage_statistics()`: 获取库位使用率统计
 
+### 系统监控接口
+- `SystemMonitor.check_database_status()`: 检查数据库状态
+- `SystemMonitor.get_system_info()`: 获取系统信息
+- `SystemMonitor.get_resource_usage()`: 获取系统资源使用情况
+- `SystemMonitor.get_health_status()`: 获取系统健康状态
