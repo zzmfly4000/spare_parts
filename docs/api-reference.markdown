@@ -84,3 +84,9 @@ RESTful API的输入输出规范...
 - `SystemMonitor.get_system_info()`: 获取系统信息
 - `SystemMonitor.get_resource_usage()`: 获取系统资源使用情况
 - `SystemMonitor.get_health_status()`: 获取系统健康状态
+
+### 用户权限管理接口
+- `UserManager.authenticate_user(username, password)`: 用户身份验证
+- `UserManager.logout_user()`: 用户注销
+- `UserManager.is_logged_in()`: 检查用户是否已登录
+- `UserManager.check_permission(required_role)`: 检查用户权限

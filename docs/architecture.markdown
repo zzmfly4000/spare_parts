@@ -69,3 +69,7 @@
 ### 系统监控服务
 - `utils/system_monitor.py`: 系统监控模块，提供系统监控和健康检查功能
 - `SystemMonitor` 类负责数据库状态检查、系统资源监控等功能
+
+### 用户权限管理服务
+- `utils/user_manager.py`: 用户权限管理模块，提供用户认证和权限管理功能
+- `UserManager` 类负责用户登录、注销、身份验证和权限控制等功能
