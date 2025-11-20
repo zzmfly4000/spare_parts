@@ -181,3 +181,7 @@ RESTful API的输入输出规范...
 - `HighAvailabilityManager.check_node_health(node_url)`: 检查节点健康状态
 - `HighAvailabilityManager.perform_health_check()`: 执行健康检查
 - `HighAvailabilityManager.get_load_balanced_node()`: 获取负载均衡节点
+
+### 容灾备份接口
+- `DisasterRecoveryManager.create_encrypted_backup(password)`: 创建加密备份
+- `DisasterRecoveryManager.sync_backup_to_locations(backup_file)`: 同步备份到多个位置

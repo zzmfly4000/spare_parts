@@ -151,3 +151,7 @@
 ### 高可用部署服务
 - `utils/high_availability_manager.py`: 高可用部署模块，提供系统高可用部署功能
 - `HighAvailabilityManager` 类负责负载均衡配置、故障自动切换和多实例部署配置
+
+### 容灾备份服务
+- `utils/disaster_recovery_manager.py`: 容灾备份模块，提供系统容灾备份功能
+- `DisasterRecoveryManager` 类负责异地备份存储、灾难恢复计划、数据备份加密和压缩
