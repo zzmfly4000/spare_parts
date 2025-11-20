@@ -119,3 +119,7 @@ RESTful API的输入输出规范...
 - `ConfigManager.save_config()`: 保存配置文件
 - `ConfigManager.get_config(key_path, default)`: 获取配置项值
 - `ConfigManager.set_config(key_path, value)`: 设置配置项值
+
+### 系统监控告警接口
+- `AlertManager.check_system_alerts()`: 检查系统告警
+- `AlertManager._send_alert_notifications(alerts)`: 发送告警通知
