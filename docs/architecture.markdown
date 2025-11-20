@@ -86,3 +86,8 @@
 ### 系统日志服务
 - `utils/log_manager.py`: 系统日志管理模块，提供日志记录和管理功能
 - `LogManager` 类负责操作日志记录、系统事件日志记录和日志文件管理
+
+
+### 性能优化服务
+- `utils/performance_optimizer.py`: 性能优化模块，提供系统性能监控和优化功能
+- `PerformanceOptimizer` 类负责查询性能分析、数据库统计和索引优化建议

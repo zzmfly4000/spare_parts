@@ -108,3 +108,8 @@ RESTful API的输入输出规范...
 - `LogManager.log_operation(user, operation, details)`: 记录操作日志
 - `LogManager.log_system_event(event, level, details)`: 记录系统事件日志
 - `LogManager.get_log_entries(level, limit)`: 获取日志条目
+
+### 性能优化接口
+- `PerformanceOptimizer.analyze_query_performance(query, params)`: 分析查询性能
+- `PerformanceOptimizer.get_database_stats()`: 获取数据库统计信息
+- `PerformanceOptimizer.suggest_indexes()`: 建议数据库索引优化
