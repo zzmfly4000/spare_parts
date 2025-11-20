@@ -240,3 +240,9 @@
 - `docker-compose.yml`: Docker编排配置文件
 - `scripts/init_database.py`: 数据库初始化脚本
 - `utils/health_check.py`: 系统健康检查模块
+
+### 文档架构层
+- `docs/user_manual.md`: 用户手册文档，提供系统功能说明
+- `docs/operation_guide.md`: 操作指南文档，提供详细操作步骤
+- `docs/training_materials.md`: 培训材料文档，提供培训课件内容
+- `docs/faq.md`: 常见问题解答文档

@@ -274,3 +274,8 @@ RESTful API的输入输出规范...
 - `ProductionConfig`: 生产环境配置类
 - `HealthCheck.check_database_connection()`: 检查数据库连接
 - `HealthCheck.system_health_report()`: 生成系统健康报告
+
+### 文档管理接口
+- `docs/user_manual.md`: 系统功能说明文档
+- `docs/operation_guide.md`: 操作指南文档
+- `docs/training_materials.md`: 培训材料文档
