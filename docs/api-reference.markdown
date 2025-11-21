@@ -299,3 +299,9 @@ RESTful API的输入输出规范...
 - [BackupManager.backup_database()](file://D:\Python备件管理系统\20251119-pyCharm\equipment_spare_parts_system\utils\backup_manager.py#L19-L39): 执行数据库备份
 - [LogManager.get_log_entries()](file://D:\Python备件管理系统\20251119-pyCharm\equipment_spare_parts_system\utils\log_manager.py#L70-L74): 获取日志条目
 - [PerformanceOptimizer.analyze_query_performance()](file://D:\Python备件管理系统\20251119-pyCharm\equipment_spare_parts_system\utils\performance_optimizer.py#L10-L27): 分析查询性能
+
+### 性能测试接口
+- `PerformanceBenchmark.test_response_time(func, *args, **kwargs)`: 测试函数响应时间
+- `PerformanceBenchmark.test_concurrent_processing(func, concurrent_requests)`: 测试并发处理能力
+- `DatabasePerformanceTests.benchmark_query_performance(query)`: 基准测试查询性能
+- `DatabasePerformanceTests.benchmark_connection_pool()`: 基准测试连接池性能

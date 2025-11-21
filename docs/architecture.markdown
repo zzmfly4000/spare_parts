@@ -262,3 +262,8 @@
 - `docs/system_operations_manual.md`: 系统运维手册，提供系统运维指导
 - `docs/maintenance_guide.md`: 日常维护操作指南
 - `docs/troubleshooting_guide.md`: 故障排查和应急处理流程
+
+### 性能测试架构层
+- `tests/performance_benchmark.py`: 性能基准测试模块，提供性能基准测试功能
+- `tests/database_performance_tests.py`: 数据库性能测试模块
+- `PerformanceBenchmark` 类负责系统响应时间测试、并发处理能力测试
