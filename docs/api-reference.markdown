@@ -305,3 +305,7 @@ RESTful API的输入输出规范...
 - `PerformanceBenchmark.test_concurrent_processing(func, concurrent_requests)`: 测试并发处理能力
 - `DatabasePerformanceTests.benchmark_query_performance(query)`: 基准测试查询性能
 - `DatabasePerformanceTests.benchmark_connection_pool()`: 基准测试连接池性能
+
+### 培训管理接口
+- `TrainingCoordinator.design_training_course(course_name, modules)`: 设计培训课程
+- `TrainingCoordinator.track_user_progress(user_id, course_name)`: 跟踪用户学习进度

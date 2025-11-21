@@ -267,3 +267,8 @@
 - `tests/performance_benchmark.py`: 性能基准测试模块，提供性能基准测试功能
 - `tests/database_performance_tests.py`: 数据库性能测试模块
 - `PerformanceBenchmark` 类负责系统响应时间测试、并发处理能力测试
+
+### 培训支持层
+- `utils/training_coordinator.py`: 培训协调模块，提供用户培训和知识转移功能
+- `docs/user_role_training.md`: 用户角色和权限培训材料
+- `TrainingCoordinator` 类负责培训课程设计和内容准备、培训效果评估和反馈收集
