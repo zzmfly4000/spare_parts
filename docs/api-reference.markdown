@@ -309,3 +309,15 @@ RESTful API的输入输出规范...
 ### 培训管理接口
 - `TrainingCoordinator.design_training_course(course_name, modules)`: 设计培训课程
 - `TrainingCoordinator.track_user_progress(user_id, course_name)`: 跟踪用户学习进度
+
+
+### 核心测试接口
+- `CoreFunctionalityTester.test_spare_part_lifecycle()`: 测试备件生命周期完整流程
+- `CoreFunctionalityTester.test_inventory_operations()`: 测试库存操作流程
+- `SparePartManagementTests.test_part_creation()`: 测试备件创建功能
+- `SparePartManagementTests.test_part_update()`: 测试备件更新功能
+- `SparePartManagementTests.test_part_deletion()`: 测试备件删除功能
+- `SparePartManagementTests.test_part_search()`: 测试备件搜索功能
+- `InventoryOperationTests.test_inbound_operation()`: 测试入库操作流程
+- `InventoryOperationTests.test_outbound_operation()`: 测试出库操作流程
+- `InventoryOperationTests.test_stock_calculation_accuracy()`: 测试库存计算准确性

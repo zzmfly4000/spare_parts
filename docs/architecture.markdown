@@ -272,3 +272,9 @@
 - `utils/training_coordinator.py`: 培训协调模块，提供用户培训和知识转移功能
 - `docs/user_role_training.md`: 用户角色和权限培训材料
 - `TrainingCoordinator` 类负责培训课程设计和内容准备、培训效果评估和反馈收集
+
+### 核心测试架构层
+- `tests/core_functionality_tester.py`: 核心功能测试模块，提供系统核心功能测试
+- `tests/spare_part_management_tests.py`: 备件管理测试模块
+- `tests/inventory_operation_tests.py`: 库存操作测试模块
+- `CoreFunctionalityTester` 类负责核心功能测试用例、数据一致性验证
