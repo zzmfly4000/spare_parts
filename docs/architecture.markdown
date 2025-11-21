@@ -257,3 +257,8 @@
 - `utils/deployment_planner.py`: 部署规划模块，提供系统上线发布功能
 - `scripts/deploy_production.py`: 生产环境部署脚本
 - `DeploymentPlanner` 类负责发布版本管理和变更控制、上线检查清单和风险评估
+
+### 运维支持层
+- `docs/system_operations_manual.md`: 系统运维手册，提供系统运维指导
+- `docs/maintenance_guide.md`: 日常维护操作指南
+- `docs/troubleshooting_guide.md`: 故障排查和应急处理流程

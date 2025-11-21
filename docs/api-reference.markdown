@@ -293,3 +293,9 @@ RESTful API的输入输出规范...
 - `DeploymentPlanner.generate_deployment_checklist()`: 生成部署检查清单
 - `deploy_to_production()`: 部署到生产环境
 - `rollback_deployment()`: 回滚部署
+
+### 运维管理接口
+- [SystemMonitor.get_health_status()](file://D:\Python备件管理系统\20251119-pyCharm\equipment_spare_parts_system\utils\system_monitor.py#L47-L65): 获取系统健康状态
+- [BackupManager.backup_database()](file://D:\Python备件管理系统\20251119-pyCharm\equipment_spare_parts_system\utils\backup_manager.py#L19-L39): 执行数据库备份
+- [LogManager.get_log_entries()](file://D:\Python备件管理系统\20251119-pyCharm\equipment_spare_parts_system\utils\log_manager.py#L70-L74): 获取日志条目
+- [PerformanceOptimizer.analyze_query_performance()](file://D:\Python备件管理系统\20251119-pyCharm\equipment_spare_parts_system\utils\performance_optimizer.py#L10-L27): 分析查询性能
