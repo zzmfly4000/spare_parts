@@ -1,6 +1,6 @@
 from flask import render_template, request, redirect, url_for, flash
-from models.database import (create_operation_record, get_spare_part_by_id, 
-                           update_stock_for_part)
+from models.database import (create_operation_record, get_spare_part_by_id)
+from utils.stock_utils import update_stock_for_part
 import datetime
 
 def setup_operation_routes(app):

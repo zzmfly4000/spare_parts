@@ -321,3 +321,9 @@ RESTful API的输入输出规范...
 - `InventoryOperationTests.test_inbound_operation()`: 测试入库操作流程
 - `InventoryOperationTests.test_outbound_operation()`: 测试出库操作流程
 - `InventoryOperationTests.test_stock_calculation_accuracy()`: 测试库存计算准确性
+
+### 集成测试接口
+- `IntegrationTester.test_module_interfaces()`: 测试模块间接口
+- `IntegrationTester.verify_data_flow()`: 验证数据流正确性
+- `RouteBusinessIntegrationTests.test_parts_route_with_database()`: 测试备件管理路由与数据库集成
+- `RouteBusinessIntegrationTests.test_operations_route_integration()`: 测试操作记录路由集成
