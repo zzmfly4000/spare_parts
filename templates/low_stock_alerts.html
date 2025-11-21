@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+
+{% block title %}低库存提醒 - 设备备件管理系统{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-4 border-bottom">
+    <h1 class="h2">
+        <i class="fas fa-exclamation-triangle text-warning me-2"></i>
+        低库存提醒
+    </h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <a href="{{ url_for('smart_inbound') }}" class="btn btn-sm btn-success">
+                <i class="fas fa-arrow-down me-1"></i>快速入库
+            </a>
+            <a href="{{ url_for('export_data') }}" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-file-export me-1"></i>导出报告
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">
+            低库存备件列表
+            <span class="badge bg-warning ms-2">{{ low_stock_parts|length }}</span>
+        </h5>
+        <small class="text-muted">更新时间: {{ now.strftime('%Y-%m-%d %H:%M:%S') }}</small>
+    </div>
+    <div class="card-body">
+        {% if low_stock_parts %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>状态</th>
+                        <th>备件编号</th>
+                        <th>备件名称</th>
+                        <th>当前库存</th>
+                        <th>最低库存</th>
+                        <th>库位</th>
+                        <th>供应商</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for part in low_stock_parts %}
+                    <tr class="{% if part[4] == 0 %}table-danger{% else %}table-warning{% endif %}">
+                        <td>
+                            {% if part[4] == 0 %}
+                            <span class="badge bg-danger">缺货</span>
+                            {% else %}
+                            <span class="badge bg-warning">低库存</span>
+                            {% endif %}
+                        </td>
+                        <td><code>{{ part[1] }}</code></td>
+                        <td>
+                            <strong>{{ part[2] }}</strong>
+                            {% if part[7] %}  {# key_part字段 #}
+                            <span class="badge bg-info ms-1">关键</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="fw-bold {% if part[4] == 0 %}text-danger{% else %}text-warning{% endif %}">
+                                {{ part[4] }}
+                            </span>
+                        </td>
+                        <td>{{ part[5] }}</td>
+                        <td>
+                            {% if part[11] %}
+                            <span class="badge bg-secondary">{{ part[11] }}</span>
+                            {% else %}
+                            <span class="text-muted">未分配</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if part[12] %}
+                            <small>{{ part[12] }}</small>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('part_detail', part_id=part[0]) }}" 
+                                   class="btn btn-outline-primary" title="查看详情">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{{ url_for('smart_inbound') }}?part_no={{ part[1] }}" 
+                                   class="btn btn-outline-success" title="快速入库">
+                                    <i class="fas fa-arrow-down"></i>
+                                </a>
+                                <a href="{{ url_for('edit_part', part_id=part[0]) }}" 
+                                   class="btn btn-outline-info" title="编辑备件">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+            <h4 class="text-success">暂无低库存预警</h4>
+            <p class="text-muted">所有备件库存状态正常</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 统计信息 -->
+{% if low_stock_parts %}
+<div class="row mt-4">
+    <div class="col-md-4">
+        <div class="card border-warning">
+            <div class="card-body text-center">
+                <h3 class="text-warning">{{ low_stock_parts|length }}</h3>
+                <p class="text-muted mb-0">低库存备件总数</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-danger">
+            <div class="card-body text-center">
+                <h3 class="text-danger">{{ low_stock_parts|selectattr('4', 'equalto', 0)|list|length }}</h3>
+                <p class="text-muted mb-0">缺货备件数量</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-info">
+            <div class="card-body text-center">
+                <h3 class="text-info">{{ low_stock_parts|selectattr('7')|list|length }}</h3>
+                <p class="text-muted mb-0">关键备件数量</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

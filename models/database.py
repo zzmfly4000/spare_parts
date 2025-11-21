@@ -2,19 +2,21 @@ import sqlite3
 import os
 import logging
 from contextlib import contextmanager
+from datetime import datetime
+
 
 class DatabaseManager:
     """数据库管理器，负责数据库连接和操作"""
-    
+
     def __init__(self, db_path='spare_parts.db'):
         self.db_path = db_path
         self._init_db()
-    
+
     def _init_db(self):
         """初始化数据库连接池和性能优化"""
         # 确保数据库目录存在
         os.makedirs(os.path.dirname(self.db_path) if os.path.dirname(self.db_path) else '.', exist_ok=True)
-        
+
         # 配置SQLite性能优化参数
         with sqlite3.connect(self.db_path) as conn:
             conn.execute("PRAGMA foreign_keys = ON")
@@ -22,7 +24,7 @@ class DatabaseManager:
             conn.execute("PRAGMA synchronous = NORMAL")
             conn.execute("PRAGMA cache_size = 10000")
             conn.execute("PRAGMA temp_store = MEMORY")
-    
+
     @contextmanager
     def get_connection(self):
         """获取数据库连接的上下文管理器"""
@@ -36,6 +38,97 @@ class DatabaseManager:
             conn.commit()
         finally:
             conn.close()
+
+
+def calculate_stock_from_operations(part_no):
+    """根据操作记录计算备件库存"""
+    db_manager = DatabaseManager()
+    with db_manager.get_connection() as conn:
+        # 计算入库总量
+        cursor = conn.execute('''
+            SELECT COALESCE(SUM(quantity), 0) 
+            FROM operation_records 
+            WHERE part_no = ? AND operation_type = 'Stock in'
+        ''', (part_no,))
+        total_in = cursor.fetchone()[0]
+
+        # 计算出库总量
+        cursor = conn.execute('''
+            SELECT COALESCE(SUM(quantity), 0) 
+            FROM operation_records 
+            WHERE part_no = ? AND operation_type = 'Stock out'
+        ''', (part_no,))
+        total_out = cursor.fetchone()[0]
+
+        return total_in - total_out
+
+
+def update_stock_for_part(part_id, new_stock):
+    """更新单个备件的库存数量"""
+    db_manager = DatabaseManager()
+    with db_manager.get_connection() as conn:
+        cursor = conn.execute('''
+            UPDATE spare_parts 
+            SET current_stock = ?, updated_date = CURRENT_TIMESTAMP 
+            WHERE id = ?
+        ''', (new_stock, part_id))
+        return cursor.rowcount
+
+
+def recalculate_all_stock():
+    """重新计算所有备件的库存"""
+    db_manager = DatabaseManager()
+    with db_manager.get_connection() as conn:
+        # 获取所有备件
+        cursor = conn.execute('SELECT part_no FROM spare_parts')
+        parts = cursor.fetchall()
+
+        updated_count = 0
+        for part in parts:
+            part_no = part[0]
+            calculated_stock = calculate_stock_from_operations(part_no)
+
+            # 更新备件库存
+            cursor = conn.execute('''
+                UPDATE spare_parts 
+                SET current_stock = ?, updated_date = CURRENT_TIMESTAMP 
+                WHERE part_no = ?
+            ''', (calculated_stock, part_no))
+
+            if cursor.rowcount > 0:
+                updated_count += 1
+
+        return updated_count
+
+
+def is_low_stock(part_id):
+    """判断备件是否处于低库存状态"""
+    db_manager = DatabaseManager()
+    with db_manager.get_connection() as conn:
+        cursor = conn.execute('''
+            SELECT current_stock, min_stock 
+            FROM spare_parts 
+            WHERE id = ?
+        ''', (part_id,))
+        result = cursor.fetchone()
+
+        if result:
+            current_stock, min_stock = result
+            return current_stock <= min_stock
+        return False
+
+
+# 确保 get_low_stock_parts 函数存在
+def get_low_stock_parts():
+    """获取所有低库存备件列表"""
+    db_manager = DatabaseManager()
+    with db_manager.get_connection() as conn:
+        cursor = conn.execute('''
+            SELECT * FROM spare_parts 
+            WHERE current_stock <= min_stock 
+            ORDER BY current_stock ASC
+        ''')
+        return cursor.fetchall()
 
 def init_db():
     """初始化数据库表结构和索引"""
@@ -108,6 +201,7 @@ def init_db():
         # 为库位表创建索引
         conn.execute('CREATE INDEX IF NOT EXISTS idx_locations_status ON locations(status)')
 
+
 def get_spare_part_by_id(part_id):
     """根据ID获取备件信息"""
     db_manager = DatabaseManager()
@@ -115,12 +209,14 @@ def get_spare_part_by_id(part_id):
         cursor = conn.execute('SELECT * FROM spare_parts WHERE id = ?', (part_id,))
         return cursor.fetchone()
 
+
 def get_spare_part_by_part_no(part_no):
     """根据备件编号获取备件信息"""
     db_manager = DatabaseManager()
     with db_manager.get_connection() as conn:
         cursor = conn.execute('SELECT * FROM spare_parts WHERE part_no = ?', (part_no,))
         return cursor.fetchone()
+
 
 def create_spare_part(part_data):
     """创建新备件"""
@@ -141,6 +237,7 @@ def create_spare_part(part_data):
         ))
         return cursor.lastrowid
 
+
 def update_spare_part(part_id, part_data):
     """更新备件信息"""
     db_manager = DatabaseManager()
@@ -159,6 +256,7 @@ def update_spare_part(part_id, part_data):
         cursor = conn.execute(query, values)
         return cursor.rowcount
 
+
 def delete_spare_part(part_id):
     """删除备件"""
     db_manager = DatabaseManager()
@@ -166,12 +264,14 @@ def delete_spare_part(part_id):
         cursor = conn.execute('DELETE FROM spare_parts WHERE id = ?', (part_id,))
         return cursor.rowcount
 
+
 def get_all_spare_parts():
     """获取所有备件列表"""
     db_manager = DatabaseManager()
     with db_manager.get_connection() as conn:
         cursor = conn.execute('SELECT * FROM spare_parts ORDER BY part_no')
         return cursor.fetchall()
+
 
 def create_operation_record(operation_data):
     """创建操作记录"""
@@ -190,6 +290,7 @@ def create_operation_record(operation_data):
         ))
         return cursor.lastrowid
 
+
 def create_location(location_data):
     """创建新库位"""
     db_manager = DatabaseManager()
@@ -207,12 +308,14 @@ def create_location(location_data):
         ))
         return cursor.lastrowid
 
+
 def get_location_by_code(location_code):
     """根据库位代码获取库位信息"""
     db_manager = DatabaseManager()
     with db_manager.get_connection() as conn:
         cursor = conn.execute('SELECT * FROM locations WHERE location_code = ?', (location_code,))
         return cursor.fetchone()
+
 
 def update_location(location_code, location_data):
     """更新库位信息"""
@@ -232,6 +335,7 @@ def update_location(location_code, location_data):
         cursor = conn.execute(query, values)
         return cursor.rowcount
 
+
 def delete_location(location_code):
     """删除库位"""
     db_manager = DatabaseManager()
@@ -239,12 +343,14 @@ def delete_location(location_code):
         cursor = conn.execute('DELETE FROM locations WHERE location_code = ?', (location_code,))
         return cursor.rowcount
 
+
 def get_all_locations():
     """获取所有库位列表"""
     db_manager = DatabaseManager()
     with db_manager.get_connection() as conn:
         cursor = conn.execute('SELECT * FROM locations ORDER BY location_code')
         return cursor.fetchall()
+
 
 def update_location_status(location_code, status):
     """更新库位状态"""
@@ -257,11 +363,29 @@ def update_location_status(location_code, status):
         ''', (status, location_code))
         return cursor.rowcount
 
-def calculate_location_status(part_count, capacity):
-    """计算库位状态"""
-    if part_count == 0:
-        return 'free'
-    elif capacity > 0 and part_count / capacity >= 0.8:
-        return 'low_stock'
-    else:
-        return 'in_use'
+
+def get_all_operation_records(limit=None):
+    """获取所有操作记录"""
+    db_manager = DatabaseManager()
+    with db_manager.get_connection() as conn:
+        query = 'SELECT * FROM operation_records ORDER BY operation_date DESC'
+        if limit:
+            query += f' LIMIT {limit}'
+        cursor = conn.execute(query)
+        return cursor.fetchall()
+
+
+def get_spare_parts_count():
+    """获取备件总数"""
+    db_manager = DatabaseManager()
+    with db_manager.get_connection() as conn:
+        cursor = conn.execute('SELECT COUNT(*) FROM spare_parts')
+        return cursor.fetchone()[0]
+
+
+def get_locations_count():
+    """获取库位总数"""
+    db_manager = DatabaseManager()
+    with db_manager.get_connection() as conn:
+        cursor = conn.execute('SELECT COUNT(*) FROM locations')
+        return cursor.fetchone()[0]

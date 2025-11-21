@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}添加库位 - 设备备件管理系统{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-4 border-bottom">
+    <h1 class="h2">
+        <i class="fas fa-plus-circle me-2"></i>
+        添加库位
+    </h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('location_management') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i>返回列表
+        </a>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-light">
+                <h5 class="card-title mb-0">库位信息</h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="location_code" class="form-label">库位代码 *</label>
+                            <input type="text" class="form-control" id="location_code" name="location_code" 
+                                   required maxlength="50" placeholder="例如：A-01-01">
+                            <div class="form-text">库位的唯一标识代码</div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="capacity" class="form-label">容量</label>
+                            <input type="number" class="form-control" id="capacity" name="capacity" 
+                                   min="0" value="0" placeholder="最大存储数量">
+                            <div class="form-text">该库位可容纳的最大备件数量</div>
+                        </div>
+                        
+                        <div class="col-12">
+                            <label for="description" class="form-label">描述</label>
+                            <textarea class="form-control" id="description" name="description" 
+                                      rows="3" placeholder="库位的详细描述信息"></textarea>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="status" class="form-label">初始状态</label>
+                            <select class="form-select" id="status" name="status">
+                                <option value="free">空闲</option>
+                                <option value="in_use">使用中</option>
+                                <option value="low_stock">低库存</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i>保存库位
+                        </button>
+                        <a href="{{ url_for('location_management') }}" class="btn btn-outline-secondary ms-2">
+                            <i class="fas fa-times me-1"></i>取消
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

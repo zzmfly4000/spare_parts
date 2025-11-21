@@ -327,3 +327,15 @@ RESTful API的输入输出规范...
 - `IntegrationTester.verify_data_flow()`: 验证数据流正确性
 - `RouteBusinessIntegrationTests.test_parts_route_with_database()`: 测试备件管理路由与数据库集成
 - `RouteBusinessIntegrationTests.test_operations_route_integration()`: 测试操作记录路由集成
+
+
+### 首页相关接口
+- `GET /`: 首页路由，返回系统概览页面
+- `GET /low_stock_alerts`: 低库存提醒页面路由，返回低库存备件列表
+- `GET /search_parts`: 备件搜索页面路由，返回备件搜索结果
+
+### 测试相关接口
+- [UserAcceptanceTester.design_test_cases()](file://D:\Python备件管理系统\20251119-pyCharm\equipment_spare_parts_system\tests\user_acceptance_tester.py#L7-L25): 设计测试用例
+- [UserAcceptanceTester.execute_test_case(test_case)](file://D:\Python备件管理系统\20251119-pyCharm\equipment_spare_parts_system\tests\user_acceptance_tester.py#L27-L37): 执行测试用例
+- [CoreFunctionalityTester.test_spare_part_lifecycle()](file://D:\Python备件管理系统\20251119-pyCharm\equipment_spare_parts_system\tests\core_functionality_tester.py#L10-L37): 测试备件生命周期完整流程
+- [IntegrationTester.test_module_interfaces()](file://D:\Python备件管理系统\20251119-pyCharm\equipment_spare_parts_system\tests\integration_tester.py#L6-L11): 测试模块间接口

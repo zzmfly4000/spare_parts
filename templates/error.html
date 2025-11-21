@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}错误 - 设备备件管理系统{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card border-danger mt-5">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="card-title mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        系统错误 {{ error_code }}
+                    </h4>
+                </div>
+                <div class="card-body text-center">
+                    <i class="fas fa-bug fa-4x text-danger mb-4"></i>
+                    <h3 class="text-danger">{{ error_message }}</h3>
+                    <p class="text-muted mt-3">抱歉，系统遇到了一个错误。请稍后重试或联系系统管理员。</p>
+
+                    <div class="mt-4">
+                        <a href="{{ url_for('index') }}" class="btn btn-primary me-2">
+                            <i class="fas fa-home me-1"></i>返回首页
+                        </a>
+                        <button onclick="history.back()" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-1"></i>返回上页
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

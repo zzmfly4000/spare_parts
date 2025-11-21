@@ -283,3 +283,19 @@
 - `tests/integration_tester.py`: 集成测试模块，提供系统集成测试功能
 - `tests/route_business_integration_tests.py`: 路由与业务逻辑集成测试模块
 - `IntegrationTester` 类负责模块间接口测试、数据流验证
+
+### 路由层架构
+- `routes/parts_routes.py`: 备件管理路由模块，提供备件增删改查和库存相关功能路由
+- `routes/location_routes.py`: 库位管理路由模块，提供库位管理相关功能路由
+- `routes/operation_routes.py`: 操作记录路由模块，提供出入库操作和记录管理路由
+- `routes/settings_routes.py`: 系统设置路由模块，提供系统配置管理路由
+
+### 测试架构层
+- `tests/user_acceptance_tester.py`: 用户验收测试模块，提供用户验收测试功能
+- `tests/core_functionality_tester.py`: 核心功能测试模块，提供系统核心功能测试
+- `tests/integration_tester.py`: 集成测试模块，提供系统集成测试功能
+
+### 前端架构层
+- `templates/base.html`: 基础模板，包含导航栏和页脚
+- `templates/index.html`: 首页模板，提供系统概览和快速操作入口
+- `templates/low_stock_alerts.html`: 低库存提醒页面模板
