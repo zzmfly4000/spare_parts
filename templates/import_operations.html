@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% block title %}设备备件管理系统 - 操作记录导入{% endblock %}
+
+{% block content %}
+<!-- 页面标题和操作 -->
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-4 mb-4 border-bottom">
+    <div>
+        <h1 class="h3 mb-2">操作记录导入</h1>
+        <p class="text-muted mb-0">批量导入出入库操作记录</p>
+    </div>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group">
+            <a href="{{ url_for('download_operations_template') }}" class="btn btn-primary">
+                <i class="fas fa-download me-1"></i>下载模板
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- 左侧：导入表单 -->
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-file-import me-2"></i>文件导入
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data" id="importForm">
+                    <div class="mb-4">
+                        <label for="file" class="form-label fw-semibold">选择Excel文件</label>
+                        <input class="form-control form-control-lg" type="file" id="file" name="file" accept=".xlsx, .xls" required>
+                        <div class="form-text">
+                            <i class="fas fa-info-circle me-1"></i>请使用系统提供的模板格式，仅支持 .xlsx 和 .xls 文件
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="reset" class="btn btn-outline-secondary me-md-2">
+                            <i class="fas fa-undo me-1"></i>重置
+                        </button>
+                        <button type="submit" class="btn btn-primary" id="submitBtn">
+                            <i class="fas fa-upload me-1"></i>开始导入
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- 高级功能链接 -->
+        <div class="card">
+            <div class="card-body text-center">
+                <h6 class="card-title mb-3">需要高级导入功能？</h6>
+                <a href="{{ url_for('import_operations_advanced') }}" class="btn btn-outline-info">
+                    <i class="fas fa-rocket me-1"></i>使用高级操作记录导入
+                </a>
+                <small class="text-muted mt-2 d-block">支持同时导入操作记录和备件信息，自动同步库存</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- 右侧：说明信息 -->
+    <div class="col-lg-4">
+        <!-- 功能说明 -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-info-circle me-2"></i>功能说明
+                </h5>
+            </div>
+            <div class="card-body">
+                <p class="mb-3">此功能用于批量导入操作记录：</p>
+                <ul class="list-unstyled mb-0">
+                    <li class="mb-2">
+                        <i class="fas fa-arrow-down text-success me-2"></i>
+                        <strong>入库记录</strong>
+                    </li>
+                    <li class="mb-2">
+                        <i class="fas fa-arrow-up text-danger me-2"></i>
+                        <strong>出库记录</strong>
+                    </li>
+                    <li class="mb-2">
+                        <i class="fas fa-history text-primary me-2"></i>
+                        <strong>操作历史记录</strong>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- 必需字段 -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-list-check me-2"></i>必需字段
+                </h5>
+            </div>
+            <div class="card-body">
+                <ul class="small mb-0">
+                    <li class="mb-2">
+                        <code>operation_type</code> - 操作类型
+                    </li>
+                    <li class="mb-2">
+                        <code>part_no</code> - 备件编号
+                    </li>
+                    <li class="mb-2">
+                        <code>quantity</code> - 数量
+                    </li>
+                    <li class="mb-2">
+                        <code>location</code> - 库位
+                    </li>
+                    <li class="mb-2">
+                        <code>description</code> - 描述
+                    </li>
+                    <li>
+                        <code>supplier_recipient</code> - 供应商/接收方
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- 操作类型说明 -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-exchange-alt me-2"></i>操作类型说明
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <span class="badge bg-success me-2">Stock in</span>
+                    <small>入库操作 - 增加库存</small>
+                </div>
+                <div class="mb-3">
+                    <span class="badge bg-danger me-2">Stock out</span>
+                    <small>出库操作 - 减少库存</small>
+                </div>
+                <div class="mb-3">
+                    <span class="badge bg-info me-2">Stock in - disassemble</span>
+                    <small>拆解入库</small>
+                </div>
+                <div>
+                    <span class="badge bg-warning me-2">Stock in - return</span>
+                    <small>退货入库</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const importForm = document.getElementById('importForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const fileInput = document.getElementById('file');
+
+    // 文件选择验证
+    fileInput.addEventListener('change', function() {
+        const file = this.files[0];
+        if (file) {
+            const fileExt = file.name.split('.').pop().toLowerCase();
+            if (!['xlsx', 'xls'].includes(fileExt)) {
+                alert('请选择Excel文件 (.xlsx 或 .xls)');
+                this.value = '';
+            }
+        }
+    });
+
+    // 表单提交处理
+    importForm.addEventListener('submit', function(e) {
+        const file = fileInput.files[0];
+        if (!file) {
+            e.preventDefault();
+            alert('请选择要导入的文件');
+            return;
+        }
+
+        // 显示加载状态
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>导入中...';
+    });
+
+    // 自动隐藏警告消息
+    setTimeout(() => {
+        const alerts = document.querySelectorAll('.alert');
+        alerts.forEach(alert => {
+            const bsAlert = new bootstrap.Alert(alert);
+            setTimeout(() => bsAlert.close(), 5000);
+        });
+    }, 3000);
+});
+</script>
+{% endblock %}

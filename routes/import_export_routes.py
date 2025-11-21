@@ -5,10 +5,9 @@ from datetime import datetime
 import traceback
 import logging
 import numpy as np
-from models.database import DatabaseManager, recalculate_all_stock
+from models.database import DatabaseManager, create_spare_part, create_operation_record, recalculate_all_stock
 from utils.helpers import safe_int, safe_str, safe_float, validate_excel_file, safe_datetime
 from utils.sync_utils import sync_all_operations
-
 
 def setup_import_export_routes(app):
     """设置数据导入导出路由"""
@@ -458,6 +457,81 @@ def setup_import_export_routes(app):
             current_app.logger.error(f'导出备件信息时出错: {str(e)}')
             flash(f'导出备件信息时出错: {str(e)}', 'danger')
             return redirect(url_for('parts_list'))
+
+    # 在 setup_import_export_routes 函数中添加以下路由：
+
+    @app.route('/download_template')
+    def download_template():
+        """下载备件导入模板"""
+        try:
+            template_data = {
+                'part_no': ['PART-001', 'PART-002', ''],
+                'name': ['轴承 6205', '螺丝 M6', ''],
+                'type': ['机械', '电子', ''],
+                'current_stock': [50, 200, ''],
+                'min_stock': [5, 10, ''],
+                'max_stock': [100, 500, ''],
+                'unit_price': [25.5, 0.8, ''],
+                'location': ['A-01-01', 'B-02-01', ''],
+                'description': ['深沟球轴承 6205', '不锈钢螺丝 M6*20', '']
+            }
+
+            df = pd.DataFrame(template_data)
+
+            output = BytesIO()
+            with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                df.to_excel(writer, sheet_name='备件导入模板', index=False)
+
+                instructions = pd.DataFrame({
+                    '列名': ['part_no', 'name', 'type', 'current_stock', 'min_stock', 'max_stock', 'unit_price',
+                             'location', 'description'],
+                    '说明': [
+                        '备件编号（必填，唯一）',
+                        '备件名称（必填）',
+                        '备件类型',
+                        '当前库存数量',
+                        '最低库存阈值',
+                        '最高库存阈值',
+                        '单价',
+                        '库位代码',
+                        '备件描述'
+                    ],
+                    '示例': [
+                        'PART-001',
+                        '轴承 6205',
+                        '机械',
+                        '50',
+                        '5',
+                        '100',
+                        '25.5',
+                        'A-01-01',
+                        '深沟球轴承 6205'
+                    ],
+                    '备注': [
+                        '不能重复',
+                        '详细描述备件',
+                        '如：机械、电子等',
+                        '数字，当前库存量',
+                        '数字，>=0',
+                        '数字，>=最低库存',
+                        '数字，可带小数',
+                        '必须存在的库位代码',
+                        '可选'
+                    ]
+                })
+                instructions.to_excel(writer, sheet_name='导入说明', index=False)
+
+            output.seek(0)
+
+            return send_file(output,
+                             mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                             as_attachment=True,
+                             download_name='备件导入模板.xlsx')
+
+        except Exception as e:
+            current_app.logger.error(f'下载备件模板时出错: {str(e)}')
+            flash(f'下载备件模板时出错: {str(e)}', 'danger')
+            return redirect(url_for('import_parts'))
 
     @app.route('/download_operations_template')
     def download_operations_template():
@@ -1635,6 +1709,10 @@ def is_duplicate_operation(conn, operation_type, operation_date, part_no, descri
         logging.error(f"检查重复记录时出错: {str(e)}")
         return False, ""
 
+def allowed_file(filename):
+    """检查文件类型是否允许"""
+    return '.' in filename and \
+        filename.rsplit('.', 1)[1].lower() in {'xlsx', 'xls'}
 
 def calculate_operation_similarity(op1_type, op1_date, op1_part_no, op1_desc, op1_qty,
                                    op1_supplier, op1_work_center, op1_location,
