@@ -287,3 +287,9 @@ RESTful API的输入输出规范...
 - `BusinessProcessTests.test_spare_part_management_flow()`: 测试备件管理流程
 - `BusinessProcessTests.test_inventory_operation_flow()`: 测试库存操作流程
 - `BusinessProcessTests.test_data_integrity_validation()`: 数据完整性和一致性验证
+
+### 发布接口
+- `DeploymentPlanner.create_release_plan(version, features)`: 创建发布计划
+- `DeploymentPlanner.generate_deployment_checklist()`: 生成部署检查清单
+- `deploy_to_production()`: 部署到生产环境
+- `rollback_deployment()`: 回滚部署

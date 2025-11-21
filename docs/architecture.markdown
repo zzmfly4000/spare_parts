@@ -252,3 +252,8 @@
 - `tests/user_acceptance_tester.py`: 用户验收测试模块，提供用户验收测试功能
 - `tests/business_process_tests.py`: 核心业务流程测试模块
 - `UserAcceptanceTester` 类负责测试用例设计和执行、测试结果收集和报告生成
+
+### 部署架构层
+- `utils/deployment_planner.py`: 部署规划模块，提供系统上线发布功能
+- `scripts/deploy_production.py`: 生产环境部署脚本
+- `DeploymentPlanner` 类负责发布版本管理和变更控制、上线检查清单和风险评估
