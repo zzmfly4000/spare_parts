@@ -1,0 +1,292 @@
+{% extends "base.html" %}
+
+{% block title %}设备备件管理系统 - 备件信息更新导入{% endblock %}
+
+{% block content %}
+<!-- 页面标题和操作 -->
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-4 mb-4 border-bottom">
+    <div>
+        <h1 class="h3 mb-2">备件信息更新导入</h1>
+        <p class="text-muted mb-0">批量更新备件信息（关键备件标识、库存阈值、价格等）</p>
+    </div>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group">
+            <a href="{{ url_for('download_part_info_update_template') }}" class="btn btn-primary">
+                <i class="fas fa-download me-1"></i>下载模板
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- 左侧：导入表单 -->
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-file-import me-2"></i>文件导入
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data" id="importForm">
+                    <div class="mb-4">
+                        <label for="file" class="form-label fw-semibold">选择Excel文件</label>
+                        <input class="form-control form-control-lg" type="file" id="file" name="file" accept=".xlsx, .xls" required>
+                        <div class="form-text">
+                            <i class="fas fa-info-circle me-1"></i>请使用系统提供的模板格式，仅支持 .xlsx 和 .xls 文件
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="reset" class="btn btn-outline-secondary me-md-2">
+                            <i class="fas fa-undo me-1"></i>重置
+                        </button>
+                        <button type="submit" class="btn btn-primary" id="submitBtn">
+                            <i class="fas fa-upload me-1"></i>开始导入
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- 导入结果 -->
+        {% if import_errors or updated_count > 0 %}
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-clipboard-list me-2"></i>导入结果
+                </h5>
+                <span class="badge {% if error_count > 0 %}bg-warning{% else %}bg-success{% endif %}">
+                    {{ updated_count }} 成功 / {{ error_count }} 错误
+                </span>
+            </div>
+            <div class="card-body">
+                {% if updated_count > 0 %}
+                <div class="alert alert-success">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-check-circle fa-2x me-3"></i>
+                        <div>
+                            <h5 class="alert-heading mb-1">导入成功！</h5>
+                            <p class="mb-0">成功更新了 <strong>{{ updated_count }}</strong> 个备件的信息</p>
+                            {% if not_found_count > 0 %}
+                            <p class="mb-0 mt-1">未找到 <strong>{{ not_found_count }}</strong> 个备件</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if import_errors %}
+                <div class="mt-4">
+                    <h6 class="text-danger mb-3">
+                        <i class="fas fa-exclamation-triangle me-1"></i>错误详情 ({{ error_count }} 个错误)
+                    </h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th width="80">行号</th>
+                                    <th width="120">严重程度</th>
+                                    <th>字段</th>
+                                    <th>错误信息</th>
+                                    <th>建议</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for error in import_errors %}
+                                <tr class="{% if error.severity == 'error' %}table-danger{% else %}table-warning{% endif %}">
+                                    <td>
+                                        <span class="badge bg-secondary">第 {{ error.row }} 行</span>
+                                    </td>
+                                    <td>
+                                        {% if error.severity == 'error' %}
+                                        <span class="badge bg-danger">错误</span>
+                                        {% else %}
+                                        <span class="badge bg-warning">警告</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <code>{{ error.field }}</code>
+                                    </td>
+                                    <td>
+                                        <small>{{ error.error }}</small>
+                                        {% if error.value %}
+                                        <br><small class="text-muted">值: {{ error.value }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">{{ error.suggestion }}</small>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- 右侧：说明信息 -->
+    <div class="col-lg-4">
+        <!-- 功能说明 -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-info-circle me-2"></i>功能说明
+                </h5>
+            </div>
+            <div class="card-body">
+                <p class="mb-3">此功能用于批量更新备件信息，包括：</p>
+                <ul class="list-unstyled mb-0">
+                    <li class="mb-2">
+                        <i class="fas fa-check text-success me-2"></i>
+                        <strong>关键备件标识</strong>
+                    </li>
+                    <li class="mb-2">
+                        <i class="fas fa-check text-success me-2"></i>
+                        <strong>库存阈值设置</strong>（最低/最高库存）
+                    </li>
+                    <li class="mb-2">
+                        <i class="fas fa-check text-success me-2"></i>
+                        <strong>价格信息</strong>（单价、单位）
+                    </li>
+                    <li class="mb-2">
+                        <i class="fas fa-check text-success me-2"></i>
+                        <strong>交货期设置</strong>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- 注意事项 -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-exclamation-triangle me-2"></i>注意事项
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning mb-3">
+                    <i class="fas fa-lightbulb me-2"></i>
+                    <strong>重要提示：</strong>此功能仅更新现有备件信息，不会创建新备件或操作记录
+                </div>
+                
+                <h6 class="mb-2">必需字段：</h6>
+                <ul class="small mb-3">
+                    <li><code>货号 Part no</code> - 用于查找备件</li>
+                </ul>
+
+                <h6 class="mb-2">可选字段：</h6>
+                <ul class="small">
+                    <li><code>关键备件 Key part</code> - 是/否</li>
+                    <li><code>最低库存 Low stock</code> - 数字</li>
+                    <li><code>最高库存 High stock</code> - 数字</li>
+                    <li><code>交货期 LT (Week)</code> - 数字（周）</li>
+                    <li><code>单价 Unit price (RMB)</code> - 数字</li>
+                    <li><code>单位 Unit</code> - 文本</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- 导入统计 -->
+        {% if import_summary %}
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-bar me-2"></i>导入统计
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6 mb-3">
+                        <div class="border rounded p-2">
+                            <div class="text-success fw-bold">{{ updated_count }}</div>
+                            <small class="text-muted">成功更新</small>
+                        </div>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <div class="border rounded p-2">
+                            <div class="text-warning fw-bold">{{ not_found_count }}</div>
+                            <small class="text-muted">未找到</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="border rounded p-2">
+                            <div class="text-danger fw-bold">{{ error_count }}</div>
+                            <small class="text-muted">错误</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="border rounded p-2">
+                            <div class="text-info fw-bold">{{ import_summary.total_rows }}</div>
+                            <small class="text-muted">总行数</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <hr class="my-3">
+                
+                <div class="small text-muted">
+                    <div class="mb-1">
+                        <i class="fas fa-clock me-1"></i>
+                        开始: {{ import_summary.import_start_time }}
+                    </div>
+                    <div>
+                        <i class="fas fa-clock me-1"></i>
+                        结束: {{ import_summary.import_end_time }}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const importForm = document.getElementById('importForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const fileInput = document.getElementById('file');
+
+    // 文件选择验证
+    fileInput.addEventListener('change', function() {
+        const file = this.files[0];
+        if (file) {
+            const fileExt = file.name.split('.').pop().toLowerCase();
+            if (!['xlsx', 'xls'].includes(fileExt)) {
+                alert('请选择Excel文件 (.xlsx 或 .xls)');
+                this.value = '';
+            }
+        }
+    });
+
+    // 表单提交处理
+    importForm.addEventListener('submit', function(e) {
+        const file = fileInput.files[0];
+        if (!file) {
+            e.preventDefault();
+            alert('请选择要导入的文件');
+            return;
+        }
+
+        // 显示加载状态
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>导入中...';
+    });
+
+    // 自动隐藏警告消息
+    setTimeout(() => {
+        const alerts = document.querySelectorAll('.alert');
+        alerts.forEach(alert => {
+            const bsAlert = new bootstrap.Alert(alert);
+            setTimeout(() => bsAlert.close(), 5000);
+        });
+    }, 3000);
+});
+</script>
+{% endblock %}
