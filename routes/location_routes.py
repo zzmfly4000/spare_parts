@@ -2,7 +2,7 @@ from flask import render_template, request, redirect, url_for, flash
 from models.database import (get_all_locations, get_location_by_code, 
                            create_location, update_location, delete_location,
                            update_location_status)
-from models.database import calculate_location_status
+from utils.stock_utils import calculate_location_status
 
 def setup_location_routes(app):
     """设置库位管理路由"""

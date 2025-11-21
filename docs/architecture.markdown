@@ -278,8 +278,3 @@
 - `tests/spare_part_management_tests.py`: 备件管理测试模块
 - `tests/inventory_operation_tests.py`: 库存操作测试模块
 - `CoreFunctionalityTester` 类负责核心功能测试用例、数据一致性验证
-
-### 集成测试架构层
-- `tests/integration_tester.py`: 集成测试模块，提供系统集成测试功能
-- `tests/route_business_integration_tests.py`: 路由与业务逻辑集成测试模块
-- `IntegrationTester` 类负责模块间接口测试、数据流验证
