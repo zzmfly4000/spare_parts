@@ -299,3 +299,4 @@
 - `templates/base.html`: 基础模板，包含导航栏和页脚
 - `templates/index.html`: 首页模板，提供系统概览和快速操作入口
 - `templates/low_stock_alerts.html`: 低库存提醒页面模板
+

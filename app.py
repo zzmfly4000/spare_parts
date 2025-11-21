@@ -53,8 +53,8 @@ def create_app(config_name='default'):
             # 库位统计
             location_stats = {
                 'total_locations': total_locations,
-                'free_locations': 0,  # 需要实现具体逻辑
-                'in_use_locations': 0  # 需要实现具体逻辑
+                'free_locations': len([loc for loc in get_all_locations() if loc[2] == 'free']),
+                'in_use_locations': len([loc for loc in get_all_locations() if loc[2] == 'in_use'])
             }
 
             return render_template('index.html',

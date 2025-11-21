@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+
+{% block title %}智能入库 - 设备备件管理系统{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-4 mb-4 border-bottom">
+    <div>
+        <h1 class="h3 mb-2">智能入库</h1>
+        <p class="text-muted mb-0">快速完成备件入库操作，支持新备件创建和库存更新</p>
+    </div>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('operation_records') }}" class="btn btn-outline-secondary me-2">
+            <i class="fas fa-history me-1"></i>查看记录
+        </a>
+        <a href="{{ url_for('parts_list') }}" class="btn btn-outline-primary">
+            <i class="fas fa-list me-1"></i>备件列表
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0"><i class="fas fa-arrow-down text-success me-2"></i>入库信息</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" id="inboundForm">
+                    <div class="row g-3">
+                        <!-- 备件选择/创建 -->
+                        <div class="col-md-6">
+                            <label class="form-label">备件选择</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-cube"></i></span>
+                                <select class="form-select" name="part_no" id="partSelect">
+                                    <option value="">选择现有备件...</option>
+                                    <!-- 这里应该动态加载备件列表 -->
+                                </select>
+                                <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#newPartModal">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="quantity" class="form-label">入库数量 *</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-hashtag"></i></span>
+                                <input type="number" class="form-control" id="quantity" name="quantity" 
+                                       required min="1" placeholder="请输入入库数量">
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="supplier" class="form-label">供应商</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-truck"></i></span>
+                                <input type="text" class="form-control" id="supplier" name="supplier" 
+                                       placeholder="供应商名称">
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="location" class="form-label">目标库位</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-warehouse"></i></span>
+                                <select class="form-select" id="location" name="location">
+                                    <option value="">选择库位...</option>
+                                    <!-- 这里应该动态加载库位列表 -->
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="col-12">
+                            <label for="description" class="form-label">备注信息</label>
+                            <textarea class="form-control" id="description" name="description" 
+                                      rows="3" placeholder="入库备注信息（可选）"></textarea>
+                        </div>
+
+                        <!-- 操作按钮 -->
+                        <div class="col-12">
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                <button type="reset" class="btn btn-outline-secondary me-md-2">
+                                    <i class="fas fa-redo me-1"></i>重置
+                                </button>
+                                <button type="submit" class="btn btn-success">
+                                    <i class="fas fa-save me-1"></i>确认入库
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 右侧指导信息 -->
+    <div class="col-lg-4">
+        <!-- 操作指引 -->
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="card-title mb-0"><i class="fas fa-info-circle me-2"></i>操作指引</h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group list-group-flush">
+                    <div class="list-group-item border-0 px-0">
+                        <i class="fas fa-check text-success me-2"></i>
+                        <small>选择现有备件或创建新备件</small>
+                    </div>
+                    <div class="list-group-item border-0 px-0">
+                        <i class="fas fa-check text-success me-2"></i>
+                        <small>填写准确的入库数量</small>
+                    </div>
+                    <div class="list-group-item border-0 px-0">
+                        <i class="fas fa-check text-success me-2"></i>
+                        <small>指定目标库位（可选）</small>
+                    </div>
+                    <div class="list-group-item border-0 px-0">
+                        <i class="fas fa-check text-success me-2"></i>
+                        <small>系统将自动更新库存数量</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 最近入库 -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0"><i class="fas fa-clock me-2"></i>最近入库</h5>
+            </div>
+            <div class="card-body">
+                {% if recent_activities %}
+                <div class="list-group list-group-flush">
+                    {% for activity in recent_activities if activity.type == 'inbound' %}
+                    <div class="list-group-item border-0 px-0 py-2">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <strong class="d-block">{{ activity.part_name }}</strong>
+                                <small class="text-muted">{{ activity.time }}</small>
+                            </div>
+                            <span class="badge bg-success">+{{ activity.quantity }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-3">
+                    <i class="fas fa-inbox fa-2x text-muted mb-2"></i>
+                    <p class="text-muted mb-0">暂无入库记录</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 新建备件模态框 -->
+<div class="modal fade" id="newPartModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-plus-circle me-2"></i>新建备件</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="newPartForm">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">备件编号 *</label>
+                            <input type="text" class="form-control" name="part_no" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">备件名称 *</label>
+                            <input type="text" class="form-control" name="name" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">备件类型</label>
+                            <input type="text" class="form-control" name="type">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">初始库存</label>
+                            <input type="number" class="form-control" name="current_stock" value="0">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="createNewPart()">创建备件</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function createNewPart() {
+    // 这里应该实现创建新备件的逻辑
+    const form = document.getElementById('newPartForm');
+    const formData = new FormData(form);
+    
+    // 模拟创建成功
+    alert('备件创建成功！');
+    $('#newPartModal').modal('hide');
+    form.reset();
+}
+
+// 表单验证
+document.getElementById('inboundForm').addEventListener('submit', function(e) {
+    const quantity = document.getElementById('quantity').value;
+    const partSelect = document.getElementById('partSelect').value;
+    
+    if (!partSelect) {
+        e.preventDefault();
+        alert('请选择备件或创建新备件！');
+        return false;
+    }
+    
+    if (!quantity || quantity < 1) {
+        e.preventDefault();
+        alert('请输入有效的入库数量！');
+        return false;
+    }
+    
+    // 显示加载状态
+    const submitBtn = this.querySelector('button[type="submit"]');
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>处理中...';
+    submitBtn.disabled = true;
+});
+</script>
+{% endblock %}

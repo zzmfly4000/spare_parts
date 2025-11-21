@@ -11,303 +11,562 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <!-- 自定义样式 -->
     <style>
         :root {
-            --primary-color: #2c3e50;
-            --secondary-color: #34495e;
-            --accent-color: #3498db;
-            --success-color: #27ae60;
-            --warning-color: #f39c12;
-            --danger-color: #e74c3c;
+            --primary: #4361ee;
+            --primary-dark: #3a56d4;
+            --secondary: #6c757d;
+            --success: #4cc9f0;
+            --info: #4895ef;
+            --warning: #f72585;
+            --danger: #e63946;
+            --light: #f8f9fa;
+            --dark: #212529;
+            --sidebar-bg: #1e293b;
+            --sidebar-hover: #334155;
+            --card-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        [data-bs-theme="dark"] {
+            --light: #1e293b;
+            --dark: #f8f9fa;
+            --card-shadow: 0 4px 20px rgba(0,0,0,0.3);
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f8f9fa;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
             line-height: 1.6;
+            font-weight: 400;
+        }
+
+        .app-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            min-height: 100vh;
+            box-shadow: 0 0 50px rgba(0,0,0,0.1);
+        }
+
+        [data-bs-theme="dark"] .app-container {
+            background: rgba(30, 41, 59, 0.95);
+        }
+
+        /* 导航栏样式 */
+        .navbar-main {
+            background: rgba(255, 255, 255, 0.9) !important;
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+        }
+
+        [data-bs-theme="dark"] .navbar-main {
+            background: rgba(30, 41, 59, 0.9) !important;
         }
 
         .navbar-brand {
             font-weight: 700;
-            font-size: 1.5rem;
+            font-size: 1.4rem;
+            background: linear-gradient(135deg, var(--primary), var(--info));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
 
+        /* 侧边栏样式 */
         .sidebar {
-            min-height: calc(100vh - 56px);
-            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-            box-shadow: 3px 0 10px rgba(0,0,0,0.1);
+            background: var(--sidebar-bg);
+            min-height: calc(100vh - 76px);
+            box-shadow: 4px 0 20px rgba(0,0,0,0.1);
+            transition: var(--transition);
+        }
+
+        .sidebar-header {
+            padding: 1.5rem 1rem;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
         }
 
         .sidebar .nav-link {
-            color: #ecf0f1;
+            color: #cbd5e1;
             padding: 0.75rem 1rem;
-            margin: 0.2rem 0.5rem;
-            border-radius: 0.5rem;
-            transition: all 0.3s ease;
+            margin: 0.25rem 0.75rem;
+            border-radius: 0.75rem;
+            transition: var(--transition);
+            font-weight: 500;
+            position: relative;
+            overflow: hidden;
         }
 
-        .sidebar .nav-link:hover, .sidebar .nav-link.active {
-            background-color: rgba(255,255,255,0.1);
+        .sidebar .nav-link::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            width: 3px;
+            background: var(--primary);
+            transform: scaleY(0);
+            transition: var(--transition);
+        }
+
+        .sidebar .nav-link:hover,
+        .sidebar .nav-link.active {
             color: white;
+            background: var(--sidebar-hover);
             transform: translateX(5px);
+        }
+
+        .sidebar .nav-link:hover::before,
+        .sidebar .nav-link.active::before {
+            transform: scaleY(1);
         }
 
         .sidebar .nav-link i {
             width: 1.5rem;
             text-align: center;
-            margin-right: 0.5rem;
+            margin-right: 0.75rem;
+            font-size: 1.1rem;
         }
 
+        .nav-group-title {
+            color: #94a3b8;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 1rem 1.5rem 0.5rem;
+            margin-top: 1rem;
+        }
+
+        /* 主内容区域 */
         .main-content {
             padding: 2rem;
+            background: transparent;
         }
 
+        /* 卡片样式 */
         .card {
             border: none;
-            border-radius: 0.75rem;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border-radius: 1rem;
+            box-shadow: var(--card-shadow);
+            transition: var(--transition);
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
             margin-bottom: 1.5rem;
+            overflow: hidden;
+        }
+
+        [data-bs-theme="dark"] .card {
+            background: rgba(30, 41, 59, 0.8);
         }
 
         .card:hover {
             transform: translateY(-5px);
-            box-shadow: 0 8px 15px rgba(0,0,0,0.1);
+            box-shadow: 0 8px 30px rgba(0,0,0,0.12);
         }
 
+        .card-header {
+            background: rgba(255, 255, 255, 0.9);
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+            padding: 1.25rem 1.5rem;
+            font-weight: 600;
+        }
+
+        [data-bs-theme="dark"] .card-header {
+            background: rgba(30, 41, 59, 0.9);
+        }
+
+        /* 统计卡片 */
         .stat-card {
             text-align: center;
             padding: 1.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary), var(--info));
         }
 
         .stat-card i {
             font-size: 2.5rem;
             margin-bottom: 1rem;
+            opacity: 0.9;
         }
 
         .stat-card .number {
-            font-size: 2rem;
+            font-size: 2.25rem;
             font-weight: 700;
             margin: 0.5rem 0;
+            background: linear-gradient(135deg, var(--primary), var(--info));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
 
+        /* 快速操作卡片 */
         .quick-action-card {
             cursor: pointer;
-            transition: all 0.3s ease;
-            border-left: 4px solid transparent;
+            transition: var(--transition);
+            border: 1px solid rgba(0,0,0,0.05);
+            text-align: center;
+            padding: 1.5rem 1rem;
+            height: 100%;
         }
 
         .quick-action-card:hover {
-            border-left-color: var(--accent-color);
+            border-color: var(--primary);
             transform: translateY(-3px);
+        }
+
+        .quick-action-card i {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, var(--primary), var(--info));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* 表格样式 */
+        .table {
+            --bs-table-bg: transparent;
+            margin-bottom: 0;
         }
 
         .table th {
             border-top: none;
             font-weight: 600;
-            color: var(--primary-color);
+            color: var(--primary);
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 1rem 0.75rem;
         }
 
+        .table td {
+            padding: 1rem 0.75rem;
+            vertical-align: middle;
+            border-color: rgba(0,0,0,0.05);
+        }
+
+        .table-hover tbody tr:hover {
+            background: rgba(var(--primary), 0.04);
+        }
+
+        /* 徽章样式 */
         .badge {
             font-size: 0.75em;
-            padding: 0.35em 0.65em;
+            padding: 0.5em 0.75em;
+            font-weight: 500;
+            border-radius: 0.5rem;
         }
 
+        /* 按钮样式 */
+        .btn {
+            border-radius: 0.75rem;
+            font-weight: 500;
+            padding: 0.625rem 1.25rem;
+            transition: var(--transition);
+            border: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--info));
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(67, 97, 238, 0.4);
+        }
+
+        /* 页脚 */
         .footer {
-            background-color: var(--primary-color);
-            color: white;
-            padding: 1rem 0;
-            margin-top: 2rem;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(0,0,0,0.05);
+            padding: 1.5rem 0;
+            margin-top: 3rem;
+        }
+
+        [data-bs-theme="dark"] .footer {
+            background: rgba(30, 41, 59, 0.9);
+        }
+
+        /* 进度条 */
+        .progress {
+            height: 8px;
+            border-radius: 4px;
+            background: rgba(0,0,0,0.1);
+        }
+
+        .progress-bar {
+            border-radius: 4px;
         }
 
         /* 响应式调整 */
         @media (max-width: 768px) {
             .sidebar {
                 min-height: auto;
+                position: fixed;
+                top: 76px;
+                left: -100%;
+                width: 280px;
+                z-index: 1000;
+                transition: left 0.3s ease;
+            }
+
+            .sidebar.show {
+                left: 0;
             }
 
             .main-content {
                 padding: 1rem;
             }
+
+            .stat-card .number {
+                font-size: 1.75rem;
+            }
         }
 
-        /* 暗色主题支持 */
-        [data-bs-theme="dark"] {
-            --bs-body-bg: #1a1d23;
-            --bs-body-color: #e9ecef;
+        /* 暗色主题切换按钮 */
+        .theme-switcher {
+            background: none;
+            border: none;
+            color: var(--dark);
+            font-size: 1.25rem;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        [data-bs-theme="dark"] .theme-switcher {
+            color: var(--light);
+        }
+
+        /* 加载动画 */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .fade-in-up {
+            animation: fadeInUp 0.6s ease-out;
         }
     </style>
 
     {% block styles %}{% endblock %}
 </head>
 <body>
-    <!-- 导航栏 -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="{{ url_for('index') }}">
-                <i class="fas fa-tools me-2"></i>设备备件管理系统
-            </a>
+    <div class="app-container">
+        <!-- 导航栏 -->
+        <nav class="navbar navbar-expand-lg navbar-main navbar-light">
+            <div class="container-fluid">
+                <button class="btn btn-sm d-md-none" type="button" onclick="toggleSidebar()">
+                    <i class="fas fa-bars"></i>
+                </button>
 
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain">
-                <span class="navbar-toggler-icon"></span>
-            </button>
+                <a class="navbar-brand" href="{{ url_for('index') }}">
+                    <i class="fas fa-tools me-2"></i>设备备件管理系统
+                </a>
 
-            <div class="collapse navbar-collapse" id="navbarMain">
-                <ul class="navbar-nav ms-auto">
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('index') }}">
-                            <i class="fas fa-home me-1"></i>首页
+                <div class="navbar-nav ms-auto">
+                    <div class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user-circle me-2"></i>
+                            <span>管理员</span>
                         </a>
-                    </li>
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-user me-1"></i>系统
-                        </a>
-                        <ul class="dropdown-menu">
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i>个人资料</a></li>
                             <li><a class="dropdown-item" href="{{ url_for('system_settings') }}"><i class="fas fa-cog me-2"></i>系统设置</a></li>
                             <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="#"><i class="fas fa-info-circle me-2"></i>关于系统</a></li>
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-sign-out-alt me-2"></i>退出登录</a></li>
                         </ul>
-                    </li>
-                </ul>
-            </div>
-        </div>
-    </nav>
-
-    <div class="container-fluid">
-        <div class="row">
-            <!-- 侧边栏 -->
-            <div class="col-md-3 col-lg-2 d-md-block sidebar collapse">
-                <div class="position-sticky pt-3">
-                    <ul class="nav flex-column">
-                        <li class="nav-item">
-                            <a class="nav-link {{ 'active' if request.endpoint == 'index' }}" href="{{ url_for('index') }}">
-                                <i class="fas fa-tachometer-alt"></i>系统概览
-                            </a>
-                        </li>
-
-                        <li class="nav-item mt-3">
-                            <small class="text-muted px-3">备件管理</small>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {{ 'active' if request.endpoint == 'parts_list' }}" href="{{ url_for('parts_list') }}">
-                                <i class="fas fa-list"></i>备件列表
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {{ 'active' if request.endpoint == 'add_part' }}" href="{{ url_for('add_part') }}">
-                                <i class="fas fa-plus-circle"></i>添加备件
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {{ 'active' if request.endpoint == 'low_stock_alerts' }}" href="{{ url_for('low_stock_alerts') }}">
-                                <i class="fas fa-exclamation-triangle"></i>低库存提醒
-                            </a>
-                        </li>
-
-                        <li class="nav-item mt-3">
-                            <small class="text-muted px-3">库位管理</small>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {{ 'active' if request.endpoint == 'location_management' }}" href="{{ url_for('location_management') }}">
-                                <i class="fas fa-warehouse"></i>库位列表
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {{ 'active' if request.endpoint == 'add_location' }}" href="{{ url_for('add_location') }}">
-                                <i class="fas fa-map-marker-alt"></i>添加库位
-                            </a>
-                        </li>
-
-                        <li class="nav-item mt-3">
-                            <small class="text-muted px-3">操作记录</small>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {{ 'active' if request.endpoint == 'operation_records' }}" href="{{ url_for('operation_records') }}">
-                                <i class="fas fa-history"></i>操作记录
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {{ 'active' if request.endpoint == 'smart_inbound' }}" href="{{ url_for('smart_inbound') }}">
-                                <i class="fas fa-arrow-down"></i>智能入库
-                            </a>
-                        </li>
-
-                        <li class="nav-item mt-3">
-                            <small class="text-muted px-3">数据管理</small>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {{ 'active' if request.endpoint == 'import_parts' }}" href="{{ url_for('import_parts') }}">
-                                <i class="fas fa-file-import"></i>数据导入
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {{ 'active' if request.endpoint == 'export_data' }}" href="{{ url_for('export_data') }}">
-                                <i class="fas fa-file-export"></i>数据导出
-                            </a>
-                        </li>
-                    </ul>
+                    </div>
+                    <button class="btn theme-switcher" onclick="toggleTheme()">
+                        <i class="fas fa-moon"></i>
+                    </button>
                 </div>
             </div>
+        </nav>
 
-            <!-- 主内容区域 -->
-            <main class="col-md-9 ms-sm-auto col-lg-10 main-content">
-                <!-- 消息提示 -->
-                {% with messages = get_flashed_messages(with_categories=true) %}
-                    {% if messages %}
-                        {% for category, message in messages %}
-                            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                                <div class="d-flex align-items-center">
-                                    {% if category == 'success' %}
-                                        <i class="fas fa-check-circle me-2"></i>
-                                    {% elif category == 'warning' %}
-                                        <i class="fas fa-exclamation-triangle me-2"></i>
-                                    {% elif category == 'danger' %}
-                                        <i class="fas fa-times-circle me-2"></i>
-                                    {% else %}
-                                        <i class="fas fa-info-circle me-2"></i>
-                                    {% endif %}
-                                    <span>{{ message }}</span>
-                                </div>
-                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                            </div>
-                        {% endfor %}
-                    {% endif %}
-                {% endwith %}
-
-                <!-- 页面内容 -->
-                {% block content %}{% endblock %}
-            </main>
-        </div>
-    </div>
-
-    <!-- 页脚 -->
-    <footer class="footer mt-5">
         <div class="container-fluid">
-            <div class="row align-items-center">
-                <div class="col-md-6">
-                    <span class="text-light">&copy; 2024 设备备件管理系统 v2.0</span>
+            <div class="row">
+                <!-- 侧边栏 -->
+                <div class="col-md-3 col-lg-2 d-md-block sidebar" id="sidebar">
+                    <div class="sidebar-header d-none d-md-block">
+                        <h6 class="text-light mb-0">导航菜单</h6>
+                    </div>
+
+                    <div class="position-sticky pt-3">
+                        <ul class="nav flex-column">
+                            <li class="nav-item">
+                                <a class="nav-link {{ 'active' if request.endpoint == 'index' }}" href="{{ url_for('index') }}">
+                                    <i class="fas fa-tachometer-alt"></i>系统概览
+                                </a>
+                            </li>
+
+                            <li class="nav-group-title">核心业务</li>
+                            <li class="nav-item">
+                                <a class="nav-link {{ 'active' if request.endpoint in ['parts_list', 'part_detail', 'add_part', 'edit_part'] }}"
+                                   href="{{ url_for('parts_list') }}">
+                                    <i class="fas fa-cubes"></i>备件管理
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link {{ 'active' if request.endpoint in ['location_management', 'location_detail', 'add_location', 'edit_location'] }}"
+                                   href="{{ url_for('location_management') }}">
+                                    <i class="fas fa-warehouse"></i>库位管理
+                                </a>
+                            </li>
+
+                            <li class="nav-group-title">出入库操作</li>
+                            <li class="nav-item">
+                                <a class="nav-link {{ 'active' if request.endpoint == 'smart_inbound' }}"
+                                   href="{{ url_for('smart_inbound') }}">
+                                    <i class="fas fa-arrow-down text-success"></i>智能入库
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link {{ 'active' if request.endpoint == 'operation_records' }}"
+                                   href="{{ url_for('operation_records') }}">
+                                    <i class="fas fa-exchange-alt"></i>出入库记录
+                                </a>
+                            </li>
+
+                            <li class="nav-group-title">监控预警</li>
+                            <li class="nav-item">
+                                <a class="nav-link {{ 'active' if request.endpoint == 'low_stock_alerts' }}"
+                                   href="{{ url_for('low_stock_alerts') }}">
+                                    <i class="fas fa-exclamation-triangle text-warning"></i>库存预警
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#">
+                                    <i class="fas fa-chart-line text-info"></i>数据分析
+                                </a>
+                            </li>
+
+                            <li class="nav-group-title">数据管理</li>
+                            <li class="nav-item">
+                                <a class="nav-link {{ 'active' if request.endpoint == 'import_parts' }}"
+                                   href="{{ url_for('import_parts') }}">
+                                    <i class="fas fa-file-import"></i>数据导入
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link {{ 'active' if request.endpoint == 'export_data' }}"
+                                   href="{{ url_for('export_data') }}">
+                                    <i class="fas fa-file-export"></i>数据导出
+                                </a>
+                            </li>
+
+                            <li class="nav-group-title">系统管理</li>
+                            <li class="nav-item">
+                                <a class="nav-link {{ 'active' if request.endpoint == 'system_settings' }}"
+                                   href="{{ url_for('system_settings') }}">
+                                    <i class="fas fa-cog"></i>系统设置
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
                 </div>
-                <div class="col-md-6 text-end">
-                    <small class="text-light">
-                        <i class="fas fa-database me-1"></i>SQLite |
-                        <i class="fas fa-clock me-1"></i>{{ now.strftime('%Y-%m-%d %H:%M:%S') }}
-                    </small>
-                </div>
+
+                <!-- 主内容区域 -->
+                <main class="col-md-9 ms-sm-auto col-lg-10 main-content">
+                    <!-- 消息提示 -->
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                                    <div class="d-flex align-items-center">
+                                        {% if category == 'success' %}
+                                            <i class="fas fa-check-circle me-2"></i>
+                                        {% elif category == 'warning' %}
+                                            <i class="fas fa-exclamation-triangle me-2"></i>
+                                        {% elif category == 'danger' %}
+                                            <i class="fas fa-times-circle me-2"></i>
+                                        {% else %}
+                                            <i class="fas fa-info-circle me-2"></i>
+                                        {% endif %}
+                                        <span>{{ message }}</span>
+                                    </div>
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+
+                    <!-- 页面内容 -->
+                    <div class="fade-in-up">
+                        {% block content %}{% endblock %}
+                    </div>
+                </main>
             </div>
         </div>
-    </footer>
+
+        <!-- 页脚 -->
+        <footer class="footer">
+            <div class="container-fluid">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <span class="text-muted">&copy; 2024 设备备件管理系统 v2.0</span>
+                    </div>
+                    <div class="col-md-6 text-md-end">
+                        <small class="text-muted">
+                            <i class="fas fa-database me-1"></i>SQLite |
+                            <i class="fas fa-clock me-1"></i>{{ now.strftime('%Y-%m-%d %H:%M:%S') }} |
+                            <i class="fas fa-heart text-danger me-1"></i>专业备件管理解决方案
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </footer>
+    </div>
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
     <!-- 自定义脚本 -->
     <script>
+        // 主题切换
+        function toggleTheme() {
+            const currentTheme = document.documentElement.getAttribute('data-bs-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-bs-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+
+            // 更新图标
+            const themeIcon = document.querySelector('.theme-switcher i');
+            themeIcon.className = newTheme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+        }
+
+        // 从本地存储加载主题
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-bs-theme', savedTheme);
+        document.querySelector('.theme-switcher i').className = savedTheme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+
+        // 移动端侧边栏切换
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('show');
+        }
+
         // 自动隐藏警告
         document.addEventListener('DOMContentLoaded', function() {
-            // 5秒后自动隐藏警告
             setTimeout(() => {
                 const alerts = document.querySelectorAll('.alert');
                 alerts.forEach(alert => {
@@ -316,13 +575,21 @@
                 });
             }, 5000);
 
-            // 侧边栏激活状态
-            const currentPath = window.location.pathname;
-            const navLinks = document.querySelectorAll('.sidebar .nav-link');
-            navLinks.forEach(link => {
-                if (link.getAttribute('href') === currentPath) {
-                    link.classList.add('active');
+            // 点击外部关闭移动端侧边栏
+            document.addEventListener('click', function(e) {
+                const sidebar = document.getElementById('sidebar');
+                if (window.innerWidth < 768 && !sidebar.contains(e.target) &&
+                    !e.target.closest('.navbar-toggler')) {
+                    sidebar.classList.remove('show');
                 }
+            });
+        });
+
+        // 页面加载动画
+        document.addEventListener('DOMContentLoaded', function() {
+            const elements = document.querySelectorAll('.fade-in-up');
+            elements.forEach((el, index) => {
+                el.style.animationDelay = `${index * 0.1}s`;
             });
         });
     </script>

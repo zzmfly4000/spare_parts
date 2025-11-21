@@ -3,70 +3,60 @@
 {% block title %}备件管理 - 设备备件管理系统{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h2>备件管理</h2>
-    <a href="/add_part" class="btn btn-primary">添加备件</a>
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-4 mb-4 border-bottom">
+    <div>
+        <h1 class="h3 mb-2">备件管理</h1>
+        <p class="text-muted mb-0">管理所有设备备件信息和库存状态</p>
+    </div>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('add_part') }}" class="btn btn-primary">
+            <i class="fas fa-plus me-1"></i>添加备件
+        </a>
+    </div>
 </div>
 
-<!-- 搜索和筛选表单 -->
-<div class="card mb-3">
+<!-- 搜索和筛选 -->
+<div class="card mb-4">
     <div class="card-body">
-        <form method="GET" class="row g-3">
-            <div class="col-md-3">
-                <input type="text" class="form-control" name="search" placeholder="搜索备件编号或名称" value="{{ request.args.get('search', '') }}">
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="fas fa-search"></i></span>
+                    <input type="text" class="form-control" name="search" placeholder="搜索备件名称或编号..."
+                           value="{{ request.args.get('search', '') }}">
+                </div>
             </div>
-            <div class="col-md-2">
+            <div class="col-md-3">
                 <select class="form-select" name="type_filter">
                     <option value="">所有类型</option>
-                    <option value="机械" {% if request.args.get('type_filter') == '机械' %}selected{% endif %}>机械</option>
-                    <option value="电气" {% if request.args.get('type_filter') == '电气' %}selected{% endif %}>电气</option>
+                    <!-- 类型选项 -->
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select class="form-select" name="stock_status">
+                    <option value="">所有状态</option>
+                    <option value="normal">库存正常</option>
+                    <option value="low">低库存</option>
+                    <option value="out">缺货</option>
                 </select>
             </div>
             <div class="col-md-2">
-                <button type="submit" class="btn btn-outline-primary">搜索</button>
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-filter me-1"></i>筛选
+                </button>
             </div>
         </form>
     </div>
 </div>
 
-<!-- 备件表格 -->
-<div class="table-responsive">
-    <table class="table table-striped table-hover">
-        <thead>
-            <tr>
-                <th>备件编号</th>
-                <th>备件名称</th>
-                <th>类型</th>
-                <th>当前库存</th>
-                <th>最低库存</th>
-                <th>状态</th>
-                <th>操作</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for part in parts %}
-            <tr>
-                <td>{{ part[1] }}</td>
-                <td>{{ part[2] }}</td>
-                <td>{{ part[3] }}</td>
-                <td>{{ part[4] }}</td>
-                <td>{{ part[5] }}</td>
-                <td>
-                    {% if part[4] <= part[5] %}
-                        <span class="badge bg-danger">低库存</span>
-                    {% else %}
-                        <span class="badge bg-success">正常</span>
-                    {% endif %}
-                </td>
-                <td>
-                    <a href="/part/{{ part[0] }}" class="btn btn-sm btn-outline-info">详情</a>
-                    <a href="/edit_part/{{ part[0] }}" class="btn btn-sm btn-outline-primary">编辑</a>
-                    <a href="/delete_part/{{ part[0] }}" class="btn btn-sm btn-outline-danger" 
-                       onclick="return confirm('确定要删除这个备件吗？')">删除</a>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<!-- 备件列表 -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">备件列表</h5>
+        <span class="text-muted">共 {{ parts|length }} 个备件</span>
+    </div>
+    <div class="card-body">
+        <!-- 表格内容 -->
+    </div>
 </div>
 {% endblock %}
