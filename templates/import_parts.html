@@ -49,19 +49,93 @@
             </div>
         </div>
 
+        <!-- 导入结果 -->
+        {% if import_errors %}
+        <div class="card mt-4 border-danger">
+            <div class="card-header bg-danger text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-exclamation-triangle me-2"></i>导入错误详情 ({{ error_count }} 个错误)
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning">
+                    <i class="fas fa-info-circle me-2"></i>
+                    请根据以下错误信息修正Excel文件后重新导入
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th width="80">行号</th>
+                                <th>错误信息</th>
+                                <th width="200">建议解决方案</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for error in import_errors %}
+                            <tr class="table-danger">
+                                <td>
+                                    <span class="badge bg-secondary">
+                                        {% if '第' in error and '行' in error %}
+                                            {{ error.split('第 ')[1].split(' 行')[0] }}
+                                        {% else %}
+                                            N/A
+                                        {% endif %}
+                                    </span>
+                                </td>
+                                <td>
+                                    <small>{{ error }}</small>
+                                </td>
+                                <td>
+                                    <small class="text-muted">
+                                        {% if '备件编号不能为空' in error %}
+                                        请填写备件编号
+                                        {% elif '备件名称不能为空' in error %}
+                                        请填写备件名称
+                                        {% elif '库存不能为负数' in error %}
+                                        请确保库存值为正数
+                                        {% elif '必须是有效数字' in error %}
+                                        请检查数字格式
+                                        {% else %}
+                                        请检查数据格式和内容
+                                        {% endif %}
+                                    </small>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="mt-3">
+                    <h6>常见问题解决方案：</h6>
+                    <ul class="small">
+                        <li>确保Excel文件使用系统提供的模板格式</li>
+                        <li>检查必填字段（备件编号、备件名称）是否填写</li>
+                        <li>验证数字字段（库存、价格）是否为有效数字</li>
+                        <li>确保备件编号不重复</li>
+                        <li>检查日期字段格式是否正确</li>
+                        <li>确保库位代码在系统中已存在</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
         <!-- 高级功能链接 -->
-        <div class="card">
+        <div class="card mt-4">
             <div class="card-body text-center">
                 <h6 class="card-title mb-3">需要更多导入选项？</h6>
                 <div class="row g-3">
                     <div class="col-md-6">
-                        <a href="{{ url_for('download_template') }}" class="btn btn-primary">
-                            <i class="fas fa-download me-1"></i>下载模板
+                        <a href="{{ url_for('import_part_info_only') }}" class="btn btn-outline-primary w-100">
+                            <i class="fas fa-sync me-1"></i>备件信息更新导入
                         </a>
                         <small class="text-muted mt-1 d-block">仅更新现有备件信息</small>
                     </div>
                     <div class="col-md-6">
-                        <a href="{{ url_for('import_operations_advanced') }}" class="btn btn-outline-info w-100">
+                        <a href="{{ url_for('import_operations') }}" class="btn btn-outline-info w-100">
                             <i class="fas fa-exchange-alt me-1"></i>操作记录导入
                         </a>
                         <small class="text-muted mt-1 d-block">导入操作记录和备件信息</small>
@@ -145,7 +219,7 @@
                     <i class="fas fa-lightbulb me-2"></i>
                     <strong>重要提示：</strong>此功能用于创建新备件，请确保备件编号不重复
                 </div>
-                
+
                 <h6 class="mb-2">建议操作：</h6>
                 <ul class="small">
                     <li class="mb-1">下载并使用系统模板</li>
@@ -174,7 +248,19 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!['xlsx', 'xls'].includes(fileExt)) {
                 alert('请选择Excel文件 (.xlsx 或 .xls)');
                 this.value = '';
+                return;
             }
+
+            // 文件大小检查 (限制10MB)
+            const fileSizeMB = file.size / (1024 * 1024);
+            if (fileSizeMB > 10) {
+                alert('文件大小不能超过10MB');
+                this.value = '';
+                return;
+            }
+
+            // 显示文件信息
+            console.log(`已选择文件: ${file.name}, 大小: ${fileSizeMB.toFixed(2)}MB`);
         }
     });
 
@@ -190,16 +276,54 @@ document.addEventListener('DOMContentLoaded', function() {
         // 显示加载状态
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>导入中...';
+
+        // 添加处理提示
+        const processingAlert = document.createElement('div');
+        processingAlert.className = 'alert alert-info alert-dismissible fade show mt-3';
+        processingAlert.innerHTML = `
+            <div class="d-flex align-items-center">
+                <i class="fas fa-spinner fa-spin me-2"></i>
+                <div>
+                    <h6 class="mb-1">正在处理文件...</h6>
+                    <p class="mb-0 small">系统正在解析Excel文件并导入数据，请勿关闭页面。</p>
+                </div>
+            </div>
+        `;
+
+        // 插入到表单后面
+        const formCard = importForm.closest('.card');
+        formCard.parentNode.insertBefore(processingAlert, formCard.nextSibling);
+
+        // 自动滚动到处理提示
+        setTimeout(() => {
+            processingAlert.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
     });
 
     // 自动隐藏警告消息
     setTimeout(() => {
-        const alerts = document.querySelectorAll('.alert');
+        const alerts = document.querySelectorAll('.alert:not(.alert-info)');
         alerts.forEach(alert => {
             const bsAlert = new bootstrap.Alert(alert);
-            setTimeout(() => bsAlert.close(), 5000);
+            setTimeout(() => {
+                try {
+                    bsAlert.close();
+                } catch (e) {
+                    // 忽略关闭错误
+                }
+            }, 8000);
         });
-    }, 3000);
+    }, 5000);
+
+    // 如果有错误，自动滚动到错误区域
+    {% if import_errors %}
+    setTimeout(() => {
+        const errorCard = document.querySelector('.card.border-danger');
+        if (errorCard) {
+            errorCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }, 1000);
+    {% endif %}
 });
 </script>
 {% endblock %}

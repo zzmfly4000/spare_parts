@@ -49,16 +49,120 @@
             </div>
         </div>
 
-        <!-- 高级功能链接 -->
+        <!-- 导入结果 -->
+        {% if import_errors or imported_count > 0 %}
         <div class="card">
-            <div class="card-body text-center">
-                <h6 class="card-title mb-3">需要高级导入功能？</h6>
-                <a href="{{ url_for('import_operations_advanced') }}" class="btn btn-outline-info">
-                    <i class="fas fa-rocket me-1"></i>使用高级操作记录导入
-                </a>
-                <small class="text-muted mt-2 d-block">支持同时导入操作记录和备件信息，自动同步库存</small>
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-clipboard-list me-2"></i>导入结果
+                </h5>
+                <span class="badge {% if error_count > 0 %}bg-warning{% else %}bg-success{% endif %}">
+                    {{ imported_count }} 记录 / {{ error_count }} 错误
+                </span>
+            </div>
+            <div class="card-body">
+                {% if imported_count > 0 %}
+                <div class="alert alert-success">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-check-circle fa-2x me-3"></i>
+                        <div>
+                            <h5 class="alert-heading mb-1">导入成功！</h5>
+                            <p class="mb-0">成功导入 <strong>{{ imported_count }}</strong> 条操作记录</p>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if import_summary.sync_result %}
+                <div class="alert alert-info">
+                    <h6 class="alert-heading mb-2">
+                        <i class="fas fa-sync me-1"></i>同步结果
+                    </h6>
+                    <div class="row small">
+                        {% if import_summary.sync_result.inbound_synced > 0 %}
+                        <div class="col-md-4">
+                            <i class="fas fa-arrow-down text-success me-1"></i>
+                            入库同步: <strong>{{ import_summary.sync_result.inbound_synced }}</strong>
+                        </div>
+                        {% endif %}
+                        {% if import_summary.sync_result.outbound_synced > 0 %}
+                        <div class="col-md-4">
+                            <i class="fas fa-arrow-up text-danger me-1"></i>
+                            出库同步: <strong>{{ import_summary.sync_result.outbound_synced }}</strong>
+                        </div>
+                        {% endif %}
+                        {% if import_summary.sync_result.stock_updated > 0 %}
+                        <div class="col-md-4">
+                            <i class="fas fa-boxes text-primary me-1"></i>
+                            库存更新: <strong>{{ import_summary.sync_result.stock_updated }}</strong>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if import_errors %}
+                <div class="mt-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="text-danger mb-0">
+                            <i class="fas fa-exclamation-triangle me-1"></i>错误详情 ({{ error_count }} 个错误)
+                        </h6>
+                        {% if import_id %}
+                        <a href="{{ url_for('download_import_report', import_type='operations', import_id=import_id) }}"
+                           class="btn btn-outline-danger btn-sm">
+                            <i class="fas fa-download me-1"></i>下载详细错误报告
+                        </a>
+                        {% endif %}
+                    </div>
+                    <h6 class="text-danger mb-3">
+                        <i class="fas fa-exclamation-triangle me-1"></i>错误详情 ({{ error_count }} 个错误)
+                    </h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th width="80">行号</th>
+                                    <th width="120">严重程度</th>
+                                    <th>字段</th>
+                                    <th>错误信息</th>
+                                    <th>建议</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for error in import_errors %}
+                                <tr class="{% if error.severity == 'error' %}table-danger{% else %}table-warning{% endif %}">
+                                    <td>
+                                        <span class="badge bg-secondary">第 {{ error.row }} 行</span>
+                                    </td>
+                                    <td>
+                                        {% if error.severity == 'error' %}
+                                        <span class="badge bg-danger">错误</span>
+                                        {% else %}
+                                        <span class="badge bg-warning">警告</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <code>{{ error.field }}</code>
+                                    </td>
+                                    <td>
+                                        <small>{{ error.error }}</small>
+                                        {% if error.value %}
+                                        <br><small class="text-muted">值: {{ error.value }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">{{ error.suggestion }}</small>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endif %}
             </div>
         </div>
+        {% endif %}
     </div>
 
     <!-- 右侧：说明信息 -->
@@ -82,8 +186,8 @@
                         <strong>出库记录</strong>
                     </li>
                     <li class="mb-2">
-                        <i class="fas fa-history text-primary me-2"></i>
-                        <strong>操作历史记录</strong>
+                        <i class="fas fa-sync text-info me-2"></i>
+                        <strong>自动同步库存</strong>
                     </li>
                 </ul>
             </div>
@@ -99,22 +203,22 @@
             <div class="card-body">
                 <ul class="small mb-0">
                     <li class="mb-2">
-                        <code>operation_type</code> - 操作类型
+                        <code>Operation type</code> - 操作类型
                     </li>
                     <li class="mb-2">
-                        <code>part_no</code> - 备件编号
+                        <code>Date</code> - 操作日期
                     </li>
                     <li class="mb-2">
-                        <code>quantity</code> - 数量
+                        <code>Part No</code> - 备件编号
                     </li>
                     <li class="mb-2">
-                        <code>location</code> - 库位
+                        <code>Description</code> - 备件描述
                     </li>
                     <li class="mb-2">
-                        <code>description</code> - 描述
+                        <code>Qty</code> - 数量
                     </li>
                     <li>
-                        <code>supplier_recipient</code> - 供应商/接收方
+                        <code>Location</code> - 库位
                     </li>
                 </ul>
             </div>
@@ -131,18 +235,29 @@
                 <div class="mb-3">
                     <span class="badge bg-success me-2">Stock in</span>
                     <small>入库操作 - 增加库存</small>
+                    <br><small class="text-muted">数量应为正数</small>
                 </div>
                 <div class="mb-3">
                     <span class="badge bg-danger me-2">Stock out</span>
                     <small>出库操作 - 减少库存</small>
+                    <br><small class="text-muted">数量应为负数</small>
                 </div>
                 <div class="mb-3">
                     <span class="badge bg-info me-2">Stock in - disassemble</span>
                     <small>拆解入库</small>
+                    <br><small class="text-muted">数量应为正数</small>
                 </div>
                 <div>
                     <span class="badge bg-warning me-2">Stock in - return</span>
                     <small>退货入库</small>
+                    <br><small class="text-muted">数量应为正数</small>
+                </div>
+
+                <hr class="my-3">
+
+                <div class="alert alert-info small">
+                    <i class="fas fa-lightbulb me-2"></i>
+                    <strong>提示：</strong>系统会根据操作类型自动调整库存数量
                 </div>
             </div>
         </div>
@@ -181,14 +296,27 @@ document.addEventListener('DOMContentLoaded', function() {
         // 显示加载状态
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>导入中...';
+
+        // 显示处理提示
+        const processingAlert = document.createElement('div');
+        processingAlert.className = 'alert alert-info alert-dismissible fade show mt-3';
+        processingAlert.innerHTML = `
+            <div class="d-flex align-items-center">
+                <i class="fas fa-spinner fa-spin me-2"></i>
+                <span>正在处理文件，请稍候...</span>
+            </div>
+        `;
+        importForm.parentNode.insertBefore(processingAlert, importForm.nextSibling);
     });
 
     // 自动隐藏警告消息
     setTimeout(() => {
         const alerts = document.querySelectorAll('.alert');
         alerts.forEach(alert => {
-            const bsAlert = new bootstrap.Alert(alert);
-            setTimeout(() => bsAlert.close(), 5000);
+            if (!alert.classList.contains('alert-info')) {
+                const bsAlert = new bootstrap.Alert(alert);
+                setTimeout(() => bsAlert.close(), 8000);
+            }
         });
     }, 3000);
 });

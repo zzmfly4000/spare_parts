@@ -1,5 +1,5 @@
-from flask import Flask, render_template
-from models.database import init_db, get_spare_parts_count, get_locations_count
+from flask import Flask, render_template, redirect, url_for
+from models.database import init_db, get_spare_parts_count, get_locations_count, get_all_locations, get_location_stats
 from routes.parts_routes import setup_parts_routes
 from routes.location_routes import setup_location_routes
 from routes.operation_routes import setup_operation_routes
@@ -7,6 +7,7 @@ from routes.settings_routes import setup_settings_routes
 from routes.import_export_routes import setup_import_export_routes
 from utils.stock_utils import get_low_stock_parts, get_recent_activities
 import datetime
+import logging
 
 
 def create_app(config_name='default'):
@@ -17,9 +18,19 @@ def create_app(config_name='default'):
     if config_name == 'development':
         app.config['DEBUG'] = True
         app.config['SECRET_KEY'] = 'dev-secret-key'
+        # 开发环境日志配置
+        logging.basicConfig(
+            level=logging.DEBUG,
+            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        )
     elif config_name == 'production':
         app.config['DEBUG'] = False
         app.config['SECRET_KEY'] = 'prod-secret-key-change-in-production'
+        # 生产环境日志配置
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        )
 
     # 初始化数据库
     init_db()
@@ -38,7 +49,7 @@ def create_app(config_name='default'):
         try:
             # 获取统计数据
             total_parts = get_spare_parts_count()
-            total_locations = get_locations_count()
+            location_stats = get_location_stats()
 
             # 获取低库存备件
             low_stock_parts_list = get_low_stock_parts()
@@ -50,13 +61,6 @@ def create_app(config_name='default'):
             # 获取最近活动
             recent_activities = get_recent_activities(limit=5)
 
-            # 库位统计
-            location_stats = {
-                'total_locations': total_locations,
-                'free_locations': len([loc for loc in get_all_locations() if loc[2] == 'free']),
-                'in_use_locations': len([loc for loc in get_all_locations() if loc[2] == 'in_use'])
-            }
-
             return render_template('index.html',
                                    total_parts=total_parts,
                                    location_stats=location_stats,
@@ -67,10 +71,11 @@ def create_app(config_name='default'):
                                    load_time=0.5,
                                    now=datetime.datetime.now())
         except Exception as e:
+            app.logger.error(f"首页加载失败: {str(e)}")
             # 如果出现错误，返回基础页面
             return render_template('index.html',
                                    total_parts=0,
-                                   location_stats={'total_locations': 0},
+                                   location_stats={'total_locations': 0, 'free_locations': 0, 'in_use_locations': 0},
                                    low_stock_count=0,
                                    out_of_stock_count=0,
                                    low_stock_parts=[],
@@ -82,18 +87,25 @@ def create_app(config_name='default'):
     @app.route('/low_stock_alerts')
     def low_stock_alerts():
         """低库存提醒页面"""
-        low_stock_parts = get_low_stock_parts()
-        return render_template('low_stock_alerts.html',
-                               low_stock_parts=low_stock_parts,
-                               now=datetime.datetime.now())
+        try:
+            low_stock_parts = get_low_stock_parts()
+            return render_template('low_stock_alerts.html',
+                                   low_stock_parts=low_stock_parts,
+                                   now=datetime.datetime.now())
+        except Exception as e:
+            app.logger.error(f"低库存页面加载失败: {str(e)}")
+            flash('加载低库存信息失败', 'danger')
+            return redirect(url_for('index'))
 
     # 注册错误处理器
     @app.errorhandler(404)
     def not_found(error):
+        app.logger.warning(f"404错误: {request.url}")
         return render_template('error.html', error_message="页面未找到", error_code=404), 404
 
     @app.errorhandler(500)
     def internal_error(error):
+        app.logger.error(f"500错误: {str(error)}")
         return render_template('error.html', error_message="服务器内部错误", error_code=500), 500
 
     # 添加上下文处理器，使now在所有模板中可用

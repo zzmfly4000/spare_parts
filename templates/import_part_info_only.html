@@ -78,6 +78,17 @@
 
                 {% if import_errors %}
                 <div class="mt-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="text-danger mb-0">
+                            <i class="fas fa-exclamation-triangle me-1"></i>错误详情 ({{ error_count }} 个错误)
+                        </h6>
+                        {% if import_id %}
+                        <a href="{{ url_for('download_import_report', import_type='parts', import_id=import_id) }}"
+                           class="btn btn-outline-danger btn-sm">
+                            <i class="fas fa-download me-1"></i>下载详细错误报告
+                        </a>
+                        {% endif %}
+                    </div>
                     <h6 class="text-danger mb-3">
                         <i class="fas fa-exclamation-triangle me-1"></i>错误详情 ({{ error_count }} 个错误)
                     </h6>
@@ -176,17 +187,17 @@
                 
                 <h6 class="mb-2">必需字段：</h6>
                 <ul class="small mb-3">
-                    <li><code>货号 Part no</code> - 用于查找备件</li>
+                    <li><code>Part no</code> - 用于查找备件</li>
                 </ul>
 
                 <h6 class="mb-2">可选字段：</h6>
                 <ul class="small">
-                    <li><code>关键备件 Key part</code> - 是/否</li>
-                    <li><code>最低库存 Low stock</code> - 数字</li>
-                    <li><code>最高库存 High stock</code> - 数字</li>
-                    <li><code>交货期 LT (Week)</code> - 数字（周）</li>
-                    <li><code>单价 Unit price (RMB)</code> - 数字</li>
-                    <li><code>单位 Unit</code> - 文本</li>
+                    <li><code>Key part</code> - 是否关键备件（Yes/No）</li>
+                    <li><code>Low stock</code> - 最低库存（数字）</li>
+                    <li><code>High stock</code> - 最高库存（数字）</li>
+                    <li><code>LT (Week)</code> - 交货期（周，数字）</li>
+                    <li><code>Unit price (RMB)</code> - 单价（数字）</li>
+                    <li><code>单位 Unit</code> - 计量单位</li>
                 </ul>
             </div>
         </div>

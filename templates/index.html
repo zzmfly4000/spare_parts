@@ -84,6 +84,7 @@
 <div class="row">
     <!-- 左侧内容 -->
     <div class="col-lg-8">
+
         <!-- 快速操作 -->
         <div class="card mb-4">
             <div class="card-header">
@@ -93,8 +94,8 @@
                 <div class="row g-3">
                     <div class="col-xl-3 col-md-6">
                         <div class="card quick-action-card" onclick="window.location.href='{{ url_for('smart_inbound') }}'">
-                            <div class="card-body">
-                                <i class="fas fa-arrow-down"></i>
+                            <div class="card-body text-center">
+                                <i class="fas fa-arrow-down text-success"></i>
                                 <h6 class="mb-2">智能入库</h6>
                                 <p class="text-muted small mb-0">新增备件或增加库存</p>
                             </div>
@@ -102,8 +103,8 @@
                     </div>
                     <div class="col-xl-3 col-md-6">
                         <div class="card quick-action-card" onclick="window.location.href='{{ url_for('parts_list') }}'">
-                            <div class="card-body">
-                                <i class="fas fa-arrow-up"></i>
+                            <div class="card-body text-center">
+                                <i class="fas fa-arrow-up text-danger"></i>
                                 <h6 class="mb-2">备件出库</h6>
                                 <p class="text-muted small mb-0">领用备件或减少库存</p>
                             </div>
@@ -111,19 +112,46 @@
                     </div>
                     <div class="col-xl-3 col-md-6">
                         <div class="card quick-action-card" onclick="window.location.href='{{ url_for('add_part') }}'">
-                            <div class="card-body">
-                                <i class="fas fa-plus-circle"></i>
+                            <div class="card-body text-center">
+                                <i class="fas fa-plus-circle text-primary"></i>
                                 <h6 class="mb-2">添加备件</h6>
                                 <p class="text-muted small mb-0">新增备件信息</p>
                             </div>
                         </div>
                     </div>
                     <div class="col-xl-3 col-md-6">
-                        <div class="card quick-action-card" onclick="window.location.href='{{ url_for('import_parts') }}'">
-                            <div class="card-body">
-                                <i class="fas fa-file-import"></i>
+                        <div class="card quick-action-card" onclick="window.location.href='{{ url_for('import_locations') }}'">
+                            <div class="card-body text-center">
+                                <i class="fas fa-file-import text-info"></i>
                                 <h6 class="mb-2">批量导入</h6>
                                 <p class="text-muted small mb-0">Excel批量导入数据</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 导入功能详细选项 -->
+                <div class="row mt-4">
+                    <div class="col-12">
+                        <div class="card bg-light">
+                            <div class="card-body py-3">
+                                <div class="row text-center">
+                                    <div class="col-md-4">
+                                        <a href="{{ url_for('import_locations') }}" class="btn btn-outline-primary btn-sm w-75 mb-2">
+                                            <i class="fas fa-warehouse me-1"></i>库位导入
+                                        </a>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <a href="{{ url_for('import_part_info_only') }}" class="btn btn-outline-success btn-sm w-75 mb-2">
+                                            <i class="fas fa-cube me-1"></i>备件信息导入
+                                        </a>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <a href="{{ url_for('import_operations') }}" class="btn btn-outline-info btn-sm w-75 mb-2">
+                                            <i class="fas fa-exchange-alt me-1"></i>操作记录导入
+                                        </a>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>

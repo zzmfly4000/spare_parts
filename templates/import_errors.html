@@ -1,0 +1,60 @@
+<div class="card mt-4 border-danger">
+    <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-exclamation-triangle me-2"></i>导入错误详情
+        </h5>
+        <span class="badge bg-light text-danger">{{ error_count }} 个错误</span>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-warning">
+            <div class="d-flex align-items-center">
+                <i class="fas fa-info-circle fa-2x me-3"></i>
+                <div>
+                    <h6 class="alert-heading mb-1">导入过程中发现错误</h6>
+                    <p class="mb-0">请根据以下错误信息修正Excel文件后重新导入</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-sm table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th width="80">行号</th>
+                        <th>错误类型</th>
+                        <th>详细错误信息</th>
+                        <th width="200">建议解决方案</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for error in import_errors %}
+                    <tr class="table-danger">
+                        <td>
+                            <span class="badge bg-secondary">{{ error.row if error.row else 'N/A' }}</span>
+                        </td>
+                        <td>
+                            <span class="badge {% if error.severity == 'error' %}bg-danger{% else %}bg-warning{% endif %}">
+                                {{ error.severity }}
+                            </span>
+                        </td>
+                        <td>
+                            <div>
+                                <strong>{{ error.message }}</strong>
+                                {% if error.field %}
+                                <br><small class="text-muted">字段: {{ error.field }}</small>
+                                {% endif %}
+                                {% if error.value %}
+                                <br><small class="text-muted">值: {{ error.value }}</small>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            <small class="text-muted">{{ error.suggestion }}</small>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
