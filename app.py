@@ -1,4 +1,4 @@
-from flask import Flask, render_template, redirect, url_for
+from flask import Flask, render_template, redirect, url_for, request, flash
 from models.database import init_db, get_spare_parts_count, get_locations_count, get_all_locations, get_location_stats
 from routes.parts_routes import setup_parts_routes
 from routes.location_routes import setup_location_routes

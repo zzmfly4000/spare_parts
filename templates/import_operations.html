@@ -7,7 +7,7 @@
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-4 mb-4 border-bottom">
     <div>
         <h1 class="h3 mb-2">操作记录导入</h1>
-        <p class="text-muted mb-0">批量导入出入库操作记录</p>
+        <p class="text-muted mb-0">批量导入出入库操作记录，系统会自动创建不存在的备件</p>
     </div>
     <div class="btn-toolbar mb-2 mb-md-0">
         <div class="btn-group">
@@ -36,7 +36,7 @@
                             <i class="fas fa-info-circle me-1"></i>请使用系统提供的模板格式，仅支持 .xlsx 和 .xls 文件
                         </div>
                     </div>
-                    
+
                     <div class="d-grid gap-2 d-md-flex justify-content-md-end">
                         <button type="reset" class="btn btn-outline-secondary me-md-2">
                             <i class="fas fa-undo me-1"></i>重置
@@ -68,6 +68,9 @@
                         <div>
                             <h5 class="alert-heading mb-1">导入成功！</h5>
                             <p class="mb-0">成功导入 <strong>{{ imported_count }}</strong> 条操作记录</p>
+                            {% if new_parts_created > 0 %}
+                            <p class="mb-0 mt-1">自动创建了 <strong>{{ new_parts_created }}</strong> 个新备件</p>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -114,9 +117,6 @@
                         </a>
                         {% endif %}
                     </div>
-                    <h6 class="text-danger mb-3">
-                        <i class="fas fa-exclamation-triangle me-1"></i>错误详情 ({{ error_count }} 个错误)
-                    </h6>
                     <div class="table-responsive">
                         <table class="table table-sm table-hover">
                             <thead class="table-light">
@@ -186,6 +186,10 @@
                         <strong>出库记录</strong>
                     </li>
                     <li class="mb-2">
+                        <i class="fas fa-plus text-primary me-2"></i>
+                        <strong>自动创建备件</strong>
+                    </li>
+                    <li class="mb-2">
                         <i class="fas fa-sync text-info me-2"></i>
                         <strong>自动同步库存</strong>
                     </li>
@@ -214,51 +218,41 @@
                     <li class="mb-2">
                         <code>Description</code> - 备件描述
                     </li>
-                    <li class="mb-2">
-                        <code>Qty</code> - 数量
-                    </li>
                     <li>
-                        <code>Location</code> - 库位
+                        <code>Qty</code> - 数量
                     </li>
                 </ul>
             </div>
         </div>
 
-        <!-- 操作类型说明 -->
+        <!-- 自动创建备件说明 -->
         <div class="card">
             <div class="card-header">
                 <h5 class="card-title mb-0">
-                    <i class="fas fa-exchange-alt me-2"></i>操作类型说明
+                    <i class="fas fa-magic me-2"></i>自动创建备件
                 </h5>
             </div>
             <div class="card-body">
-                <div class="mb-3">
-                    <span class="badge bg-success me-2">Stock in</span>
-                    <small>入库操作 - 增加库存</small>
-                    <br><small class="text-muted">数量应为正数</small>
-                </div>
-                <div class="mb-3">
-                    <span class="badge bg-danger me-2">Stock out</span>
-                    <small>出库操作 - 减少库存</small>
-                    <br><small class="text-muted">数量应为负数</small>
-                </div>
-                <div class="mb-3">
-                    <span class="badge bg-info me-2">Stock in - disassemble</span>
-                    <small>拆解入库</small>
-                    <br><small class="text-muted">数量应为正数</small>
-                </div>
-                <div>
-                    <span class="badge bg-warning me-2">Stock in - return</span>
-                    <small>退货入库</small>
-                    <br><small class="text-muted">数量应为正数</small>
-                </div>
-
-                <hr class="my-3">
-
-                <div class="alert alert-info small">
+                <div class="alert alert-info mb-3">
                     <i class="fas fa-lightbulb me-2"></i>
-                    <strong>提示：</strong>系统会根据操作类型自动调整库存数量
+                    <strong>智能功能：</strong>当备件不存在时，系统会自动创建新备件
                 </div>
+
+                <h6 class="mb-2">自动创建规则：</h6>
+                <ul class="small mb-3">
+                    <li class="mb-1">使用 <code>Part No</code> 作为备件编号</li>
+                    <li class="mb-1">使用 <code>Description</code> 作为备件名称</li>
+                    <li class="mb-1">使用 <code>Type</code> 作为备件类型</li>
+                    <li class="mb-1">使用 <code>Location</code> 作为默认库位</li>
+                    <li>初始库存设为 0</li>
+                </ul>
+
+                <h6 class="mb-2">注意事项：</h6>
+                <ul class="small">
+                    <li class="mb-1">确保备件编号和描述不为空</li>
+                    <li class="mb-1">系统会跳过重复的操作记录</li>
+                    <li>创建后可手动完善备件信息</li>
+                </ul>
             </div>
         </div>
     </div>

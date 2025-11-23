@@ -85,17 +85,8 @@ def setup_import_export_routes(app):
                     flash(f'Excel文件中缺少必需列: {", ".join(missing_columns)}', 'danger')
                     return redirect(request.url)
 
-                # 根据数据量选择处理方式 - 将这部分移到 df 定义之后
-                if len(df) > 5000:  # 大数据量使用分块处理
-                    current_app.logger.info("数据量较大，使用分块处理")
-                    # 注意：需要先实现 process_locations_import_large 函数
-                    result = process_locations_import(df, import_id)  # 暂时使用标准处理
-                elif len(df) > 1000:  # 中等数据量使用批量处理
-                    current_app.logger.info("数据量中等，使用批量处理")
-                    result = process_locations_import(df, import_id)
-                else:  # 小数据量使用标准处理
-                    current_app.logger.info("数据量较小，使用标准处理")
-                    result = process_locations_import(df, import_id)
+                # 处理库位导入
+                result = process_locations_import(df, import_id)
 
                 import_end_time = datetime.now()
                 import_duration = (import_end_time - import_start_time).total_seconds()
@@ -430,12 +421,12 @@ def setup_import_export_routes(app):
             return redirect(url_for('import_part_info_only'))
 
     # =============================================================================
-    # 3. 操作记录导入功能 - 增强版本
+    # 3. 操作记录导入功能 - 增强版本（参考import_export.py优化）
     # =============================================================================
 
     @app.route('/import_operations', methods=['GET', 'POST'])
     def import_operations():
-        """操作记录导入页面 - 增强错误处理版本"""
+        """操作记录导入页面 - 参考import_export.py优化的增强版本"""
         if request.method == 'POST':
             try:
                 if 'file' not in request.files:
@@ -469,7 +460,8 @@ def setup_import_export_routes(app):
                     df = pd.read_excel(file)
                     current_app.logger.info(f"成功读取Excel文件，共 {len(df)} 行数据，列名: {list(df.columns)}")
 
-                    df = clean_dataframe(df)
+                    # 参考import_export.py的清理逻辑
+                    df = clean_operations_dataframe(df)
                     current_app.logger.info(f"数据清理后，剩余 {len(df)} 行有效数据")
 
                 except Exception as e:
@@ -478,15 +470,31 @@ def setup_import_export_routes(app):
                     flash(f'{error_msg}，请检查文件格式是否正确', 'danger')
                     return redirect(request.url)
 
-                # 验证必需列
-                required_columns = ['Operation type', 'Date', 'Part No', 'Description', 'Qty']
-                missing_columns = [col for col in required_columns if col not in df.columns]
-                if missing_columns:
-                    flash(f'Excel文件中缺少必需列: {", ".join(missing_columns)}', 'danger')
-                    return redirect(request.url)
+                # 检测文件类型并处理
+                file_type = detect_file_type(df)
+                current_app.logger.info(f"检测到文件类型: {file_type}")
 
-                # 处理操作记录导入
-                result = process_operations_import(df, import_id)
+                if file_type == 'unknown':
+                    column_info = ", ".join([f"'{col}'" for col in df.columns])
+                    error_msg = f'无法识别文件类型。检测到的列名: {column_info}。请使用系统提供的模板格式。'
+                    current_app.logger.error(error_msg)
+                    flash(error_msg, 'danger')
+                    return redirect(request.url)
+                elif file_type == 'part_info_only':
+                    flash('检测到这是备件信息文件，已自动跳转到备件信息导入页面', 'info')
+                    return redirect(url_for('import_part_info_only'))
+                else:  # operations_with_parts
+                    # 检查操作记录必需的列
+                    required_columns = ['Operation type', 'Date', 'Part No', 'Qty']
+                    missing_columns = [col for col in required_columns if col not in df.columns]
+                    if missing_columns:
+                        error_msg = f'Excel文件中缺少必要的列: {", ".join(missing_columns)}'
+                        current_app.logger.error(error_msg)
+                        flash(error_msg, 'danger')
+                        return redirect(request.url)
+
+                # 处理操作记录导入（参考import_export.py的优化逻辑）
+                result = process_operations_with_parts_import(df, import_id)
 
                 import_end_time = datetime.now()
                 import_duration = (import_end_time - import_start_time).total_seconds()
@@ -498,7 +506,7 @@ def setup_import_export_routes(app):
 
                 # 处理导入结果
                 if result['success']:
-                    if result['error_count'] > 0 or result['skipped_duplicates'] > 0:
+                    if result['error_count'] > 0 or result.get('skipped_duplicates', 0) > 0:
                         flash(f'{result["message"]}，请查看详细错误信息', 'warning')
                     else:
                         flash(result['message'], 'success')
@@ -508,7 +516,9 @@ def setup_import_export_routes(app):
                         'error_count': result.get('error_count', 0),
                         'imported_count': result.get('imported_count', 0),
                         'skipped_duplicates': result.get('skipped_duplicates', 0),
+                        'new_parts_created': result.get('new_parts_created', 0),
                         'import_summary': result.get('import_summary', {}),
+                        'sync_result': result.get('sync_result', {}),
                         'import_id': import_id
                     }
                 else:
@@ -518,7 +528,9 @@ def setup_import_export_routes(app):
                         'error_count': result.get('error_count', 0),
                         'imported_count': result.get('imported_count', 0),
                         'skipped_duplicates': result.get('skipped_duplicates', 0),
+                        'new_parts_created': result.get('new_parts_created', 0),
                         'import_summary': result.get('import_summary', {}),
+                        'sync_result': result.get('sync_result', {}),
                         'import_id': import_id
                     }
 
@@ -538,7 +550,9 @@ def setup_import_export_routes(app):
                                error_count=import_results.get('error_count', 0),
                                imported_count=import_results.get('imported_count', 0),
                                skipped_duplicates=import_results.get('skipped_duplicates', 0),
+                               new_parts_created=import_results.get('new_parts_created', 0),
                                import_summary=import_results.get('import_summary', {}),
+                               sync_result=import_results.get('sync_result', {}),
                                import_id=import_results.get('import_id', ''))
 
     @app.route('/download_operations_template')
@@ -582,10 +596,10 @@ def setup_import_export_routes(app):
                         '操作类型: Stock in/Stock out/Stock in - disassemble/Stock in - return',
                         '操作日期 (YYYY-MM-DD格式)',
                         '供应商(入库)或接收部门(出库)',
-                        '库位代码（必须存在于系统中）',
-                        '备件编号（必须存在于系统中）',
-                        '备件详细描述',
-                        '备件类型',
+                        '库位代码（可为空，系统会自动创建不存在的备件）',
+                        '备件编号（关键字段，系统会自动创建不存在的备件）',
+                        '备件详细描述（用于自动创建新备件）',
+                        '备件类型（用于自动创建新备件）',
                         '数量: 正数入库, 负数出库',
                         '相关工作中心'
                     ],
@@ -593,7 +607,7 @@ def setup_import_export_routes(app):
                         'Stock in', '2024-01-01', '供应商A', 'A-01-01',
                         'PART-001', '轴承 6205', '机械', '10', '生产线A'
                     ],
-                    '必填': ['是', '是', '否', '是', '是', '是', '否', '是', '否'],
+                    '必填': ['是', '是', '否', '否', '是', '是', '否', '是', '否'],
                     '数据格式': [
                         '文本(特定值)', '日期', '文本', '文本',
                         '文本', '文本', '文本', '数字(非零)', '文本'
@@ -609,7 +623,7 @@ def setup_import_export_routes(app):
                 output,
                 mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                 as_attachment=True,
-                download_name='操作记录导入模板_详细版.xlsx'
+                download_name='操作记录导入模板_支持自动创建备件.xlsx'
             )
 
         except Exception as e:
@@ -835,7 +849,7 @@ def setup_import_export_routes(app):
 
 
 # =============================================================================
-# 增强的辅助函数
+# 增强的辅助函数 - 参考import_export.py优化
 # =============================================================================
 
 def process_locations_import(df, import_id):
@@ -1363,13 +1377,14 @@ def update_part_info(conn, part_id, update_data):
         return False, error_msg
 
 
-def process_operations_import(df, import_id):
-    """处理操作记录导入 - 增强错误处理和报告"""
+def process_operations_with_parts_import(df, import_id):
+    """处理包含操作记录的导入 - 参考import_export.py优化"""
     imported_count = 0
     error_count = 0
+    updated_parts_count = 0
+    updated_parts_info_count = 0
     skipped_duplicates = 0
     errors = []
-
     import_summary = {
         'total_rows': len(df),
         'import_start_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
@@ -1377,254 +1392,727 @@ def process_operations_import(df, import_id):
         'import_id': import_id
     }
 
-    current_app.logger.info(f"开始处理操作记录导入，共 {len(df)} 行数据")
-
     try:
         with DatabaseManager().get_connection() as conn:
+            affected_parts = set()
+
             for index, row in df.iterrows():
                 row_number = index + 2
-
                 try:
-                    # 提取操作记录数据
-                    operation_data = extract_operation_data(row)
+                    # 首先检查是否有备件信息需要处理
+                    part_info = extract_part_info_from_row(row)
+                    part_no_from_info = part_info.get('part_no')
 
-                    # 验证数据
-                    validation_errors = validate_operation_data(row_number, operation_data)
+                    # 处理备件信息（如果有）
+                    part_info_updated = False
+                    if part_no_from_info:
+                        description = safe_str(row.get('Description') or row.get('描述', ''))
+                        part_type = safe_str(row.get('Type') or row.get('类型', ''))
+                        location = safe_str(row.get('Location') or row.get('库位', ''))
+
+                        if description:
+                            success, message = update_or_create_part_info(conn, part_no_from_info, description, part_type, location, part_info)
+                            if success:
+                                updated_parts_info_count += 1
+                                part_info_updated = True
+                                current_app.logger.info(f"成功更新备件信息: {part_no_from_info} - {description}")
+                            else:
+                                errors.append({
+                                    'row': row_number,
+                                    'error': f'备件信息更新失败: {message}',
+                                    'field': '备件信息',
+                                    'value': f"{part_no_from_info} - {description}",
+                                    'severity': 'warning',
+                                    'suggestion': '请检查备件编号和描述是否正确'
+                                })
+
+                    # 处理操作记录
+                    operation_type = safe_str(row.get('Operation type', ''))
+                    part_no_operation = safe_str(row.get('Part No', ''))
+
+                    # 如果没有操作类型和操作相关的Part No，跳过操作记录处理
+                    if not operation_type and not part_no_operation:
+                        if part_info_updated:
+                            continue
+                        else:
+                            continue
+
+                    # 如果只有操作类型但没有Part No，记录错误
+                    if operation_type and not part_no_operation:
+                        errors.append({
+                            'row': row_number,
+                            'error': '有操作类型但没有备件编号',
+                            'field': 'Part No',
+                            'value': '',
+                            'severity': 'error',
+                            'suggestion': '请填写备件编号'
+                        })
+                        error_count += 1
+                        continue
+
+                    # 处理操作记录
+                    operation_date = safe_datetime(row.get('Date'))
+                    location = str(safe_str(row.get('Location', ''))).strip()
+                    part_no = str(safe_str(row.get('Part No', ''))).strip()
+                    description = str(safe_str(row.get('Description', ''))).strip()
+                    part_type = str(safe_str(row.get('Type', '')))
+                    quantity = safe_int(row.get('Qty', 0))
+                    supplier_recipient = str(safe_str(row.get('Supplier or Recipients', '')))
+                    work_center = str(safe_str(row.get('Work center', '')))
+
+                    # 验证操作记录
+                    validation_errors = validate_operation_row(
+                        row_number, operation_type, operation_date, location,
+                        part_no, description, quantity, supplier_recipient, work_center
+                    )
+
                     if validation_errors:
                         errors.extend(validation_errors)
                         error_count += len(validation_errors)
                         continue
 
-                    # 检查备件是否存在
+                    # 修复日期格式
+                    if hasattr(operation_date, 'strftime'):
+                        operation_date_str = operation_date.strftime('%Y-%m-%d %H:%M:%S')
+                    else:
+                        operation_date_str = str(operation_date)
+
+                    # 检查备件是否存在，如果不存在则创建
                     part = conn.execute(
-                        'SELECT id FROM spare_parts WHERE part_no = ?',
-                        (operation_data['part_no'],)
+                        'SELECT id, current_stock FROM spare_parts WHERE part_no = ? AND name = ?',
+                        (part_no, description)
                     ).fetchone()
 
+                    part_id = None
                     if not part:
-                        errors.append(create_error(
-                            row_number, f'备件不存在: {operation_data["part_no"]}', 'Part No',
-                            operation_data['part_no'], 'error', '请先在系统中添加该备件'
-                        ))
-                        error_count += 1
-                        continue
+                        part_id = create_or_update_part_from_import(conn, part_no, description, part_type, location, part_info)
+                        if part_id:
+                            updated_parts_count += 1
+                            current_app.logger.info(f"创建新备件: {part_no} - {description}")
+                        else:
+                            errors.append({
+                                'row': row_number,
+                                'error': '无法创建备件',
+                                'field': '备件创建',
+                                'value': f"{part_no} - {description}",
+                                'severity': 'error',
+                                'suggestion': '请检查备件数据是否完整'
+                            })
+                            error_count += 1
+                            continue
+                    else:
+                        part_id = part['id']
+                        # 如果之前没有更新过备件信息，现在更新
+                        if not part_info_updated and part_info:
+                            success, message = update_or_create_part_info(conn, part_no, description, part_type, location, part_info)
+                            if success:
+                                updated_parts_info_count += 1
+                                current_app.logger.info(f"更新现有备件信息: {part_no} - {description}")
 
-                    # 检查库位是否存在
-                    if operation_data['location']:
-                        location = get_location_by_code(operation_data['location'])
-                        if not location:
-                            errors.append(create_error(
-                                row_number, f'库位不存在: {operation_data["location"]}', 'Location',
-                                operation_data['location'], 'warning', '操作将继续，但库位信息不会关联'
-                            ))
+                    # 检查重复操作记录
+                    is_duplicate, duplicate_details = is_duplicate_operation(
+                        conn, operation_type, operation_date_str, part_no, description,
+                        quantity, supplier_recipient, work_center, location
+                    )
 
-                    # 检查重复记录
-                    is_duplicate, duplicate_info = check_duplicate_operation(conn, operation_data)
                     if is_duplicate:
-                        errors.append(create_error(
-                            row_number, '跳过重复记录', '重复检查',
-                            f"{operation_data['operation_type']} - {operation_data['part_no']}",
-                            'warning', duplicate_info
-                        ))
+                        errors.append({
+                            'row': row_number,
+                            'error': '跳过重复记录',
+                            'field': 'Multiple',
+                            'value': f"{operation_type} - {part_no} - {description}",
+                            'severity': 'warning',
+                            'suggestion': duplicate_details
+                        })
                         skipped_duplicates += 1
                         continue
 
-                    # 创建操作记录
-                    try:
-                        create_operation_record(operation_data)
-                        imported_count += 1
-                        current_app.logger.info(
-                            f"导入操作记录: {operation_data['operation_type']} - {operation_data['part_no']} - 数量: {operation_data['quantity']}"
-                        )
-                    except Exception as e:
-                        error_msg = f'创建操作记录失败: {str(e)}'
-                        errors.append(create_error(
-                            row_number, error_msg, '记录创建', str(operation_data),
-                            'error', '请检查数据格式或联系管理员'
-                        ))
-                        error_count += 1
+                    # 插入操作记录
+                    conn.execute('''
+                        INSERT INTO operation_records 
+                        (operation_type, operation_date, supplier_recipient, location, part_no, description, part_type, quantity, work_center)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (
+                        operation_type,
+                        operation_date_str,
+                        supplier_recipient,
+                        location,
+                        part_no,
+                        description,
+                        part_type,
+                        quantity,
+                        work_center
+                    ))
+
+                    imported_count += 1
+                    affected_parts.add((part_no, description))
+                    current_app.logger.info(f"导入操作记录: {operation_type} - {part_no} - {description} - 数量: {quantity}")
 
                 except Exception as e:
-                    error_msg = f'处理操作记录时出错: {str(e)}'
-                    errors.append(create_error(
-                        row_number, error_msg, '数据处理', str(row.to_dict()),
-                        'error', '请检查数据格式或联系管理员'
-                    ))
-                    error_count += 1
-                    current_app.logger.error(f"处理第 {row_number} 行时出错: {str(e)}")
+                    if 'UNIQUE constraint failed' in str(e):
+                        errors.append({
+                            'row': row_number,
+                            'error': '唯一约束冲突',
+                            'field': 'Database',
+                            'value': str(e),
+                            'severity': 'warning',
+                            'suggestion': '记录可能已存在，已跳过'
+                        })
+                        skipped_duplicates += 1
+                    else:
+                        errors.append({
+                            'row': row_number,
+                            'error': f'处理数据时出错: {str(e)}',
+                            'field': 'General',
+                            'value': str(e),
+                            'severity': 'error',
+                            'suggestion': '请检查数据格式或联系系统管理员'
+                        })
+                        error_count += 1
+                        current_app.logger.error(f"处理第 {row_number} 行数据时出错: {str(e)}")
+                    continue
 
             conn.commit()
 
-            # 同步库存
+            # 同步操作记录（只有有操作记录时才需要同步）
+            sync_result = {'inbound_synced': 0, 'outbound_synced': 0, 'stock_updated': 0}
             if imported_count > 0:
-                current_app.logger.info("开始同步操作记录到库存...")
+                current_app.logger.info("开始强制同步操作记录...")
                 sync_result = sync_all_operations()
-                import_summary['sync_result'] = sync_result
+
+                if sync_result['inbound_synced'] == 0 and sync_result['outbound_synced'] == 0:
+                    current_app.logger.warning("自动同步未找到记录，尝试手动重新计算...")
+                    stock_updated = recalculate_all_stock()
+                    sync_result['stock_updated'] = stock_updated
+
+            # 更新导入摘要
+            import_summary.update({
+                'import_end_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'imported_count': imported_count,
+                'error_count': error_count,
+                'skipped_duplicates': skipped_duplicates,
+                'updated_parts_count': updated_parts_count,
+                'updated_parts_info_count': updated_parts_info_count,
+                'sync_result': sync_result,
+                'affected_parts_count': len(affected_parts)
+            })
+
+            # 生成详细的导入报告
+            detailed_report = generate_detailed_import_report(
+                imported_count, error_count, skipped_duplicates,
+                updated_parts_count, updated_parts_info_count,
+                sync_result, errors
+            )
+
+            current_app.logger.info(f"操作记录导入完成: {detailed_report}")
+
+            return {
+                'success': True,
+                'message': detailed_report,
+                'imported_count': imported_count,
+                'updated_parts_count': updated_parts_count,
+                'updated_parts_info_count': updated_parts_info_count,
+                'error_count': error_count,
+                'skipped_duplicates': skipped_duplicates,
+                'errors': errors,
+                'sync_result': sync_result,
+                'import_summary': import_summary,
+                'detailed_report': detailed_report
+            }
 
     except Exception as e:
-        error_msg = f'数据库操作失败: {str(e)}'
-        current_app.logger.error(f'{error_msg}\n{traceback.format_exc()}')
-        errors.append(create_error(
-            '系统', error_msg, '数据库', '', 'error', '请联系系统管理员'
+        current_app.logger.error(f'导入操作记录时发生系统错误: {str(e)}')
+        import_summary['import_end_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        return {
+            'success': False,
+            'message': f'导入过程中发生系统错误: {str(e)}',
+            'imported_count': imported_count,
+            'updated_parts_count': updated_parts_count,
+            'updated_parts_info_count': updated_parts_info_count,
+            'error_count': error_count,
+            'skipped_duplicates': skipped_duplicates,
+            'errors': errors,
+            'import_summary': import_summary
+        }
+
+def update_or_create_part_info(conn, part_no, description, part_type, location, part_info):
+    """更新或创建备件信息"""
+    try:
+        part = conn.execute(
+            'SELECT id FROM spare_parts WHERE part_no = ? AND name = ?',
+            (part_no, description)
+        ).fetchone()
+
+        if part:
+            success, message = update_existing_part_info(conn, part['id'], part_info)
+            if success:
+                return True, f"成功更新备件信息: {part_no} - {description}"
+            else:
+                return False, f"更新备件信息失败: {message}"
+        else:
+            part_id = create_part_info_only(conn, part_no, description, part_type, location, part_info)
+            if part_id:
+                return True, f"成功创建备件信息: {part_no} - {description}"
+            else:
+                return False, f"创建备件信息失败: {part_no} - {description}"
+
+    except Exception as e:
+        error_msg = f"更新或创建备件信息时出错: {str(e)}"
+        current_app.logger.error(error_msg)
+        return False, error_msg
+
+def create_part_info_only(conn, part_no, description, part_type, location, part_info):
+    """仅创建备件信息"""
+    try:
+        cursor = conn.execute('''
+            INSERT INTO spare_parts 
+            (part_no, name, type, current_stock, min_stock, max_stock, 
+             key_part, lt_weeks, unit_price, unit, location, supplier, description)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            part_no,
+            description,
+            part_type,
+            0,
+            part_info.get('min_stock', 0),
+            part_info.get('max_stock', 0),
+            part_info.get('key_part', False),
+            part_info.get('lt_weeks', 0),
+            part_info.get('unit_price', 0),
+            part_info.get('unit', ''),
+            location,
+            '',
+            description
         ))
-        error_count += 1
 
-    # 生成导入报告
-    import_end_time = datetime.now()
-    import_duration = (import_end_time - datetime.strptime(
-        import_summary['import_start_time'], '%Y-%m-%d %H:%M:%S'
-    )).total_seconds()
+        part_id = cursor.lastrowid
+        current_app.logger.info(f"创建新备件（仅信息）: {part_no} - {description}")
+        return part_id
 
-    import_summary.update({
-        'import_end_time': import_end_time.strftime('%Y-%m-%d %H:%M:%S'),
-        'imported_count': imported_count,
-        'error_count': error_count,
-        'skipped_duplicates': skipped_duplicates,
-        'import_duration': import_duration
-    })
+    except Exception as e:
+        current_app.logger.error(f"创建备件信息时出错: {str(e)}")
+        return None
 
-    # 生成结果消息
-    if error_count == 0 and skipped_duplicates == 0:
-        message = f'导入成功！导入 {imported_count} 条操作记录'
-        success = True
-    elif imported_count > 0:
-        message = f'部分导入成功！导入 {imported_count} 条记录，跳过 {skipped_duplicates} 条重复记录，错误 {error_count} 个'
-        success = True
-    else:
-        message = f'导入失败！跳过 {skipped_duplicates} 条重复记录，错误 {error_count} 个'
-        success = False
+def create_or_update_part_from_import(conn, part_no, description, part_type, location, part_info):
+    """从导入数据创建或更新备件信息"""
+    try:
+        existing_part = conn.execute(
+            'SELECT id FROM spare_parts WHERE part_no = ? AND name = ?',
+            (part_no, description)
+        ).fetchone()
 
-    current_app.logger.info(f"操作记录导入完成: {message}")
+        if existing_part:
+            part_id = existing_part['id']
+            update_existing_part_info(conn, part_id, part_info)
+            current_app.logger.info(f"更新备件信息: {part_no} - {description}")
+            return part_id
+        else:
+            cursor = conn.execute('''
+                INSERT INTO spare_parts 
+                (part_no, name, type, current_stock, min_stock, max_stock, 
+                 key_part, lt_weeks, unit_price, unit, location, supplier, description)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                part_no,
+                description,
+                part_type,
+                0,
+                part_info.get('min_stock', 0),
+                part_info.get('max_stock', 0),
+                part_info.get('key_part', False),
+                part_info.get('lt_weeks', 0),
+                part_info.get('unit_price', 0),
+                part_info.get('unit', ''),
+                location,
+                '',
+                description
+            ))
 
-    return {
-        'success': success,
-        'message': message,
-        'imported_count': imported_count,
-        'error_count': error_count,
-        'skipped_duplicates': skipped_duplicates,
-        'errors': errors,
-        'import_summary': import_summary
-    }
+            part_id = cursor.lastrowid
+            current_app.logger.info(f"创建新备件: {part_no} - {description}")
+            return part_id
 
+    except Exception as e:
+        current_app.logger.error(f"创建或更新备件时出错: {str(e)}")
+        raise
 
-def extract_operation_data(row):
-    """从行数据中提取操作记录信息 - 增强版本"""
-    operation_data = {
-        'operation_type': safe_str(row.get('Operation type', '')).strip(),
-        'operation_date': safe_datetime(row.get('Date')) or datetime.now(),
-        'supplier_recipient': safe_str(row.get('Supplier or Recipients', '')),
-        'location': safe_str(row.get('Location', '')),
-        'part_no': safe_str(row.get('Part No', '')).strip(),
-        'description': safe_str(row.get('Description', '')),
-        'part_type': safe_str(row.get('Type', '')),
-        'quantity': safe_int(row.get('Qty', 0)),
-        'work_center': safe_str(row.get('Work center', ''))
-    }
-    return operation_data
+def update_existing_part_info(conn, part_id, part_info):
+    """更新现有备件信息 - 只更新特定字段，不影响其他字段"""
+    try:
+        update_fields = []
+        params = []
 
+        updated_fields = []
 
-def validate_operation_data(row_number, operation_data):
-    """验证操作记录数据 - 增强版本"""
+        # 只更新指定的字段，其他字段保持不变
+        if 'key_part' in part_info and part_info['key_part'] is not None:
+            update_fields.append('key_part = ?')
+            params.append(part_info['key_part'])
+            updated_fields.append(f"关键备件: {'是' if part_info['key_part'] else '否'}")
+
+        if 'min_stock' in part_info and part_info['min_stock'] is not None:
+            update_fields.append('min_stock = ?')
+            params.append(part_info['min_stock'])
+            updated_fields.append(f"最低库存: {part_info['min_stock']}")
+
+        if 'max_stock' in part_info and part_info['max_stock'] is not None:
+            update_fields.append('max_stock = ?')
+            params.append(part_info['max_stock'])
+            updated_fields.append(f"最高库存: {part_info['max_stock']}")
+
+        if 'lt_weeks' in part_info and part_info['lt_weeks'] is not None:
+            update_fields.append('lt_weeks = ?')
+            params.append(part_info['lt_weeks'])
+            updated_fields.append(f"交货期: {part_info['lt_weeks']}周")
+
+        if 'unit_price' in part_info and part_info['unit_price'] is not None:
+            update_fields.append('unit_price = ?')
+            params.append(part_info['unit_price'])
+            updated_fields.append(f"单价: {part_info['unit_price']}")
+
+        if 'unit' in part_info and part_info['unit'] is not None:
+            update_fields.append('unit = ?')
+            params.append(part_info['unit'])
+            updated_fields.append(f"单位: {part_info['unit']}")
+
+        if update_fields:
+            update_fields.append('updated_date = CURRENT_TIMESTAMP')
+            params.append(part_id)
+
+            # 记录更新前的状态用于调试
+            old_part = conn.execute(
+                'SELECT part_no, name, type, current_stock, location FROM spare_parts WHERE id = ?',
+                (part_id,)
+            ).fetchone()
+
+            conn.execute(f'''
+                UPDATE spare_parts 
+                SET {', '.join(update_fields)}
+                WHERE id = ?
+            ''', params)
+
+            # 记录更新后的状态用于调试
+            new_part = conn.execute(
+                'SELECT part_no, name, type, current_stock, location FROM spare_parts WHERE id = ?',
+                (part_id,)
+            ).fetchone()
+
+            # 验证关键字段没有被意外修改
+            if (old_part['part_no'] != new_part['part_no'] or
+                old_part['name'] != new_part['name'] or
+                old_part['type'] != new_part['type'] or
+                old_part['current_stock'] != new_part['current_stock'] or
+                old_part['location'] != new_part['location']):
+                current_app.logger.warning(f"警告: 备件ID {part_id} 的关键字段被意外修改!")
+                current_app.logger.warning(f"更新前: {dict(old_part)}")
+                current_app.logger.warning(f"更新后: {dict(new_part)}")
+
+            message = f"更新了 {len(updated_fields)} 个字段: {', '.join(updated_fields)}"
+            current_app.logger.info(f"备件信息更新成功: {message}")
+            return True, message
+        else:
+            return False, "没有需要更新的字段"
+
+    except Exception as e:
+        error_msg = f"更新备件信息时出错: {str(e)}"
+        current_app.logger.error(error_msg)
+        return False, error_msg
+
+def generate_detailed_import_report(imported_count, error_count, skipped_duplicates,
+                                   updated_parts_count, updated_parts_info_count,
+                                   sync_result, errors):
+    """生成详细的导入报告"""
+
+    report_parts = []
+
+    if imported_count > 0:
+        report_parts.append(f"✅ 成功导入 {imported_count} 条操作记录")
+
+    if updated_parts_count > 0:
+        report_parts.append(f"✅ 创建了 {updated_parts_count} 个新备件")
+
+    if updated_parts_info_count > 0:
+        report_parts.append(f"✅ 更新了 {updated_parts_info_count} 个备件的信息（包括最低库存等）")
+
+    if sync_result.get('inbound_synced', 0) > 0:
+        report_parts.append(f"🔄 同步了 {sync_result['inbound_synced']} 条入库记录")
+
+    if sync_result.get('outbound_synced', 0) > 0:
+        report_parts.append(f"🔄 同步了 {sync_result['outbound_synced']} 条出库记录")
+
+    if sync_result.get('stock_updated', 0) > 0:
+        report_parts.append(f"📊 更新了 {sync_result['stock_updated']} 个备件的库存")
+
+    if skipped_duplicates > 0:
+        report_parts.append(f"⚠️ 跳过了 {skipped_duplicates} 条重复记录")
+
+    if error_count > 0:
+        report_parts.append(f"❌ 遇到 {error_count} 个错误")
+
+    error_types = {}
+    for error in errors:
+        error_type = error.get('error', '未知错误')
+        error_types[error_type] = error_types.get(error_type, 0) + 1
+
+    for error_type, count in error_types.items():
+        if count > 0:
+            report_parts.append(f"   - {error_type}: {count} 次")
+
+    return " | ".join(report_parts)
+
+def extract_part_info_from_row(row):
+    """从行数据中提取备件信息 - 只提取允许更新的字段"""
+    part_info = {}
+
+    # 只提取允许更新的字段，忽略其他字段
+    key_part = row.get('关键备件 Key part')
+    if key_part is not None:
+        if isinstance(key_part, str):
+            key_part = key_part.strip().lower() in ['是', 'yes', 'true', '1', 'y']
+        part_info['key_part'] = bool(key_part)
+
+    min_stock = safe_int(row.get('最低库存 Low stock') or row.get('Min stock', None))
+    if min_stock is not None:
+        part_info['min_stock'] = max(0, min_stock)
+
+    max_stock = safe_int(row.get('最高库存 High stock') or row.get('Max stock', None))
+    if max_stock is not None:
+        part_info['max_stock'] = max(0, max_stock)
+
+    lt_weeks = safe_int(row.get('交货期 LT (Week)') or row.get('LT', None))
+    if lt_weeks is not None:
+        part_info['lt_weeks'] = max(0, lt_weeks)
+
+    unit_price = safe_float(row.get('单价 Unit price (RMB)') or row.get('Unit price', None))
+    if unit_price is not None:
+        part_info['unit_price'] = max(0, unit_price)
+
+    unit = safe_str(row.get('单位 Unit') or row.get('Unit', ''))
+    if unit:
+        part_info['unit'] = unit.strip()
+
+    # 明确不提取以下字段，确保它们不会被更新：
+    # - part_no (仅用于查找)
+    # - name (备件名称)
+    # - type (类型)
+    # - current_stock (当前库存)
+    # - location (库位)
+    # - supplier (供应商)
+    # - description (描述)
+
+    return part_info
+
+def validate_operation_row(row_number, operation_type, operation_date, location, part_no, description, quantity, supplier_recipient, work_center):
+    """验证操作记录行的数据"""
     errors = []
 
-    # 验证操作类型
+    if not operation_type:
+        errors.append(create_error(row_number, '操作类型不能为空', 'Operation type', operation_type, 'error', '请填写操作类型，如：Stock in, Stock out等'))
+
     valid_operation_types = ['Stock in', 'Stock out', 'Stock in - disassemble', 'Stock in - return']
-    if not operation_data['operation_type']:
-        errors.append(create_error(
-            row_number, '操作类型不能为空', 'Operation type', '', 'error', '请填写操作类型'
-        ))
-    elif operation_data['operation_type'] not in valid_operation_types:
-        errors.append(create_error(
-            row_number, f'操作类型无效: {operation_data["operation_type"]}', 'Operation type',
-            operation_data['operation_type'], 'error', f'有效操作类型: {", ".join(valid_operation_types)}'
-        ))
+    if operation_type and operation_type not in valid_operation_types:
+        errors.append(create_error(row_number, f'操作类型无效: {operation_type}', 'Operation type', operation_type, 'error', f'有效的操作类型包括: {", ".join(valid_operation_types)}'))
 
-    # 验证备件编号
-    if not operation_data['part_no']:
-        errors.append(create_error(
-            row_number, '备件编号不能为空', 'Part No', '', 'error', '请填写备件编号'
-        ))
+    if not operation_date:
+        errors.append(create_error(row_number, '操作日期格式不正确', 'Date', str(operation_date), 'error', '请使用有效的日期格式，如: YYYY-MM-DD'))
 
-    # 验证备件描述
-    if not operation_data['description']:
-        errors.append(create_error(
-            row_number, '备件描述不能为空', 'Description', '', 'error', '请填写备件描述'
-        ))
+    if not location:
+        errors.append(create_error(row_number, '库位不能为空', 'Location', location, 'error', '请填写有效的库位代码'))
 
-    # 验证数量
-    if operation_data['quantity'] == 0:
-        errors.append(create_error(
-            row_number, '数量不能为0', 'Qty', operation_data['quantity'], 'error', '请填写非零的数量值'
-        ))
+    if not part_no:
+        errors.append(create_error(row_number, '备件编号不能为空', 'Part No', part_no, 'error', '请填写备件编号'))
 
-    # 验证操作类型和数量的关系
-    if operation_data['operation_type'] == 'Stock out' and operation_data['quantity'] > 0:
-        errors.append(create_error(
-            row_number, '出库操作数量应为负数', 'Qty', operation_data['quantity'], 'warning',
-            '出库操作数量建议使用负数，系统会自动处理'
-        ))
-    elif operation_data['operation_type'].startswith('Stock in') and operation_data['quantity'] < 0:
-        errors.append(create_error(
-            row_number, '入库操作数量应为正数', 'Qty', operation_data['quantity'], 'warning',
-            '入库操作数量建议使用正数，系统会自动处理'
-        ))
+    if not description:
+        errors.append(create_error(row_number, '备件描述不能为空', 'Description', description, 'error', '请填写备件描述'))
 
-    # 验证日期格式
-    if operation_data['operation_date'] and not isinstance(operation_data['operation_date'], datetime):
-        try:
-            operation_data['operation_date'] = pd.to_datetime(operation_data['operation_date'])
-        except:
-            errors.append(create_error(
-                row_number, '日期格式不正确', 'Date', operation_data['operation_date'],
-                'error', '请使用 YYYY-MM-DD 格式'
-            ))
+    if quantity == 0:
+        errors.append(create_error(row_number, '数量不能为0', 'Qty', quantity, 'error', '请填写非零的数量值'))
+
+    if operation_type == 'Stock out' and quantity > 0:
+        errors.append(create_error(row_number, '出库操作数量应为负数', 'Qty', quantity, 'warning', '出库操作数量建议使用负数，系统将自动处理'))
+    elif operation_type in ['Stock in', 'Stock in - disassemble', 'Stock in - return'] and quantity < 0:
+        errors.append(create_error(row_number, '入库操作数量应为正数', 'Qty', quantity, 'warning', '入库操作数量建议使用正数，系统将自动处理'))
 
     return errors
 
-
-def check_duplicate_operation(conn, operation_data):
-    """检查重复操作记录 - 增强版本"""
+def is_duplicate_operation(conn, operation_type, operation_date, part_no, description, quantity,
+                          supplier_recipient, work_center, location, threshold=0.95):
+    """检查是否为重复操作记录 - 参考import_export.py优化"""
     try:
-        # 检查完全重复的记录
-        duplicate = conn.execute('''
-            SELECT id, operation_date 
+        exact_duplicates = conn.execute('''
+            SELECT id, operation_type, operation_date, part_no, description, quantity, 
+                   supplier_recipient, work_center, location
             FROM operation_records 
-            WHERE operation_type = ? AND part_no = ? AND description = ? 
-            AND quantity = ? AND operation_date = ?
-        ''', (
-            operation_data['operation_type'],
-            operation_data['part_no'],
-            operation_data['description'],
-            operation_data['quantity'],
-            operation_data['operation_date']
-        )).fetchone()
+            WHERE part_no = ? AND description = ? AND operation_date = ? AND quantity = ?
+        ''', (part_no, description, operation_date, quantity)).fetchall()
 
-        if duplicate:
-            return True, f"与记录ID {duplicate['id']} 完全重复（操作时间: {duplicate['operation_date']}）"
+        if exact_duplicates:
+            for dup_op in exact_duplicates:
+                if (dup_op['operation_type'] == operation_type and
+                    dup_op['supplier_recipient'] == supplier_recipient and
+                    dup_op['work_center'] == work_center and
+                    dup_op['location'] == location):
+                    return True, f"与记录ID {dup_op['id']} 完全重复"
 
-        # 检查同一天同一备件的相似操作
-        similar = conn.execute('''
-            SELECT id, operation_type, quantity, operation_date
+        similar_operations = conn.execute('''
+            SELECT id, operation_type, operation_date, part_no, description, quantity, 
+                   supplier_recipient, work_center, location
             FROM operation_records 
-            WHERE part_no = ? AND operation_type = ? 
+            WHERE part_no = ? AND description = ? AND operation_type = ?
             AND date(operation_date) = date(?)
-            AND ABS(quantity - ?) < 5  # 数量相差小于5
-        ''', (
-            operation_data['part_no'],
-            operation_data['operation_type'],
-            operation_data['operation_date'],
-            operation_data['quantity']
-        )).fetchone()
+        ''', (part_no, description, operation_type, operation_date)).fetchall()
 
-        if similar:
-            return True, f"与记录ID {similar['id']} 高度相似（操作时间: {similar['operation_date']}, 数量: {similar['quantity']}）"
+        max_similarity = 0.0
+        most_similar_id = None
+
+        for similar_op in similar_operations:
+            similarity = calculate_operation_similarity(
+                operation_type, operation_date, part_no, description,
+                quantity, supplier_recipient, work_center, location,
+                similar_op['operation_type'], similar_op['operation_date'],
+                similar_op['part_no'], similar_op['description'],
+                similar_op['quantity'], similar_op['supplier_recipient'],
+                similar_op['work_center'], similar_op['location']
+            )
+
+            if similarity > max_similarity:
+                max_similarity = similarity
+                most_similar_id = similar_op['id']
+
+        if max_similarity >= threshold:
+            return True, f"与记录ID {most_similar_id} 高度相似 (相似度: {max_similarity:.2f})"
 
         return False, ""
 
     except Exception as e:
         current_app.logger.error(f"检查重复记录时出错: {str(e)}")
-        return False, "检查失败"
+        return False, ""
 
+def calculate_operation_similarity(op1_type, op1_date, op1_part_no, op1_desc, op1_qty,
+                                  op1_supplier, op1_work_center, op1_location,
+                                  op2_type, op2_date, op2_part_no, op2_desc, op2_qty,
+                                  op2_supplier, op2_work_center, op2_location):
+    """计算两个操作记录的相似度"""
+    similarity_score = 0.0
+
+    if op1_type == op2_type:
+        similarity_score += 0.30
+    else:
+        return similarity_score * 0.1
+
+    if op1_part_no == op2_part_no:
+        similarity_score += 0.25
+    else:
+        return similarity_score * 0.1
+
+    if op1_desc == op2_desc:
+        similarity_score += 0.20
+    else:
+        return similarity_score * 0.1
+
+    if op1_qty == op2_qty:
+        similarity_score += 0.15
+    else:
+        similarity_score *= 0.3
+
+    try:
+        if op1_date and op2_date:
+            date1 = datetime.strptime(op1_date, '%Y-%m-%d %H:%M:%S').date()
+            date2 = datetime.strptime(op2_date, '%Y-%m-%d %H:%M:%S').date()
+            if date1 == date2:
+                similarity_score += 0.05
+            else:
+                similarity_score *= 0.8
+    except:
+        pass
+
+    if op1_location == op2_location:
+        similarity_score += 0.03
+    else:
+        similarity_score *= 0.7
+
+    if op1_supplier == op2_supplier:
+        similarity_score += 0.01
+
+    if op1_work_center == op2_work_center:
+        similarity_score += 0.01
+
+    return min(similarity_score, 1.0)
+
+def detect_file_type(df):
+    """检测上传文件的类型 - 参考import_export.py优化"""
+    columns = [str(col).strip() for col in df.columns]
+
+    current_app.logger.info(f"检测文件类型，列名: {columns}")
+
+    # 检查是否是操作记录文件
+    operation_columns = ['Operation type', 'Date', 'Part No', 'Qty']
+    has_operation_columns = all(col in columns for col in operation_columns)
+
+    # 检查是否是备件信息文件
+    part_info_columns = ['货号 Part no', 'Description']
+    has_part_info_columns = any(col in columns for col in part_info_columns)
+
+    # 检查是否是备件信息更新文件（只有关键字段）
+    part_update_columns = ['货号 Part no', '关键备件 Key part', '最低库存 Low stock', '最高库存 High stock']
+    has_part_update_columns = any(col in columns for col in part_update_columns)
+
+    current_app.logger.info(f"包含操作记录列: {has_operation_columns}")
+    current_app.logger.info(f"包含备件信息列: {has_part_info_columns}")
+    current_app.logger.info(f"包含备件更新列: {has_part_update_columns}")
+
+    if has_operation_columns:
+        return 'operations_with_parts'
+    elif has_part_info_columns or has_part_update_columns:
+        return 'part_info_only'
+    else:
+        # 如果标准列名都不匹配，尝试模糊匹配
+        for col in columns:
+            if '货号' in col or 'Part' in col or 'part' in col:
+                current_app.logger.info(f"通过模糊匹配找到备件编号列: {col}")
+                return 'part_info_only'
+
+        current_app.logger.warning(f"无法识别文件类型，列名: {columns}")
+        return 'unknown'
+
+def clean_operations_dataframe(df):
+    """清理操作记录DataFrame - 参考import_export.py优化"""
+    df = df.dropna(how='all')
+
+    string_columns = [
+        'Operation type', 'Location', 'Part No', 'Description',
+        'Type', 'Work center', 'Supplier or Recipients', 'Unit',
+        '货号 Part no', '关键备件 Key part', '单位 Unit'
+    ]
+    for col in string_columns:
+        if col in df.columns:
+            df[col] = df[col].astype(str).str.strip()
+            df[col] = df[col].replace({'': np.nan, 'nan': np.nan, 'None': np.nan, 'null': np.nan})
+            df[col] = df[col].fillna('')
+
+    numeric_columns = [
+        'Qty', '最低库存 Low stock', '最高库存 High stock',
+        '交货期 LT (Week)', '单价 Unit price (RMB)'
+    ]
+    for col in numeric_columns:
+        if col in df.columns:
+            df[col] = df[col].astype(str).str.strip()
+            df[col] = df[col].str.replace(',', '').str.replace(' ', '')
+            df[col] = pd.to_numeric(df[col], errors='coerce')
+            df[col] = df[col].fillna(0)
+
+    if '关键备件 Key part' in df.columns:
+        df['关键备件 Key part'] = df['关键备件 Key part'].astype(str).str.strip().str.lower()
+        df['关键备件 Key part'] = df['关键备件 Key part'].isin(['是', 'yes', 'true', '1', 'y'])
+
+    if 'Date' in df.columns:
+        df['Date'] = pd.to_datetime(df['Date'], errors='coerce', format='%Y-%m-%d')
+        if df['Date'].isna().any():
+            df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
+        df['Date'] = df['Date'].apply(lambda x: x.strftime('%Y-%m-%d %H:%M:%S') if pd.notna(x) else '')
+
+    current_app.logger.info(f"数据清理完成，有效数据 {len(df)} 行")
+    return df
 
 def save_import_report(import_id, import_type, result):
     """保存导入报告到文件 - 增强版本"""
@@ -1635,12 +2123,10 @@ def save_import_report(import_id, import_type, result):
             'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             'success': result.get('success', False),
             'message': result.get('message', ''),
-            'created_count': result.get('created_count', 0),
-            'updated_count': result.get('updated_count', 0),
             'imported_count': result.get('imported_count', 0),
             'error_count': result.get('error_count', 0),
-            'not_found_count': result.get('not_found_count', 0),
             'skipped_duplicates': result.get('skipped_duplicates', 0),
+            'new_parts_created': result.get('new_parts_created', 0),
             'errors': result.get('errors', []),
             'import_summary': result.get('import_summary', {}),
             'import_duration': result.get('import_summary', {}).get('import_duration', 0)
@@ -1659,8 +2145,8 @@ def save_import_report(import_id, import_type, result):
             f.write(f"导入类型: {import_type}\n")
             f.write(f"导入时间: {report_data['timestamp']}\n")
             f.write(f"导入结果: {report_data['message']}\n")
-            f.write(
-                f"成功记录: {report_data.get('imported_count', 0) or report_data.get('created_count', 0) or report_data.get('updated_count', 0)}\n")
+            f.write(f"成功记录: {report_data['imported_count']}\n")
+            f.write(f"新备件创建: {report_data['new_parts_created']}\n")
             f.write(f"错误数量: {report_data['error_count']}\n")
             f.write("=" * 50 + "\n")
 
@@ -1690,7 +2176,7 @@ def create_error(row_number, error, field, value, severity, suggestion):
 
 
 def clean_dataframe(df):
-    """清理DataFrame数据 - 根据新的字段描述修正"""
+    """清理DataFrame数据"""
     import time
     start_time = time.time()
 
@@ -1704,36 +2190,29 @@ def clean_dataframe(df):
     df = df.dropna(how='all')
     df = df.reset_index(drop=True)
 
-    # 预处理关键字段：location（实际库位，不可为空）
-    if 'location' in df.columns:
-        df['location'] = df['location'].fillna('').astype(str).str.strip()
-        df['location'] = df['location'].replace(replacement_dict)
-        current_app.logger.info(f"处理 location 列，非空值数量: {df['location'].notna().sum()}")
+    # 预处理关键字段
+    key_fields = ['Operation type', 'Part No', 'Description', 'Qty']
+    for field in key_fields:
+        if field in df.columns:
+            df[field] = df[field].fillna('').astype(str).str.strip()
+            df[field] = df[field].replace(replacement_dict)
 
-    # 预处理其他可为空字段
-    optional_fields = ['Rack', 'Level', 'Position', 'Side', 'State', 'Size Type', 'Description']
+    # 预处理其他字段
+    optional_fields = ['Supplier or Recipients', 'Location', 'Type', 'Work center']
     for field in optional_fields:
         if field in df.columns:
             df[field] = df[field].fillna('').astype(str).str.strip()
             df[field] = df[field].replace(replacement_dict)
 
-    # 预处理状态列
-    if 'State' in df.columns:
-        state_mapping = {
-            '': 'free', 'nan': 'free', 'none': 'free', 'null': 'free',
-            '空闲': 'free', '使用中': 'in_use', '低库存': 'low_stock',
-            'free': 'free', 'in_use': 'in_use', 'low_stock': 'low_stock'
-        }
-        df['State'] = df['State'].map(state_mapping).fillna('free')
+    # 预处理数量列
+    if 'Qty' in df.columns:
+        df['Qty'] = pd.to_numeric(df['Qty'], errors='coerce').fillna(0)
 
-    # 预处理容量列
-    if 'Capacity' in df.columns:
-        df['Capacity'] = pd.to_numeric(df['Capacity'], errors='coerce').fillna(0)
-        df['Capacity'] = df['Capacity'].clip(lower=0)
+    # 预处理日期列
+    if 'Date' in df.columns:
+        df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
 
     end_time = time.time()
-    current_app.logger.info(f"数据预处理完成，耗时: {end_time - start_time:.2f}秒")
-    current_app.logger.info(f"预处理后 DataFrame 形状: {df.shape}")
 
     return df
 
