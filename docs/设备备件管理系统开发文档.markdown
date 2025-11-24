@@ -1,0 +1,437 @@
+# 设备备件管理系统开发文档
+
+## 1. 项目概述
+
+设备备件管理系统是一个基于Flask框架开发的企业级备件管理解决方案，旨在为制造业企业提供完整的备件生命周期管理功能，包括备件信息维护、库存跟踪、出入库操作、库位管理、数据导入导出等核心功能。
+
+### 1.1 项目目标
+- 实现备件信息的数字化管理
+- 提供实时库存跟踪和预警机制
+- 支持批量数据导入导出功能
+- 提供直观的用户操作界面
+- 确保数据一致性和完整性
+
+### 1.2 技术栈
+- **后端框架**: Flask
+- **数据库**: SQLite
+- **前端框架**: Bootstrap 5, Jinja2模板引擎
+- **数据处理**: pandas, openpyxl
+- **部署方式**: Docker容器化部署
+
+## 2. 系统架构设计
+
+### 2.1 整体架构
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    用户界面层 (UI Layer)                    │
+├─────────────────────────────────────────────────────────────┤
+│                   Web应用层 (Application Layer)            │
+├─────────────────────────────────────────────────────────────┤
+│              业务逻辑层 (Business Logic Layer)             │
+├─────────────────────────────────────────────────────────────┤
+│              数据访问层 (Data Access Layer)                │
+├─────────────────────────────────────────────────────────────┤
+│                   数据存储层 (Data Layer)                  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+
+### 2.2 目录结构
+```
+equipment_spare_parts_system/
+├── app.py                          # Flask应用工厂和主入口
+├── run.py                          # 应用启动脚本
+├── requirements.txt                # 项目依赖列表
+├── spare_parts.db                 # SQLite数据库文件
+├── models/
+│   └── database.py                # 数据库管理模块
+├── routes/
+│   ├── parts_routes.py            # 备件管理路由
+│   ├── location_routes.py         # 库位管理路由
+│   ├── operation_routes.py        # 操作记录路由
+│   ├── settings_routes.py         # 系统设置路由
+│   └── import_export_routes.py    # 数据导入导出路由
+├── utils/
+│   ├── stock_utils.py             # 库存相关工具函数
+│   ├── helpers.py                 # 通用辅助函数
+│   ├── sync_utils.py              # 数据同步工具
+│   └── ...                        # 其他工具模块
+├── templates/
+│   ├── base.html                  # 基础模板
+│   ├── index.html                 # 首页模板
+│   └── ...                        # 其他页面模板
+├── static/
+│   ├── css/
+│   │   └── style.css              # 自定义样式文件
+│   └── js/
+│       └── main.js                # 自定义JavaScript文件
+└── docs/
+    ├── implementation-log.markdown # 实施过程记录
+    ├── architecture.md             # 系统架构设计文档
+    └── ...                         # 其他文档文件
+```
+
+
+## 3. 核心模块设计
+
+### 3.1 应用核心层
+
+#### 3.1.1 `app.py` - 应用工厂模块
+- **功能描述**: 实现Flask应用工厂模式，负责应用初始化、配置加载和路由注册
+- **主要组件**:
+  - `create_app(config_name='default')`: 应用工厂函数
+    - 配置管理: 根据环境加载不同配置
+    - 数据库初始化: 调用 `init_db()` 初始化数据库
+    - 路由注册: 注册所有路由处理模块
+    - 错误处理: 注册全局错误处理器
+
+#### 3.1.2 `run.py` - 应用启动模块
+- **功能描述**: 应用启动入口，负责创建和运行Flask应用实例
+- **主要组件**:
+  - 应用实例创建: 调用 `create_app()` 创建应用
+  - 开发服务器启动: 启动Flask内置开发服务器
+
+### 3.2 数据库层
+
+#### 3.2.1 `models/database.py` - 数据库管理模块
+- **功能描述**: 负责数据库连接管理、表结构定义和数据访问操作
+- **核心类**:
+  - `DatabaseManager`: 数据库管理器类
+    - `_init_db()`: 初始化数据库连接池和性能优化
+    - `get_connection()`: 获取数据库连接的上下文管理器
+- **数据访问函数**:
+  - `init_db()`: 初始化数据库表结构和索引
+  - `get_spare_part_by_id(part_id)`: 根据ID获取备件信息
+  - `create_spare_part(part_data)`: 创建新备件
+  - `update_spare_part(part_id, part_data)`: 更新备件信息
+  - `delete_spare_part(part_id)`: 删除备件
+  - `get_all_spare_parts()`: 获取所有备件列表
+  - `create_operation_record(operation_data)`: 创建操作记录
+  - `create_location(location_data)`: 创建新库位
+  - `get_location_by_code(location_code)`: 根据库位代码获取库位信息
+  - `update_location(location_code, location_data)`: 更新库位信息
+  - `delete_location(location_code)`: 删除库位
+  - `get_all_locations()`: 获取所有库位列表
+  - `update_location_status(location_code, status)`: 更新库位状态
+
+### 3.3 路由控制层
+
+#### 3.3.1 `routes/parts_routes.py` - 备件管理路由模块
+- **功能描述**: 处理备件相关的HTTP请求和页面渲染
+- **路由端点**:
+  - `GET /parts`: 备件列表页面，支持搜索和筛选
+  - `GET /add_part`: 添加备件页面
+  - `POST /add_part`: 处理添加备件表单提交
+  - `GET /edit_part/<int:part_id>`: 编辑备件页面
+  - `POST /edit_part/<int:part_id>`: 处理编辑备件表单提交
+  - `GET /part/<int:part_id>`: 备件详情页面
+  - `GET /delete_part/<int:part_id>`: 删除备件
+
+#### 3.3.2 `routes/location_routes.py` - 库位管理路由模块
+- **功能描述**: 处理库位相关的HTTP请求和页面渲染
+- **路由端点**:
+  - `GET /location_management`: 库位列表页面
+  - `GET /add_location`: 添加库位页面
+  - `POST /add_location`: 处理添加库位表单提交
+  - `GET /edit_location/<string:location_code>`: 编辑库位页面
+  - `POST /edit_location/<string:location_code>`: 处理编辑库位表单提交
+  - `GET /location_detail/<string:location_code>`: 库位详情页面
+  - `GET /delete_location/<string:location_code>`: 删除库位
+
+#### 3.3.3 `routes/operation_routes.py` - 操作记录路由模块
+- **功能描述**: 处理操作记录相关的HTTP请求和页面渲染
+- **路由端点**:
+  - `GET /operation_records`: 操作记录列表页面
+  - `GET /smart_inbound`: 智能入库页面
+  - `POST /smart_inbound`: 处理智能入库表单提交
+  - `GET /outbound_part/<int:part_id>`: 备件出库页面
+
+#### 3.3.4 `routes/settings_routes.py` - 系统设置路由模块
+- **功能描述**: 处理系统设置相关的HTTP请求和页面渲染
+- **路由端点**:
+  - `GET /settings`: 系统设置页面
+  - `POST /update_email_settings`: 更新邮件设置
+  - `POST /update_inventory_settings`: 更新库存设置
+
+#### 3.3.5 `routes/import_export_routes.py` - 数据导入导出路由模块
+- **功能描述**: 处理数据导入导出相关的HTTP请求和文件操作
+- **路由端点**:
+  - `GET /import_locations`: 库位信息导入页面
+  - `POST /import_locations`: 处理库位信息导入
+  - `GET /download_locations_template`: 下载库位导入模板
+  - `GET /import_part_info_only`: 备件信息更新导入页面
+  - `POST /import_part_info_only`: 处理备件信息更新导入
+  - `GET /download_part_info_update_template`: 下载备件信息更新模板
+  - `GET /import_operations`: 操作记录导入页面
+  - `POST /import_operations`: 处理操作记录导入
+  - `GET /download_operations_template`: 下载操作记录导入模板
+  - `GET /download_import_report/<import_type>/<import_id>`: 下载导入错误报告
+  - `GET /export_parts_advanced`: 高级备件信息导出
+  - `GET /export_operations`: 导出操作记录
+
+### 3.4 业务逻辑层
+
+#### 3.4.1 `utils/stock_utils.py` - 库存工具模块
+- **功能描述**: 提供库存计算和状态管理相关工具函数
+- **核心函数**:
+  - `calculate_stock_from_operations(part_no)`: 根据操作记录计算备件库存
+  - `update_stock_for_part(part_id, new_stock=None)`: 更新单个备件的库存数量
+  - `recalculate_all_stock()`: 重新计算所有备件的库存
+  - `calculate_stock_status(current_stock, min_stock)`: 计算备件库存状态
+  - `is_low_stock(part_id)`: 判断备件是否处于低库存状态
+  - `get_low_stock_parts()`: 获取所有低库存备件列表
+
+#### 3.4.2 `utils/helpers.py` - 通用辅助模块
+- **功能描述**: 提供通用的数据处理和验证辅助函数
+- **核心函数**:
+  - `safe_int(value, default=0)`: 安全转换为整数
+  - `safe_str(value, default='')`: 安全转换为字符串
+  - `safe_float(value, default=0.0)`: 安全转换为浮点数
+  - `validate_excel_file(filename)`: 验证Excel文件类型
+
+#### 3.4.3 `utils/sync_utils.py` - 数据同步模块
+- **功能描述**: 提供数据同步相关功能
+- **核心函数**:
+  - `sync_all_operations()`: 同步所有操作记录到库存
+
+### 3.5 前端界面层
+
+#### 3.5.1 模板文件
+- `templates/base.html`: 基础HTML模板，包含导航栏和页脚
+- `templates/index.html`: 首页模板，提供系统概览和快速操作入口
+- `templates/parts_list.html`: 备件列表页面
+- `templates/add_part.html`: 添加备件页面
+- `templates/edit_part.html`: 编辑备件页面
+- `templates/part_detail.html`: 备件详情页面
+- `templates/location_management.html`: 库位管理页面
+- `templates/add_location.html`: 添加库位页面
+- `templates/edit_location.html`: 编辑库位页面
+- `templates/location_detail.html`: 库位详情页面
+- `templates/operation_records.html`: 操作记录页面
+- `templates/smart_inbound.html`: 智能入库页面
+- `templates/outbound_part.html`: 备件出库页面
+- `templates/import_locations.html`: 库位导入页面
+- `templates/import_part_info_only.html`: 备件信息更新导入页面
+- `templates/import_operations.html`: 操作记录导入页面
+
+#### 3.5.2 静态资源
+- `static/css/style.css`: 自定义样式文件
+- `static/js/main.js`: 自定义JavaScript文件
+
+## 4. 数据库设计
+
+### 4.1 数据表结构
+
+#### 4.1.1 `spare_parts` 表 - 备件信息表
+- **功能**: 存储备件基本信息和库存状态
+- **字段定义**:
+  - `id`: INTEGER PRIMARY KEY AUTOINCREMENT - 主键，自增ID
+  - `part_no`: TEXT UNIQUE NOT NULL - 备件编号，唯一标识
+  - `name`: TEXT NOT NULL - 备件名称
+  - `type`: TEXT - 备件类型
+  - `current_stock`: INTEGER DEFAULT 0 - 当前库存
+  - `min_stock`: INTEGER DEFAULT 0 - 最低库存
+  - `max_stock`: INTEGER DEFAULT 0 - 最高库存
+  - `key_part`: BOOLEAN DEFAULT FALSE - 是否关键备件
+  - `lt_weeks`: INTEGER DEFAULT 0 - 交货周期(周)
+  - `unit_price`: REAL DEFAULT 0.0 - 单价
+  - `unit`: TEXT - 计量单位
+  - `location`: TEXT - 库位
+  - `supplier`: TEXT - 供应商
+  - `description`: TEXT - 描述
+  - `created_date`: TEXT DEFAULT CURRENT_TIMESTAMP - 创建时间
+  - `updated_date`: TEXT DEFAULT CURRENT_TIMESTAMP - 更新时间
+
+#### 4.1.2 `operation_records` 表 - 操作记录表
+- **功能**: 存储备件出入库操作记录
+- **字段定义**:
+  - `id`: INTEGER PRIMARY KEY AUTOINCREMENT - 主键，自增ID
+  - `operation_type`: TEXT NOT NULL - 操作类型
+  - `operation_date`: TEXT NOT NULL - 操作日期
+  - `supplier_recipient`: TEXT - 供应商或接收方
+  - `location`: TEXT - 库位
+  - `part_no`: TEXT NOT NULL - 备件编号
+  - `description`: TEXT - 描述
+  - `part_type`: TEXT - 备件类型
+  - `quantity`: INTEGER NOT NULL - 数量
+  - `work_center`: TEXT - 工作中心
+  - `created_date`: TEXT DEFAULT CURRENT_TIMESTAMP - 创建时间
+
+#### 4.1.3 `locations` 表 - 库位信息表
+- **功能**: 存储库位信息和状态
+- **字段定义**:
+  - `location_code`: TEXT PRIMARY KEY - 库位代码，主键
+  - `rack`: TEXT - 机架
+  - `level`: TEXT - 层
+  - `position`: TEXT - 位置
+  - `side`: TEXT - 边
+  - `status`: TEXT DEFAULT 'free' - 状态
+  - `capacity`: INTEGER DEFAULT 0 - 容量
+  - `size_type`: TEXT - 空间大小类型
+  - `description`: TEXT - 描述
+  - `part_count`: INTEGER DEFAULT 0 - 备件数量
+  - `last_updated`: TEXT DEFAULT CURRENT_TIMESTAMP - 最后更新时间
+
+### 4.2 索引设计
+- `spare_parts` 表索引:
+  - `idx_part_no`: 基于 `part_no` 字段的唯一索引
+  - `idx_location`: 基于 `location` 字段的索引
+  - `idx_type`: 基于 `type` 字段的索引
+  - `idx_current_stock`: 基于 `current_stock` 字段的索引
+- `operation_records` 表索引:
+  - `idx_operation_date`: 基于 `operation_date` 字段的索引
+  - `idx_part_no`: 基于 `part_no` 字段的索引
+- `locations` 表索引:
+  - `idx_location_code`: 基于 `location_code` 字段的唯一索引
+
+## 5. 核心功能模块
+
+### 5.1 备件管理模块
+- **功能描述**: 提供备件信息的增删改查功能
+- **核心流程**:
+  1. 备件列表展示: 支持分页、搜索和筛选
+  2. 备件添加: 表单验证和数据保存
+  3. 备件编辑: 数据更新和验证
+  4. 备件删除: 数据删除和关联检查
+  5. 备件详情: 详细信息展示
+
+### 5.2 库位管理模块
+- **功能描述**: 提供库位信息的管理功能
+- **核心流程**:
+  1. 库位列表展示: 库位状态和使用情况展示
+  2. 库位添加: 库位信息录入和验证
+  3. 库位编辑: 库位信息更新
+  4. 库位删除: 库位删除和关联检查
+  5. 库位详情: 库位详细信息和关联备件展示
+
+### 5.3 操作记录模块
+- **功能描述**: 记录和管理备件出入库操作
+- **核心流程**:
+  1. 操作记录列表: 按时间排序的操作记录展示
+  2. 智能入库: 自动创建备件和更新库存
+  3. 备件出库: 减少库存和记录操作
+  4. 操作详情: 操作记录详细信息展示
+
+### 5.4 数据导入导出模块
+- **功能描述**: 提供批量数据处理功能
+- **核心流程**:
+  1. Excel文件解析: 支持xlsx和xls格式
+  2. 数据验证: 字段类型和值范围验证
+  3. 批量导入: 自动创建和更新数据
+  4. 错误处理: 详细错误报告生成
+  5. 数据导出: 结构化数据导出
+
+### 5.5 库存管理模块
+- **功能描述**: 实时库存跟踪和预警
+- **核心流程**:
+  1. 库存计算: 基于操作记录计算实际库存
+  2. 库存同步: 定期同步操作记录和库存
+  3. 库存预警: 低库存和超储预警
+  4. 库存状态: 库存健康度评估
+
+## 6. 系统特性
+
+### 6.1 数据导入导出功能
+- 支持Excel格式的批量数据导入
+- 提供标准模板下载
+- 自动创建不存在的备件和库位
+- 详细的错误报告和日志记录
+
+### 6.2 库存管理功能
+- 实时库存跟踪
+- 低库存自动预警
+- 库存状态计算和显示
+
+### 6.3 操作记录管理
+- 完整的操作历史记录
+- 支持出入库操作
+- 操作记录与库存同步
+
+### 6.4 库位管理
+- 库位信息维护
+- 库位状态跟踪
+- 库位容量管理
+
+### 6.5 用户界面
+- 响应式设计
+- 直观的操作界面
+- 丰富的数据展示
+
+## 7. 部署架构
+
+### 7.1 开发环境部署
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    开发服务器 (Flask内置)                   │
+├─────────────────────────────────────────────────────────────┤
+│                    应用层 (Flask应用)                       │
+├─────────────────────────────────────────────────────────────┤
+│                    数据库层 (SQLite)                        │
+└─────────────────────────────────────────────────────────────┘
+```
+
+
+### 7.2 生产环境部署
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    负载均衡器 (Nginx)                       │
+├─────────────────────────────────────────────────────────────┤
+│                    Web服务器 (Nginx)                        │
+├─────────────────────────────────────────────────────────────┤
+│                   应用服务器 (Gunicorn)                     │
+├─────────────────────────────────────────────────────────────┤
+│                    数据库 (SQLite)                          │
+└─────────────────────────────────────────────────────────────┘
+```
+
+
+## 8. 安全特性
+
+### 8.1 数据安全
+- 数据验证和清理
+- SQL注入防护
+- 文件上传安全检查
+
+### 8.2 错误处理
+- 全局错误处理器
+- 详细错误日志记录
+- 用户友好的错误提示
+
+### 8.3 访问控制
+- 路由权限控制
+- 数据访问验证
+- 操作日志记录
+
+## 9. 性能优化
+
+### 9.1 数据库优化
+- 数据库连接池
+- 索引优化
+- 查询优化
+
+### 9.2 应用优化
+- 缓存机制
+- 批量数据处理
+- 异步任务处理
+
+### 9.3 前端优化
+- 静态资源压缩
+- 响应式设计
+- 页面加载优化
+
+## 10. 扩展性设计
+
+### 10.1 模块化架构
+- 功能模块分离
+- 插件化设计
+- 接口标准化
+
+### 10.2 API支持
+- RESTful API设计
+- 数据交换格式标准化
+- 接口文档自动生成
+
+### 10.3 微服务兼容
+- 服务拆分能力
+- 数据隔离设计
+- 接口松耦合

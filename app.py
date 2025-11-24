@@ -1,6 +1,6 @@
 from flask import Flask, render_template, redirect, url_for, request, flash
 from models.database import init_db, get_spare_parts_count, get_locations_count, get_all_locations, get_location_stats
-from routes.parts_routes import setup_parts_routes
+from routes.parts_routes import setup_parts_routes  # 确保这行存在
 from routes.location_routes import setup_location_routes
 from routes.operation_routes import setup_operation_routes
 from routes.settings_routes import setup_settings_routes
@@ -8,6 +8,7 @@ from routes.import_export_routes import setup_import_export_routes
 from utils.stock_utils import get_low_stock_parts, get_recent_activities
 import datetime
 import logging
+
 
 
 def create_app(config_name='default'):

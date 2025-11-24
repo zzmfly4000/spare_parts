@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+
+{% block title %}编辑备件 - {{ part[2] }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-4 mb-4 border-bottom">
+    <div>
+        <h1 class="h3 mb-2">编辑备件</h1>
+        <p class="text-muted mb-0">{{ part[1] }} - {{ part[2] }}</p>
+    </div>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('part_detail', part_id=part[0]) }}" class="btn btn-outline-secondary me-2">
+            <i class="fas fa-arrow-left me-1"></i>返回详情
+        </a>
+        <a href="{{ url_for('parts_list') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-list me-1"></i>返回列表
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">编辑备件信息</h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">备件编号 *</label>
+                                <input type="text" class="form-control" name="part_no" required 
+                                       value="{{ part[1] }}">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">备件名称 *</label>
+                                <input type="text" class="form-control" name="name" required 
+                                       value="{{ part[2] }}">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">类型</label>
+                                <select class="form-select" name="type">
+                                    <option value="">选择类型</option>
+                                    <option value="机械" {% if part[3] == '机械' %}selected{% endif %}>机械</option>
+                                    <option value="电子" {% if part[3] == '电子' %}selected{% endif %}>电子</option>
+                                    <option value="电气" {% if part[3] == '电气' %}selected{% endif %}>电气</option>
+                                    <option value="液压" {% if part[3] == '液压' %}selected{% endif %}>液压</option>
+                                    <option value="通用" {% if part[3] == '通用' %}selected{% endif %}>通用</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">单位</label>
+                                <input type="text" class="form-control" name="unit" 
+                                       value="{{ part[10] or '' }}" placeholder="如：个、件、套">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">最低库存</label>
+                                <input type="number" class="form-control" name="min_stock" 
+                                       value="{{ part[5] }}" min="0">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">最高库存</label>
+                                <input type="number" class="form-control" name="max_stock" 
+                                       value="{{ part[6] }}" min="0">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">交货周期 (周)</label>
+                                <input type="number" class="form-control" name="lt_weeks" 
+                                       value="{{ part[8] }}" min="0">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">单价 (元)</label>
+                                <input type="number" class="form-control" name="unit_price" 
+                                       step="0.01" min="0" value="{{ part[9] }}">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">库位</label>
+                                <input type="text" class="form-control" name="location" 
+                                       value="{{ part[11] or '' }}" placeholder="库位代码">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">供应商</label>
+                                <input type="text" class="form-control" name="supplier" 
+                                       value="{{ part[12] or '' }}" placeholder="供应商名称">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">描述</label>
+                        <textarea class="form-control" name="description" rows="3">{{ part[13] or '' }}</textarea>
+                    </div>
+
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" name="key_part" value="true" 
+                               {% if part[7] %}checked{% endif %}>
+                        <label class="form-check-label">标记为关键备件</label>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>注意：</strong>当前库存 ({{ part[4] }}) 由系统根据操作记录自动计算，无法手动修改。
+                    </div>
+
+                    <div class="d-flex justify-content-end">
+                        <button type="reset" class="btn btn-secondary me-2">重置</button>
+                        <button type="submit" class="btn btn-primary">更新备件</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">当前状态</h5>
+            </div>
+            <div class="card-body">
+                <div class="text-center mb-3">
+                    <div class="fs-2 fw-bold {% if part[4] <= part[5] %}text-danger{% elif part[4] <= part[5] * 1.2 %}text-warning{% else %}text-success{% endif %}">
+                        {{ part[4] }}
+                    </div>
+                    <div class="text-muted">当前库存</div>
+                </div>
+
+                <div class="progress mb-3" style="height: 10px;">
+                    {% set progress_percent = (part[4] / part[6] * 100) if part[6] > 0 else 0 %}
+                    <div class="progress-bar 
+                        {% if part[4] <= part[5] %}bg-danger
+                        {% elif part[4] <= part[5] * 1.2 %}bg-warning
+                        {% else %}bg-success{% endif %}" 
+                         style="width: {{ progress_percent }}%">
+                    </div>
+                </div>
+
+                <div class="row text-center small">
+                    <div class="col-6">
+                        <div>最低库存</div>
+                        <div class="fw-bold text-warning">{{ part[5] }}</div>
+                    </div>
+                    <div class="col-6">
+                        <div>最高库存</div>
+                        <div class="fw-bold text-info">{{ part[6] }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">操作记录</h5>
+            </div>
+            <div class="card-body">
+                <p class="small text-muted">
+                    备件信息最后更新于:<br>
+                    <strong>{{ part[15] }}</strong>
+                </p>
+                <div class="d-grid">
+                    <a href="{{ url_for('smart_inbound') }}?part_no={{ part[1] }}" class="btn btn-outline-success btn-sm">
+                        <i class="fas fa-arrow-down me-1"></i>快速入库
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

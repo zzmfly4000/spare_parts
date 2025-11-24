@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+{% block title %}添加备件 - 设备备件管理系统{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-4 mb-4 border-bottom">
+    <div>
+        <h1 class="h3 mb-2">添加新备件</h1>
+        <p class="text-muted mb-0">填写备件基本信息</p>
+    </div>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('parts_list') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i>返回列表
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">备件信息</h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">备件编号 *</label>
+                                <input type="text" class="form-control" name="part_no" required 
+                                       placeholder="请输入备件编号">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">备件名称 *</label>
+                                <input type="text" class="form-control" name="name" required 
+                                       placeholder="请输入备件名称">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">类型</label>
+                                <select class="form-select" name="type">
+                                    <option value="">选择类型</option>
+                                    <option value="机械">机械</option>
+                                    <option value="电子">电子</option>
+                                    <option value="电气">电气</option>
+                                    <option value="液压">液压</option>
+                                    <option value="通用">通用</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">单位</label>
+                                <input type="text" class="form-control" name="unit" 
+                                       placeholder="如：个、件、套">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">当前库存</label>
+                                <input type="number" class="form-control" name="current_stock" 
+                                       value="0" min="0">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">最低库存</label>
+                                <input type="number" class="form-control" name="min_stock" 
+                                       value="0" min="0">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">最高库存</label>
+                                <input type="number" class="form-control" name="max_stock" 
+                                       value="0" min="0">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">单价 (元)</label>
+                                <input type="number" class="form-control" name="unit_price" 
+                                       step="0.01" min="0" value="0">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">交货周期 (周)</label>
+                                <input type="number" class="form-control" name="lt_weeks" 
+                                       value="0" min="0">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">库位</label>
+                                <input type="text" class="form-control" name="location" 
+                                       placeholder="库位代码">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">供应商</label>
+                                <input type="text" class="form-control" name="supplier" 
+                                       placeholder="供应商名称">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">描述</label>
+                        <textarea class="form-control" name="description" rows="3" 
+                                  placeholder="备件详细描述"></textarea>
+                    </div>
+
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" name="key_part" value="true">
+                        <label class="form-check-label">标记为关键备件</label>
+                    </div>
+
+                    <div class="d-flex justify-content-end">
+                        <button type="reset" class="btn btn-secondary me-2">重置</button>
+                        <button type="submit" class="btn btn-primary">添加备件</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">填写说明</h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <h6><i class="fas fa-info-circle me-2"></i>必填字段</h6>
+                    <ul class="small mb-0">
+                        <li><strong>备件编号</strong> - 唯一标识符</li>
+                        <li><strong>备件名称</strong> - 备件的描述性名称</li>
+                    </ul>
+                </div>
+
+                <h6>库存设置建议：</h6>
+                <ul class="small">
+                    <li><strong>最低库存</strong>：触发预警的库存水平</li>
+                    <li><strong>最高库存</strong>：建议的最大库存量</li>
+                    <li><strong>当前库存</strong>：实际库存数量</li>
+                </ul>
+
+                <h6>关键备件：</h6>
+                <p class="small text-muted">
+                    标记为关键备件将在系统中高亮显示，建议对重要设备的关键部件进行标记。
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

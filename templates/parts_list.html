@@ -9,9 +9,25 @@
         <p class="text-muted mb-0">管理所有设备备件信息和库存状态</p>
     </div>
     <div class="btn-toolbar mb-2 mb-md-0">
-        <a href="{{ url_for('add_part') }}" class="btn btn-primary">
-            <i class="fas fa-plus me-1"></i>添加备件
-        </a>
+        <div class="btn-group me-2">
+            <a href="{{ url_for('add_part') }}" class="btn btn-primary">
+                <i class="fas fa-plus me-1"></i>添加备件
+            </a>
+            <a href="{{ url_for('import_part_info_only') }}" class="btn btn-outline-primary">
+                <i class="fas fa-file-import me-1"></i>批量导入
+            </a>
+        </div>
+        <div class="btn-group">
+            <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                <i class="fas fa-cog me-1"></i>批量操作
+            </button>
+            <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="#" id="batchEditBtn"><i class="fas fa-edit me-2"></i>批量编辑</a></li>
+                <li><a class="dropdown-item" href="#" id="batchDeleteBtn"><i class="fas fa-trash me-2"></i>批量删除</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="{{ url_for('recalculate_stock') }}"><i class="fas fa-calculator me-2"></i>重新计算库存</a></li>
+            </ul>
+        </div>
     </div>
 </div>
 
@@ -29,15 +45,19 @@
             <div class="col-md-3">
                 <select class="form-select" name="type_filter">
                     <option value="">所有类型</option>
-                    <!-- 类型选项 -->
+                    <option value="机械" {% if request.args.get('type_filter') == '机械' %}selected{% endif %}>机械</option>
+                    <option value="电子" {% if request.args.get('type_filter') == '电子' %}selected{% endif %}>电子</option>
+                    <option value="电气" {% if request.args.get('type_filter') == '电气' %}selected{% endif %}>电气</option>
+                    <option value="液压" {% if request.args.get('type_filter') == '液压' %}selected{% endif %}>液压</option>
+                    <option value="通用" {% if request.args.get('type_filter') == '通用' %}selected{% endif %}>通用</option>
                 </select>
             </div>
             <div class="col-md-3">
                 <select class="form-select" name="stock_status">
                     <option value="">所有状态</option>
-                    <option value="normal">库存正常</option>
-                    <option value="low">低库存</option>
-                    <option value="out">缺货</option>
+                    <option value="normal" {% if request.args.get('stock_status') == 'normal' %}selected{% endif %}>库存正常</option>
+                    <option value="low" {% if request.args.get('stock_status') == 'low' %}selected{% endif %}>低库存</option>
+                    <option value="out" {% if request.args.get('stock_status') == 'out' %}selected{% endif %}>缺货</option>
                 </select>
             </div>
             <div class="col-md-2">
@@ -49,14 +69,359 @@
     </div>
 </div>
 
+<!-- 批量操作工具栏 -->
+<div class="card mb-3" id="batchToolbar" style="display: none;">
+    <div class="card-body py-2">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <span class="fw-semibold" id="selectedCount">已选择 0 个备件</span>
+            </div>
+            <div class="btn-group">
+                <button type="button" class="btn btn-outline-primary btn-sm" id="batchEditSelected">
+                    <i class="fas fa-edit me-1"></i>批量编辑
+                </button>
+                <button type="button" class="btn btn-outline-danger btn-sm" id="batchDeleteSelected">
+                    <i class="fas fa-trash me-1"></i>批量删除
+                </button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="clearSelection">
+                    <i class="fas fa-times me-1"></i>清除选择
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- 备件列表 -->
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="card-title mb-0">备件列表</h5>
-        <span class="text-muted">共 {{ parts|length }} 个备件</span>
+        <span class="text-muted">共 {{ total_parts }} 个备件</span>
     </div>
     <div class="card-body">
-        <!-- 表格内容 -->
+        {% if parts %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th width="40">
+                            <input type="checkbox" class="form-check-input" id="selectAll">
+                        </th>
+                        <th>备件编号</th>
+                        <th>备件名称</th>
+                        <th>类型</th>
+                        <th>当前库存</th>
+                        <th>最低库存</th>
+                        <th>最高库存</th>
+                        <th>库位</th>
+                        <th>状态</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for part in parts %}
+                    <tr>
+                        <td>
+                            <input type="checkbox" class="form-check-input part-checkbox" value="{{ part[0] }}">
+                        </td>
+                        <td>
+                            <strong>{{ part[1] }}</strong>
+                            {% if part[7] %}
+                            <span class="badge bg-warning ms-1" title="关键备件">关键</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ part[2] }}</td>
+                        <td>
+                            {% if part[3] %}
+                            <span class="badge bg-secondary">{{ part[3] }}</span>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="fw-bold {% if part[4] <= part[5] %}text-danger{% elif part[4] <= part[5] * 1.2 %}text-warning{% else %}text-success{% endif %}">
+                                {{ part[4] }}
+                            </span>
+                        </td>
+                        <td>{{ part[5] }}</td>
+                        <td>{{ part[6] }}</td>
+                        <td>
+                            {% if part[11] %}
+                            <span class="badge bg-info">{{ part[11] }}</span>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if part[4] == 0 %}
+                            <span class="badge bg-danger">缺货</span>
+                            {% elif part[4] <= part[5] %}
+                            <span class="badge bg-warning">低库存</span>
+                            {% else %}
+                            <span class="badge bg-success">正常</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('part_detail', part_id=part[0]) }}" class="btn btn-outline-primary" title="查看详情">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{{ url_for('edit_part', part_id=part[0]) }}" class="btn btn-outline-success" title="编辑">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <button type="button" class="btn btn-outline-danger" title="删除"
+                                        onclick="confirmDelete({{ part[0] }}, '{{ part[2] }}')">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 分页 -->
+        {% if total_parts > per_page %}
+        <nav aria-label="Page navigation" class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% set total_pages = (total_parts / per_page)|round(0, 'ceil')|int %}
+                {% set current_page = page %}
+
+                <li class="page-item {% if current_page == 1 %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for('parts_list', page=current_page-1, search=search, type_filter=type_filter, stock_status=stock_status, per_page=per_page) }}">上一页</a>
+                </li>
+
+                {% for p in range(1, total_pages + 1) %}
+                    {% if p >= current_page - 2 and p <= current_page + 2 %}
+                    <li class="page-item {% if p == current_page %}active{% endif %}">
+                        <a class="page-link" href="{{ url_for('parts_list', page=p, search=search, type_filter=type_filter, stock_status=stock_status, per_page=per_page) }}">{{ p }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+
+                <li class="page-item {% if current_page == total_pages %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for('parts_list', page=current_page+1, search=search, type_filter=type_filter, stock_status=stock_status, per_page=per_page) }}">下一页</a>
+                </li>
+            </ul>
+        </nav>
+        {% endif %}
+
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">暂无备件数据</h5>
+            <p class="text-muted mb-4">您还没有添加任何备件，或者没有匹配的搜索结果</p>
+            <a href="{{ url_for('add_part') }}" class="btn btn-primary me-2">
+                <i class="fas fa-plus me-1"></i>添加备件
+            </a>
+            <a href="{{ url_for('import_part_info_only') }}" class="btn btn-outline-primary">
+                <i class="fas fa-file-import me-1"></i>批量导入
+            </a>
+        </div>
+        {% endif %}
     </div>
 </div>
+
+<!-- 批量编辑模态框 -->
+<div class="modal fade" id="batchEditModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">批量编辑备件</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="batchEditForm">
+                    <div class="mb-3">
+                        <label class="form-label">最低库存</label>
+                        <input type="number" class="form-control" name="min_stock" min="0">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">最高库存</label>
+                        <input type="number" class="form-control" name="max_stock" min="0">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">库位</label>
+                        <input type="text" class="form-control" name="location">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">单位</label>
+                        <input type="text" class="form-control" name="unit">
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" name="key_part" value="true">
+                        <label class="form-check-label">关键备件</label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" id="confirmBatchEdit">确认更新</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 隐藏的删除表单 -->
+<form id="deleteForm" method="POST" style="display: none;"></form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let selectedParts = new Set();
+
+// 选择所有备件
+document.getElementById('selectAll').addEventListener('change', function(e) {
+    const checkboxes = document.querySelectorAll('.part-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = e.target.checked;
+        if (e.target.checked) {
+            selectedParts.add(checkbox.value);
+        } else {
+            selectedParts.delete(checkbox.value);
+        }
+    });
+    updateBatchToolbar();
+});
+
+// 单个备件选择
+document.addEventListener('change', function(e) {
+    if (e.target.classList.contains('part-checkbox')) {
+        if (e.target.checked) {
+            selectedParts.add(e.target.value);
+        } else {
+            selectedParts.delete(e.target.value);
+            document.getElementById('selectAll').checked = false;
+        }
+        updateBatchToolbar();
+    }
+});
+
+// 更新批量操作工具栏
+function updateBatchToolbar() {
+    const toolbar = document.getElementById('batchToolbar');
+    const countSpan = document.getElementById('selectedCount');
+
+    if (selectedParts.size > 0) {
+        toolbar.style.display = 'block';
+        countSpan.textContent = `已选择 ${selectedParts.size} 个备件`;
+    } else {
+        toolbar.style.display = 'none';
+    }
+}
+
+// 清除选择
+document.getElementById('clearSelection').addEventListener('click', function() {
+    selectedParts.clear();
+    document.querySelectorAll('.part-checkbox').forEach(cb => cb.checked = false);
+    document.getElementById('selectAll').checked = false;
+    updateBatchToolbar();
+});
+
+// 批量删除
+document.getElementById('batchDeleteSelected').addEventListener('click', function() {
+    if (selectedParts.size === 0) {
+        alert('请先选择要删除的备件');
+        return;
+    }
+
+    if (confirm(`确定要删除选中的 ${selectedParts.size} 个备件吗？此操作不可恢复！`)) {
+        fetch('{{ url_for("batch_delete_parts_route") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(Array.from(selectedParts))
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('删除失败: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('删除失败');
+        });
+    }
+});
+
+// 批量编辑
+document.getElementById('batchEditSelected').addEventListener('click', function() {
+    if (selectedParts.size === 0) {
+        alert('请先选择要编辑的备件');
+        return;
+    }
+
+    const modal = new bootstrap.Modal(document.getElementById('batchEditModal'));
+    modal.show();
+});
+
+// 确认批量编辑
+document.getElementById('confirmBatchEdit').addEventListener('click', function() {
+    const formData = new FormData(document.getElementById('batchEditForm'));
+    const updateData = {};
+
+    // 只收集有值的字段
+    for (let [key, value] of formData.entries()) {
+        if (value !== '') {
+            updateData[key] = value;
+        }
+    }
+
+    if (Object.keys(updateData).length === 0) {
+        alert('请至少填写一个要更新的字段');
+        return;
+    }
+
+    // 为每个选中的备件创建更新数据
+    const batchUpdateData = Array.from(selectedParts).map(partId => ({
+        id: parseInt(partId),
+        ...updateData
+    }));
+
+    fetch('{{ url_for("batch_update_parts_route") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(batchUpdateData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            let errorMsg = data.message;
+            if (data.errors) {
+                errorMsg += '\n错误详情:\n' + data.errors.join('\n');
+            }
+            alert(errorMsg);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('更新失败');
+    });
+});
+
+// 单个删除确认
+function confirmDelete(partId, partName) {
+    if (confirm(`确定要删除备件 "${partName}" 吗？此操作不可恢复！`)) {
+        // 使用隐藏表单提交删除请求
+        const form = document.getElementById('deleteForm');
+        form.action = `/part/${partId}/delete`;
+        form.submit();
+    }
+}
+
+// 初始化
+document.addEventListener('DOMContentLoaded', function() {
+    updateBatchToolbar();
+});
+</script>
 {% endblock %}
