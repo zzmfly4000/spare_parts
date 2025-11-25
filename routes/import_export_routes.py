@@ -336,7 +336,7 @@ def setup_import_export_routes(app):
 
     @app.route('/download_operations_template')
     def download_operations_template():
-        """下载操作记录导入模板"""
+        """下载操作记录导入模板 - 增加产品型号列"""
         try:
             template_data = {
                 'Operation type': ['Stock in', 'Stock out', 'Stock in - disassemble', 'Stock in - return', ''],
@@ -345,7 +345,8 @@ def setup_import_export_routes(app):
                 'Location': ['A-01-01', 'B-02-01', 'C-03-01', 'D-04-01', ''],
                 'Part No': ['PART-001', 'PART-002', 'PART-003', 'PART-004', ''],
                 'Description': ['轴承 6205', '螺丝 M6x20', '密封圈 25mm', '电缆 3x1.5mm', ''],
-                'Type': ['机械', '电子', '机械', '电气', ''],
+                'Type': ['机械', '电子', '机械', '电气', ''],  # 备件类型
+                'Product Model': ['6205ZZ', 'M6x20', '25x5x3', '3x1.5mm', ''],  # 新增：产品型号
                 'Qty': [10, -5, 8, -3, ''],
                 'Work center': ['生产线A', '维修部', '生产线B', '工程部', '']
             }
@@ -359,7 +360,7 @@ def setup_import_export_routes(app):
                 worksheet = writer.sheets['操作记录模板']
                 column_widths = {
                     'A': 20, 'B': 15, 'C': 20, 'D': 15,
-                    'E': 15, 'F': 25, 'G': 12, 'H': 10, 'I': 15
+                    'E': 15, 'F': 25, 'G': 12, 'H': 15, 'I': 10, 'J': 15
                 }
                 for col, width in column_widths.items():
                     worksheet.column_dimensions[col].width = width
@@ -367,7 +368,7 @@ def setup_import_export_routes(app):
                 instructions_data = {
                     '列名': [
                         'Operation type', 'Date', 'Supplier or Recipients', 'Location',
-                        'Part No', 'Description', 'Type', 'Qty', 'Work center'
+                        'Part No', 'Description', 'Type', 'Product Model', 'Qty', 'Work center'
                     ],
                     '说明': [
                         '操作类型: Stock in/Stock out/Stock in - disassemble/Stock in - return',
@@ -377,17 +378,18 @@ def setup_import_export_routes(app):
                         '备件编号（系统会自动创建不存在的备件）',
                         '备件详细描述（用于自动创建新备件）',
                         '备件类型（用于自动创建新备件）',
+                        '产品型号（记录产品的具体型号）',  # 新增说明
                         '数量: 正数入库, 负数出库',
                         '相关工作中心'
                     ],
                     '示例': [
                         'Stock in', '2024-01-01', '供应商A', 'A-01-01',
-                        'PART-001', '轴承 6205', '机械', '10', '生产线A'
+                        'PART-001', '轴承 6205', '机械', '6205ZZ', '10', '生产线A'
                     ],
-                    '必填': ['是', '是', '否', '否', '是', '是', '否', '是', '否'],
+                    '必填': ['是', '是', '否', '否', '是', '是', '否', '否', '是', '否'],
                     '数据格式': [
                         '文本(特定值)', '日期', '文本', '文本',
-                        '文本', '文本', '文本', '数字(非零)', '文本'
+                        '文本', '文本', '文本', '文本', '数字(非零)', '文本'
                     ]
                 }
 
@@ -826,7 +828,7 @@ def setup_import_export_routes(app):
     # =============================================================================
 
     def process_operations_import_optimized(df, import_id):
-        """处理操作记录导入 - 库存计算优化版本"""
+        """处理操作记录导入 - 完全修复版本"""
         imported_count = 0
         error_count = 0
         skipped_duplicates = 0
@@ -842,7 +844,7 @@ def setup_import_export_routes(app):
             'import_id': import_id
         }
 
-        current_app.logger.info(f"开始处理操作记录导入（库存计算优化版），共 {len(df)} 行数据")
+        current_app.logger.info(f"开始处理操作记录导入（完全修复版），共 {len(df)} 行数据")
 
         try:
             with DatabaseManager().get_connection() as conn:
@@ -922,7 +924,7 @@ def setup_import_export_routes(app):
                                 'part_count': 0
                             }
 
-                        # 准备操作记录
+                        # 准备操作记录 - 修复字段顺序
                         operations_to_insert.append((
                             operation_data['operation_type'],
                             operation_data['operation_date'],
@@ -931,6 +933,7 @@ def setup_import_export_routes(app):
                             operation_data['part_no'],
                             operation_data['description'],
                             operation_data.get('part_type', ''),
+                            operation_data.get('product_model', ''),  # 产品型号
                             operation_data['quantity'],
                             operation_data.get('work_center', '')
                         ))
@@ -978,8 +981,13 @@ def setup_import_export_routes(app):
                                 part_data['description']
                             ))
                             parts_cache[part_data['part_no']]['id'] = cursor.lastrowid
+                            current_app.logger.info(f"成功创建备件: {part_data['part_no']}")
                         except Exception as e:
                             current_app.logger.error(f"创建备件失败 {part_data['part_no']}: {str(e)}")
+                            errors.append(create_error(
+                                '系统', f"创建备件失败: {str(e)}", '数据库', part_data['part_no'],
+                                'error', '请检查备件数据'
+                            ))
 
                 # 创建新库位
                 if locations_to_create:
@@ -995,20 +1003,31 @@ def setup_import_export_routes(app):
                                 location_data['status'],
                                 location_data['description']
                             ))
+                            current_app.logger.info(f"成功创建库位: {location_data['location_code']}")
                         except Exception as e:
                             current_app.logger.error(f"创建库位失败: {str(e)}")
+                            errors.append(create_error(
+                                '系统', f"创建库位失败: {str(e)}", '数据库', location_data['location_code'],
+                                'error', '请检查库位数据'
+                            ))
 
-                # 插入操作记录
+                # 插入操作记录 - 修复插入语句
                 if operations_to_insert:
                     current_app.logger.info(f"插入 {len(operations_to_insert)} 条操作记录")
                     try:
                         conn.executemany('''
                             INSERT INTO operation_records 
-                            (operation_type, operation_date, supplier_recipient, location, part_no, description, part_type, quantity, work_center)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            (operation_type, operation_date, supplier_recipient, location, part_no, 
+                             description, part_type, product_model, quantity, work_center)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         ''', operations_to_insert)
+                        current_app.logger.info(f"成功插入 {len(operations_to_insert)} 条操作记录")
                     except Exception as e:
                         current_app.logger.error(f"批量插入操作记录失败: {str(e)}")
+                        errors.append(create_error(
+                            '系统', f"插入操作记录失败: {str(e)}", '数据库', '',
+                            'error', '请检查操作记录数据'
+                        ))
 
                 # 核心优化：更新备件库存
                 current_app.logger.info("开始更新备件库存...")
@@ -1051,8 +1070,13 @@ def setup_import_export_routes(app):
 
                     except Exception as e:
                         current_app.logger.error(f"更新备件 {part_no} 库存失败: {str(e)}")
+                        errors.append(create_error(
+                            '系统', f"更新备件库存失败: {str(e)}", '数据库', part_no,
+                            'error', '请检查备件数据'
+                        ))
 
                 conn.commit()
+                current_app.logger.info("数据库事务提交成功")
 
                 # 强制库存同步
                 current_app.logger.info("开始强制库存同步...")
@@ -1095,17 +1119,17 @@ def setup_import_export_routes(app):
             'new_parts_created': new_parts_created,
             'parts_updated': parts_updated,
             'locations_updated': locations_updated,
-            'stock_updated_count': sync_result.get('direct_updated', 0),
+            'stock_updated_count': stock_updated_count,
             'import_duration': import_duration
         })
 
         if error_count == 0 and skipped_duplicates == 0:
-            message = f'导入成功！导入 {imported_count} 条操作记录，更新 {sync_result.get("direct_updated", 0)} 个备件库存'
+            message = f'导入成功！导入 {imported_count} 条操作记录，更新 {stock_updated_count} 个备件库存'
             if new_parts_created > 0:
                 message += f'，自动创建 {new_parts_created} 个新备件'
             success = True
         elif imported_count > 0:
-            message = f'部分导入成功！导入 {imported_count} 条记录，更新 {sync_result.get("direct_updated", 0)} 个备件库存'
+            message = f'部分导入成功！导入 {imported_count} 条记录，更新 {stock_updated_count} 个备件库存'
             if new_parts_created > 0:
                 message += f'，自动创建 {new_parts_created} 个新备件'
             message += f'，错误 {error_count} 个'
@@ -1668,7 +1692,7 @@ def setup_import_export_routes(app):
     # =============================================================================
 
     def extract_operation_data(row):
-        """提取操作记录数据"""
+        """提取操作记录数据 - 增加产品型号字段"""
         operation_data = {
             'operation_type': safe_str(row.get('Operation type', '')).strip(),
             'operation_date': safe_datetime(row.get('Date')) or datetime.now(),
@@ -1676,7 +1700,8 @@ def setup_import_export_routes(app):
             'location': safe_str(row.get('Location', '')),
             'part_no': safe_str(row.get('Part No', '')).strip(),
             'description': safe_str(row.get('Description', '')),
-            'part_type': safe_str(row.get('Type', '')),
+            'part_type': safe_str(row.get('Type', '')),  # 备件类型
+            'product_model': safe_str(row.get('Product Model', '')),  # 新增：产品型号
             'quantity': safe_int(row.get('Qty', 0)),
             'work_center': safe_str(row.get('Work center', ''))
         }

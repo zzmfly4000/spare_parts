@@ -1,9 +1,19 @@
 from flask import render_template, request, redirect, url_for, flash, jsonify
 from models.database import (
-    get_all_spare_parts, get_spare_part_by_id, create_spare_part,
-    update_spare_part, delete_spare_part, batch_update_parts,
-    batch_delete_parts, recalculate_all_stock
+    DatabaseManager,
+    create_spare_part,
+    update_spare_part,
+    delete_spare_part,
+    get_spare_part_by_id,
+    get_spare_part_by_part_no,
+    get_all_spare_parts,
+    get_low_stock_parts,
+    recalculate_all_stock,
+    batch_update_parts,
+    batch_delete_parts,
+    get_operation_statistics
 )
+import logging
 from utils.helpers import safe_int, safe_float, safe_str
 import datetime  # 添加这行导入
 
@@ -245,3 +255,145 @@ def setup_parts_routes(app):
             flash('重新计算库存失败', 'danger')
 
         return redirect(url_for('parts_list'))
+
+    from flask import jsonify, request
+    import logging
+
+    # 在 setup_parts_routes 函数中添加以下路由
+
+    @app.route('/api/search_parts')
+    def api_search_parts():
+        """智能搜索备件API"""
+        keyword = request.args.get('keyword', '').strip()
+        if not keyword:
+            return jsonify({'success': False, 'message': '请输入搜索关键词'})
+
+        try:
+            db_manager = DatabaseManager()
+            with db_manager.get_connection() as conn:
+                # 在备件编号、名称、类型、描述、供应商中搜索
+                search_pattern = f'%{keyword}%'
+                parts = conn.execute('''
+                    SELECT id, part_no, name, type, current_stock, location, description, supplier
+                    FROM spare_parts 
+                    WHERE part_no LIKE ? OR name LIKE ? OR type LIKE ? OR description LIKE ? OR supplier LIKE ?
+                    ORDER BY 
+                        CASE 
+                            WHEN part_no = ? THEN 1
+                            WHEN part_no LIKE ? THEN 2
+                            WHEN name LIKE ? THEN 3
+                            ELSE 4
+                        END,
+                        part_no
+                    LIMIT 20
+                ''', (search_pattern, search_pattern, search_pattern, search_pattern, search_pattern,
+                      keyword, f'{keyword}%', f'{keyword}%')).fetchall()
+
+                results = []
+                for part in parts:
+                    results.append({
+                        'id': part[0],
+                        'part_no': part[1],
+                        'name': part[2],
+                        'type': part[3],
+                        'current_stock': part[4],
+                        'location': part[5],
+                        'description': part[6],
+                        'supplier': part[7]
+                    })
+
+                return jsonify({
+                    'success': True,
+                    'results': results,
+                    'count': len(results)
+                })
+
+        except Exception as e:
+            logging.error(f'搜索备件失败: {str(e)}')
+            return jsonify({'success': False, 'message': f'搜索失败: {str(e)}'})
+
+    @app.route('/api/part_info/<part_no>')
+    def api_part_info(part_no):
+        """获取备件详细信息API"""
+        try:
+            part = get_spare_part_by_part_no(part_no)
+            if part:
+                return jsonify({
+                    'success': True,
+                    'part': {
+                        'id': part[0],
+                        'part_no': part[1],
+                        'name': part[2],
+                        'type': part[3],
+                        'current_stock': part[4],
+                        'min_stock': part[5],
+                        'max_stock': part[6],
+                        'key_part': part[7],
+                        'lt_weeks': part[8],
+                        'unit_price': part[9],
+                        'unit': part[10],
+                        'location': part[11],
+                        'supplier': part[12],
+                        'description': part[13]
+                    }
+                })
+            else:
+                return jsonify({'success': False, 'message': '备件不存在'})
+        except Exception as e:
+            logging.error(f'获取备件信息失败: {str(e)}')
+            return jsonify({'success': False, 'message': f'获取备件信息失败: {str(e)}'})
+
+    @app.route('/api/operation_stats/<part_no>')
+    def api_operation_stats(part_no):
+        """获取备件操作统计API"""
+        try:
+            stats = get_operation_statistics(part_no)
+            return jsonify({
+                'success': True,
+                'stats': stats
+            })
+        except Exception as e:
+            logging.error(f'获取操作统计失败: {str(e)}')
+            return jsonify({
+                'success': True,
+                'stats': {
+                    'new_parts_in': 0,
+                    'disassemble_parts_in': 0,
+                    'return_parts_in': 0,
+                    'parts_out': 0
+                }
+            })
+
+    @app.route('/api/create_part', methods=['POST'])
+    def api_create_part():
+        """创建新备件API"""
+        try:
+            data = request.get_json()
+            if not data.get('part_no') or not data.get('name'):
+                return jsonify({'success': False, 'message': '备件编号和名称不能为空'})
+
+            part_data = {
+                'part_no': data['part_no'],
+                'name': data['name'],
+                'type': data.get('type', ''),
+                'current_stock': data.get('current_stock', 0),
+                'min_stock': data.get('min_stock', 0),
+                'max_stock': data.get('max_stock', 0),
+                'unit': data.get('unit', ''),
+                'location': data.get('location', ''),
+                'supplier': data.get('supplier', ''),
+                'description': data.get('description', '')
+            }
+
+            part_id = create_spare_part(part_data)
+            return jsonify({
+                'success': True,
+                'message': '备件创建成功',
+                'part_id': part_id
+            })
+
+        except Exception as e:
+            logging.error(f'创建备件失败: {str(e)}')
+            return jsonify({'success': False, 'message': f'创建备件失败: {str(e)}'})
+
+

@@ -1,0 +1,266 @@
+{% extends "base.html" %}
+
+{% block title %}操作记录 - 设备备件管理系统{% endblock %}
+
+{% block content %}
+<!-- 页面标题和操作 -->
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-4 mb-4 border-bottom">
+    <div>
+        <h1 class="h3 mb-2">操作记录</h1>
+        <p class="text-muted mb-0">查看所有入库和出库操作记录</p>
+    </div>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group">
+            <a href="{{ url_for('smart_inbound') }}" class="btn btn-success me-2">
+                <i class="fas fa-arrow-down me-1"></i>智能入库
+            </a>
+            <a href="{{ url_for('smart_outbound') }}" class="btn btn-danger">
+                <i class="fas fa-arrow-up me-1"></i>智能出库
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- 筛选工具栏 -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">操作类型</label>
+                <select class="form-select" name="operation_type">
+                    <option value="">所有类型</option>
+                    <option value="Stock in" {% if operation_type == 'Stock in' %}selected{% endif %}>入库</option>
+                    <option value="Stock out" {% if operation_type == 'Stock out' %}selected{% endif %}>出库</option>
+                    <option value="Stock in - disassemble" {% if operation_type == 'Stock in - disassemble' %}selected{% endif %}>拆机件入库</option>
+                    <option value="Stock in - return" {% if operation_type == 'Stock in - return' %}selected{% endif %}>返库</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">开始日期</label>
+                <input type="date" class="form-control" name="date_from" value="{{ date_from }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">结束日期</label>
+                <input type="date" class="form-control" name="date_to" value="{{ date_to }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">备件编号</label>
+                <input type="text" class="form-control" name="part_no" value="{{ part_no }}" placeholder="备件编号">
+            </div>
+            <div class="col-12">
+                <div class="d-flex justify-content-end">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-filter me-1"></i>筛选
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 操作记录列表 -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">操作记录列表</h5>
+        <span class="text-muted">共 {{ total_operations }} 条记录</span>
+    </div>
+    <div class="card-body">
+        {% if operations %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>操作类型</th>
+                        <th>操作日期</th>
+                        <th>供应商/接收方</th>
+                        <th>库位</th>
+                        <th>备件编号</th>
+                        <th>描述</th>
+                        <th>备件类型</th>
+                        <th>产品型号</th>
+                        <th>数量</th>
+                        <th>工作中心</th>
+                        <th>创建时间</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in operations %}
+                    <tr>
+                        <td>
+                            {% if 'stock in' in record[1].lower() %}
+                            <span class="badge bg-success">{{ record[1] }}</span>
+                            {% else %}
+                            <span class="badge bg-danger">{{ record[1] }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if record[2] %}
+                                {{ record[2]|date('%Y-%m-%d %H:%M:%S') }}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ record[3] or '-' }}</td>
+                        <td>
+                            {% if record[4] %}
+                            <span class="badge bg-info">{{ record[4] }}</span>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td><strong>{{ record[5] }}</strong></td>
+                        <td>{{ record[6] or '-' }}</td>
+                        <td>
+                            {% if record[7] %}
+                            <span class="badge bg-secondary">{{ record[7] }}</span>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if record[8] %}
+                            <span class="badge bg-primary">{{ record[8] }}</span>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if record[9] > 0 %}
+                            <span class="text-success fw-bold">+{{ record[9] }}</span>
+                            {% else %}
+                            <span class="text-danger fw-bold">{{ record[9] }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ record[10] or '-' }}</td>
+                        <td>
+                            {% if record[11] %}
+                                {{ record[11]|date('%Y-%m-%d %H:%M:%S') }}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 分页 -->
+        {% if total_operations > per_page %}
+        <nav aria-label="Page navigation" class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% set total_pages = (total_operations / per_page)|round(0, 'ceil')|int %}
+                {% set current_page = page %}
+
+                <li class="page-item {% if current_page == 1 %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for('operation_records', page=current_page-1, operation_type=operation_type, date_from=date_from, date_to=date_to, part_no=part_no, per_page=per_page) }}">
+                        上一页
+                    </a>
+                </li>
+
+                {% for p in range(1, total_pages + 1) %}
+                    {% if p >= current_page - 2 and p <= current_page + 2 %}
+                    <li class="page-item {% if p == current_page %}active{% endif %}">
+                        <a class="page-link" href="{{ url_for('operation_records', page=p, operation_type=operation_type, date_from=date_from, date_to=date_to, part_no=part_no, per_page=per_page) }}">
+                            {{ p }}
+                        </a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+
+                <li class="page-item {% if current_page == total_pages %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for('operation_records', page=current_page+1, operation_type=operation_type, date_from=date_from, date_to=date_to, part_no=part_no, per_page=per_page) }}">
+                        下一页
+                    </a>
+                </li>
+            </ul>
+        </nav>
+        {% endif %}
+
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-exchange-alt fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">暂无操作记录</h5>
+            <p class="text-muted mb-4">还没有任何入库或出库操作记录</p>
+            <div class="btn-group">
+                <a href="{{ url_for('smart_inbound') }}" class="btn btn-success me-2">
+                    <i class="fas fa-arrow-down me-1"></i>开始入库
+                </a>
+                <a href="{{ url_for('smart_outbound') }}" class="btn btn-danger">
+                    <i class="fas fa-arrow-up me-1"></i>开始出库
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 统计卡片 -->
+{% if operations %}
+<div class="row mt-4">
+    <div class="col-md-3">
+        <div class="card stat-card">
+            <div class="card-body text-center">
+                <i class="fas fa-arrow-down text-success"></i>
+                <div class="number">
+                    {% set inbound_count = 0 %}
+                    {% for record in operations %}
+                        {% if 'stock in' in record[1].lower() %}
+                            {% set inbound_count = inbound_count + 1 %}
+                        {% endif %}
+                    {% endfor %}
+                    {{ inbound_count }}
+                </div>
+                <div class="text-muted">入库记录</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card">
+            <div class="card-body text-center">
+                <i class="fas fa-arrow-up text-danger"></i>
+                <div class="number">
+                    {% set outbound_count = 0 %}
+                    {% for record in operations %}
+                        {% if 'stock out' in record[1].lower() %}
+                            {% set outbound_count = outbound_count + 1 %}
+                        {% endif %}
+                    {% endfor %}
+                    {{ outbound_count }}
+                </div>
+                <div class="text-muted">出库记录</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card">
+            <div class="card-body text-center">
+                <i class="fas fa-boxes text-primary"></i>
+                <div class="number">{{ operations|length }}</div>
+                <div class="text-muted">总记录数</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card">
+            <div class="card-body text-center">
+                <i class="fas fa-calendar text-info"></i>
+                <div class="number">
+                    {% set unique_dates = [] %}
+                    {% for record in operations %}
+                        {% if record[2] %}
+                            {% set date_str = record[2]|date('%Y-%m-%d') %}
+                            {% if date_str and date_str not in unique_dates %}
+                                {% set _ = unique_dates.append(date_str) %}
+                            {% endif %}
+                        {% endif %}
+                    {% endfor %}
+                    {{ unique_dates|length }}
+                </div>
+                <div class="text-muted">涉及天数</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

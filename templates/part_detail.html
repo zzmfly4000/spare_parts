@@ -88,6 +88,41 @@
             </div>
         </div>
 
+        <!-- 在备件详情页面添加产品型号显示 -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">型号信息</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <table class="table table-borderless">
+                            <tr>
+                                <th width="120">备件型号:</th>
+                                <td>
+                                    {% if part_product_model %}
+                                    <span class="badge bg-primary">{{ part_product_model }}</span>
+                                    {% else %}
+                                    <span class="text-muted">未设置</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>备件类型:</th>
+                                <td>
+                                    {% if part[3] %}
+                                    <span class="badge bg-secondary">{{ part[3] }}</span>
+                                    {% else %}
+                                    <span class="text-muted">未设置</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="card mb-4">
             <div class="card-header">
                 <h5 class="card-title mb-0">其他信息</h5>

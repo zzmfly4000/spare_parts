@@ -441,6 +441,12 @@
                                 </a>
                             </li>
                             <li class="nav-item">
+                                <a class="nav-link {{ 'active' if request.endpoint == 'smart_outbound' }}"
+                                   href="{{ url_for('smart_outbound') }}">
+                                    <i class="fas fa-arrow-up text-danger"></i>智能出库
+                                </a>
+                            </li>
+                            <li class="nav-item">
                                 <a class="nav-link {{ 'active' if request.endpoint == 'operation_records' }}"
                                    href="{{ url_for('operation_records') }}">
                                     <i class="fas fa-exchange-alt"></i>出入库记录

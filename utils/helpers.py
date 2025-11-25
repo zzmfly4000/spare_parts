@@ -1,112 +1,202 @@
-import pandas as pd
-import numpy as np
-from datetime import datetime
-import re
+# utils/helpers.py
+import os
+import datetime
+from werkzeug.utils import secure_filename
 
-def validate_excel_file(filename):
-    """验证Excel文件类型"""
-    allowed_extensions = {'xlsx', 'xls'}
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
 
 def safe_int(value, default=0):
-    """安全转换为整数 - 增强版本"""
-    if value is None or value == '' or (isinstance(value, float) and np.isnan(value)):
+    """安全转换为整数"""
+    if value is None or value == '':
         return default
     try:
-        # 处理浮点数
-        if isinstance(value, float):
-            return int(value)
-        # 处理字符串
-        if isinstance(value, str):
-            # 移除可能存在的逗号（千位分隔符）
-            value = value.replace(',', '')
-            # 尝试直接转换
-            return int(float(value))
-        return int(value)
+        return int(float(str(value)))
     except (ValueError, TypeError):
         return default
+
 
 def safe_float(value, default=0.0):
-    """安全转换为浮点数 - 增强版本"""
-    if value is None or value == '' or (isinstance(value, float) and np.isnan(value)):
+    """安全转换为浮点数"""
+    if value is None or value == '':
         return default
     try:
-        if isinstance(value, str):
-            value = value.replace(',', '')
-        return float(value)
+        return float(str(value))
     except (ValueError, TypeError):
         return default
 
+
 def safe_str(value, default=''):
-    """安全转换为字符串 - 增强版本"""
-    if value is None or (isinstance(value, float) and np.isnan(value)):
+    """安全转换为字符串"""
+    if value is None:
         return default
     try:
-        result = str(value).strip()
-        return result if result else default
+        return str(value)
     except:
         return default
+
 
 def safe_datetime(value, default=None):
-    """安全转换为日期时间 - 增强版本"""
-    if value is None or value == '' or (isinstance(value, float) and np.isnan(value)):
+    """安全转换为 datetime 对象"""
+    if value is None or value == '':
         return default
+
+    if isinstance(value, datetime.datetime):
+        return value
+
+    if isinstance(value, datetime.date):
+        return datetime.datetime.combine(value, datetime.time())
+
+    if isinstance(value, str):
+        try:
+            # 尝试解析 ISO 格式
+            if 'T' in value:
+                return datetime.datetime.fromisoformat(value.replace('Z', '+00:00'))
+            else:
+                # 尝试其他常见格式
+                for fmt in ['%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M', '%Y-%m-%d', '%H:%M:%S']:
+                    try:
+                        return datetime.datetime.strptime(value, fmt)
+                    except ValueError:
+                        continue
+        except Exception:
+            pass
+
+    return default
+
+
+def parse_datetime(date_string):
+    """解析日期字符串为 datetime 对象"""
+    return safe_datetime(date_string)
+
+
+def validate_excel_file(filename):
+    """
+    验证上传的文件是否为有效的 Excel 文件
+
+    Args:
+        filename (str): 上传的文件名
+
+    Returns:
+        bool: 是否为有效的 Excel 文件
+    """
+    if not filename:
+        return False
+
+    # 安全的文件名
+    safe_name = secure_filename(filename)
+    if not safe_name:
+        return False
+
+    # 允许的扩展名
+    allowed_extensions = {'.xlsx', '.xls', '.xlsm'}
+
+    # 获取文件扩展名
+    _, ext = os.path.splitext(safe_name.lower())
+
+    return ext in allowed_extensions
+
+
+def validate_file_extension(filename, allowed_extensions=None):
+    """
+    验证文件扩展名
+
+    Args:
+        filename (str): 文件名
+        allowed_extensions (set): 允许的扩展名集合
+
+    Returns:
+        bool: 扩展名是否有效
+    """
+    if allowed_extensions is None:
+        allowed_extensions = {'.xlsx', '.xls', '.xlsm'}
+
+    if not filename:
+        return False
+
+    safe_name = secure_filename(filename)
+    if not safe_name:
+        return False
+
+    _, ext = os.path.splitext(safe_name.lower())
+    return ext in allowed_extensions
+
+
+def format_excel_date(excel_date_value):
+    """
+    格式化 Excel 日期值为 Python datetime
+
+    Args:
+        excel_date_value: Excel 日期值
+
+    Returns:
+        datetime: 格式化后的日期时间对象
+    """
+    if excel_date_value is None:
+        return None
+
+    # 如果已经是 datetime 对象，直接返回
+    if isinstance(excel_date_value, datetime.datetime):
+        return excel_date_value
+
+    # 如果是日期对象，转换为 datetime
+    if isinstance(excel_date_value, datetime.date):
+        return datetime.datetime.combine(excel_date_value, datetime.time())
+
+    # 如果是字符串，尝试解析
+    if isinstance(excel_date_value, str):
+        return safe_datetime(excel_date_value)
+
+    # 如果是数字（Excel 日期序列号）
     try:
-        if isinstance(value, datetime):
-            return value
-        if isinstance(value, str):
-            # 尝试多种日期格式
-            for fmt in ['%Y-%m-%d', '%Y/%m/%d', '%d/%m/%Y', '%m/%d/%Y']:
-                try:
-                    return datetime.strptime(value, fmt)
-                except ValueError:
-                    continue
-        # 使用pandas的日期解析作为后备
-        return pd.to_datetime(value)
-    except:
-        return default
+        # Excel 日期序列号（从 1900-01-01 开始）
+        if isinstance(excel_date_value, (int, float)):
+            # 简单处理：如果数字很大，可能是时间戳
+            if excel_date_value > 100000:
+                return datetime.datetime.fromtimestamp(excel_date_value)
+            else:
+                # Excel 日期序列号转换（简化版本）
+                base_date = datetime.datetime(1899, 12, 30)
+                delta = datetime.timedelta(days=excel_date_value)
+                return base_date + delta
+    except (ValueError, TypeError):
+        pass
 
-def clean_dataframe(df):
-    """清理DataFrame数据 - 根据新的字段描述修正"""
-    import time
-    start_time = time.time()
+    return None
 
-    # 定义替换字典，用于将各种空值表示替换为空字符串
-    replacement_dict = {
-        'nan': '', 'None': '', 'null': '', 'NaN': '', 'NULL': '',
-        'none': '', 'NONE': ''
-    }
 
-    # 删除全空行
-    df = df.dropna(how='all')
-    df = df.reset_index(drop=True)
+def clean_excel_value(value):
+    """
+    清理 Excel 单元格值
 
-    # 预处理关键字段：location（实际库位，不可为空）
-    if 'location' in df.columns:
-        df['location'] = df['location'].fillna('').astype(str).str.strip()
-        df['location'] = df['location'].replace(replacement_dict)
+    Args:
+        value: 原始单元格值
 
-    # 预处理其他可为空字段
-    optional_fields = ['Rack', 'Level', 'Position', 'Side', 'State', 'Size Type', 'Description']
-    for field in optional_fields:
-        if field in df.columns:
-            df[field] = df[field].fillna('').astype(str).str.strip()
-            df[field] = df[field].replace(replacement_dict)
+    Returns:
+        清理后的值
+    """
+    if value is None:
+        return None
 
-    # 预处理状态列
-    if 'State' in df.columns:
-        state_mapping = {
-            '': 'free', 'nan': 'free', 'none': 'free', 'null': 'free',
-            '空闲': 'free', '使用中': 'in_use', '低库存': 'low_stock',
-            'free': 'free', 'in_use': 'in_use', 'low_stock': 'low_stock'
-        }
-        df['State'] = df['State'].map(state_mapping).fillna('free')
+    # 如果是字符串，去除前后空格
+    if isinstance(value, str):
+        value = value.strip()
+        if value == '':
+            return None
 
-    # 预处理容量列
-    if 'Capacity' in df.columns:
-        df['Capacity'] = pd.to_numeric(df['Capacity'], errors='coerce').fillna(0)
-        df['Capacity'] = df['Capacity'].clip(lower=0)
+    return value
 
-    end_time = time.time()
 
-    return df
+def get_file_size(file_path):
+    """
+    获取文件大小（MB）
+
+    Args:
+        file_path (str): 文件路径
+
+    Returns:
+        float: 文件大小（MB）
+    """
+    try:
+        size_bytes = os.path.getsize(file_path)
+        return round(size_bytes / (1024 * 1024), 2)
+    except OSError:
+        return 0

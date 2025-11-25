@@ -1,73 +1,136 @@
 import sqlite3
 import os
 import logging
+import time
+import threading
 from contextlib import contextmanager
 from datetime import datetime
 
 
 class DatabaseManager:
-    """数据库管理器，负责数据库连接和操作 - 性能优化版本"""
+    """数据库管理器，负责数据库连接和操作 - 增强线程安全版本"""
 
     def __init__(self, db_path='spare_parts.db'):
         self.db_path = db_path
         self._init_db()
+        self._lock = threading.RLock()
 
     def _init_db(self):
         """初始化数据库连接池和性能优化"""
-        # 确保数据库目录存在
         os.makedirs(os.path.dirname(self.db_path) if os.path.dirname(self.db_path) else '.', exist_ok=True)
 
-        # 配置SQLite性能优化参数
-        with sqlite3.connect(self.db_path) as conn:
+        with self._get_raw_connection() as conn:
             # 性能优化设置
             conn.execute("PRAGMA foreign_keys = ON")
-            conn.execute("PRAGMA journal_mode = WAL")  # 写前日志，提高并发
-            conn.execute("PRAGMA synchronous = NORMAL")  # 平衡性能和数据安全
-            conn.execute("PRAGMA cache_size = 100000")  # 增加缓存大小
-            conn.execute("PRAGMA temp_store = MEMORY")  # 临时表存储在内存中
-            conn.execute("PRAGMA mmap_size = 268435456")  # 256MB内存映射
-            conn.execute("PRAGMA page_size = 4096")  # 合适的页面大小
+            conn.execute("PRAGMA journal_mode = WAL")
+            conn.execute("PRAGMA synchronous = NORMAL")
+            conn.execute("PRAGMA cache_size = 100000")
+            conn.execute("PRAGMA temp_store = MEMORY")
+            conn.execute("PRAGMA mmap_size = 268435456")
+            conn.execute("PRAGMA page_size = 4096")
+            conn.execute("PRAGMA busy_timeout = 10000")  # 增加到10秒
+
+    @contextmanager
+    def _get_raw_connection(self):
+        """获取原始数据库连接（不包含线程锁）"""
+        conn = None
+        try:
+            conn = sqlite3.connect(
+                self.db_path,
+                timeout=30.0,
+                check_same_thread=False,
+                isolation_level=None  # 使用自动提交模式
+            )
+            conn.row_factory = sqlite3.Row
+            yield conn
+        finally:
+            if conn:
+                conn.close()
 
     @contextmanager
     def get_connection(self):
-        """获取数据库连接的上下文管理器 - 性能优化版本"""
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row  # 使用Row工厂提高性能
+        """获取数据库连接的上下文管理器 - 增强版本"""
+        max_retries = 5
+        retry_delay = 0.5
 
-        # 设置连接级别的优化
-        conn.execute("PRAGMA optimize")  # 优化查询计划
-        conn.execute("PRAGMA foreign_keys = ON")
+        for attempt in range(max_retries):
+            with self._lock:
+                conn = None
+                try:
+                    conn = sqlite3.connect(
+                        self.db_path,
+                        timeout=30.0,
+                        check_same_thread=False,
+                        isolation_level=None
+                    )
+                    conn.row_factory = sqlite3.Row
 
-        try:
-            yield conn
-        except Exception as e:
-            conn.rollback()
-            raise e
-        else:
-            conn.commit()
-        finally:
-            # 清理连接
-            conn.execute("PRAGMA optimize")
-            conn.close()
+                    # 设置连接级别的优化
+                    conn.execute("PRAGMA foreign_keys = ON")
+                    conn.execute("PRAGMA busy_timeout = 10000")
+
+                    yield conn
+                    conn.commit()
+                    break  # 成功则退出重试循环
+
+                except sqlite3.OperationalError as e:
+                    if conn:
+                        conn.rollback()
+
+                    if "database is locked" in str(e) and attempt < max_retries - 1:
+                        logging.warning(f"数据库被锁定，第 {attempt + 1} 次重试...")
+                        time.sleep(retry_delay * (attempt + 1))  # 指数退避
+                        continue
+                    else:
+                        raise ValueError(f"数据库操作失败: {str(e)}")
+
+                except Exception as e:
+                    if conn:
+                        conn.rollback()
+                    raise e
+
+                finally:
+                    if conn:
+                        conn.close()
 
 
 def calculate_stock_from_operations(part_no):
-    """根据操作记录计算备件库存 - 最终修复版本"""
+    """根据操作记录计算备件库存 - 修正版本"""
     db_manager = DatabaseManager()
     with db_manager.get_connection() as conn:
-        # 首先获取当前库存值（库存原值）
-        cursor = conn.execute('''
-            SELECT current_stock FROM spare_parts WHERE part_no = ?
-        ''', (part_no,))
-        result = cursor.fetchone()
-
-        if not result:
-            # 如果备件不存在，返回0
-            return 0
-
-        base_stock = result[0] or 0
-
         # 计算所有入库操作的总和（包括各种类型的入库）
+        cursor = conn.execute('''
+            SELECT COALESCE(SUM(quantity), 0) 
+            FROM operation_records 
+            WHERE part_no = ? AND operation_type IN ('Stock in', 'Stock in - disassemble', 'Stock in - return')
+        ''', (part_no,))
+        total_in = cursor.fetchone()[0] or 0
+
+        # 计算出库操作的总和（出库数量存储为负数）
+        cursor = conn.execute('''
+            SELECT COALESCE(SUM(quantity), 0) 
+            FROM operation_records 
+            WHERE part_no = ? AND operation_type = 'Stock out'
+        ''', (part_no,))
+        total_out = cursor.fetchone()[0] or 0
+
+        # 计算总库存：所有入库 + 出库（出库已经是负数）
+        total_stock = total_in + total_out
+
+        # 确保库存不为负数
+        final_stock = max(0, total_stock)
+
+        app.logger.debug(
+            f"库存计算: {part_no} = {total_in}(入库) + {total_out}(出库) = {final_stock}")
+
+        return final_stock
+
+
+def calculate_stock_for_new_part(part_no):
+    """为新备件计算库存（完全基于操作记录）"""
+    db_manager = DatabaseManager()
+    with db_manager.get_connection() as conn:
+        # 计算所有入库操作的总和
         cursor = conn.execute('''
             SELECT COALESCE(SUM(quantity), 0) 
             FROM operation_records 
@@ -83,40 +146,7 @@ def calculate_stock_from_operations(part_no):
         ''', (part_no,))
         total_out = cursor.fetchone()[0] or 0
 
-        # 计算总库存：库存原值 + 所有入库 - 出库
-        # 注意：出库数量在数据库中存储为负数，所以这里要加上（因为负负得正）
-        total_stock = base_stock + total_in + total_out
-
-        # 确保库存不为负数
-        final_stock = max(0, total_stock)
-
-        current_app.logger.debug(
-            f"库存计算: {part_no} = {base_stock}(原值) + {total_in}(入库) + {total_out}(出库) = {final_stock}")
-
-        return final_stock
-
-
-def calculate_stock_for_new_part(part_no):
-    """为新备件计算库存（没有库存原值时使用）"""
-    db_manager = DatabaseManager()
-    with db_manager.get_connection() as conn:
-        # 计算所有入库操作的总和
-        cursor = conn.execute('''
-            SELECT COALESCE(SUM(quantity), 0) 
-            FROM operation_records 
-            WHERE part_no = ? AND operation_type IN ('Stock in', 'Stock in - disassemble', 'Stock in - return')
-        ''', (part_no,))
-        total_in = cursor.fetchone()[0]
-
-        # 计算出库操作的总和
-        cursor = conn.execute('''
-            SELECT COALESCE(SUM(quantity), 0) 
-            FROM operation_records 
-            WHERE part_no = ? AND operation_type = 'Stock out'
-        ''', (part_no,))
-        total_out = cursor.fetchone()[0]
-
-        # 计算总库存：所有入库 + 出库（出库为负数）
+        # 计算总库存：所有入库 + 出库
         total_stock = total_in + total_out
 
         # 确保库存不为负数
@@ -136,7 +166,7 @@ def update_stock_for_part(part_id, new_stock):
 
 
 def recalculate_all_stock():
-    """重新计算所有备件的库存 - 修复版本"""
+    """重新计算所有备件的库存 - 修正版本"""
     db_manager = DatabaseManager()
     with db_manager.get_connection() as conn:
         # 获取所有备件
@@ -148,7 +178,9 @@ def recalculate_all_stock():
             part_id = part[0]
             part_no = part[1]
             old_stock = part[2]
-            calculated_stock = calculate_stock_from_operations(part_no)
+
+            # 使用修正后的库存计算函数
+            calculated_stock = calculate_stock_from_operations_with_connection(part_no, conn)
 
             # 只有在库存发生变化时才更新
             if calculated_stock != old_stock:
@@ -161,7 +193,7 @@ def recalculate_all_stock():
 
                 if cursor.rowcount > 0:
                     updated_count += 1
-                    current_app.logger.info(f"备件 {part_no} 库存重新计算: {old_stock} -> {calculated_stock}")
+                    logging.info(f"备件 {part_no} 库存重新计算: {old_stock} -> {calculated_stock}")
 
         return updated_count
 
@@ -234,6 +266,7 @@ def init_db():
                 part_no TEXT,
                 description TEXT,
                 part_type TEXT,
+                product_model TEXT,  -- 新增：产品型号字段
                 quantity INTEGER,
                 work_center TEXT,
                 created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -291,7 +324,7 @@ def get_spare_part_by_part_no(part_no):
 
 
 def create_spare_part(part_data):
-    """创建新备件 - 增强错误处理版本"""
+    """创建新备件 - 修正库存计算版本"""
     db_manager = DatabaseManager()
     try:
         with db_manager.get_connection() as conn:
@@ -310,19 +343,45 @@ def create_spare_part(part_data):
             if min_stock > max_stock and max_stock > 0:
                 raise ValueError("最低库存不能大于最高库存")
 
+            # 对于新备件，初始库存应该基于操作记录计算，而不是直接设置
+            # 这里我们仍然允许设置初始库存，但会记录相应的入库操作
             cursor = conn.execute('''
                 INSERT INTO spare_parts 
-                (part_no, name, type, current_stock, min_stock, max_stock, key_part, 
+                (part_no, name, type, product_model, current_stock, min_stock, max_stock, key_part, 
                  lt_weeks, unit_price, unit, location, supplier, description)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
-                part_data['part_no'], part_data['name'], part_data.get('type', ''),
-                current_stock, min_stock, max_stock, part_data.get('key_part', False),
+                part_data['part_no'], part_data['name'],
+                part_data.get('type', ''),
+                part_data.get('product_model', ''),
+                current_stock,  # 初始库存
+                min_stock, max_stock, part_data.get('key_part', False),
                 safe_int(part_data.get('lt_weeks', 0)), safe_float(part_data.get('unit_price', 0.0)),
                 part_data.get('unit', ''), part_data.get('location', ''),
                 part_data.get('supplier', ''), part_data.get('description', '')
             ))
-            return cursor.lastrowid
+
+            part_id = cursor.lastrowid
+
+            # 如果设置了初始库存，创建对应的入库操作记录
+            if current_stock > 0:
+                operation_data = {
+                    'operation_type': 'Stock in',
+                    'part_no': part_data['part_no'],
+                    'quantity': current_stock,
+                    'description': f'初始库存设置 - {part_data.get("description", "")}',
+                    'location': part_data.get('location', ''),
+                    'supplier_recipient': part_data.get('supplier', '系统')
+                }
+
+                try:
+                    # 使用独立的数据库连接创建操作记录，避免嵌套事务
+                    create_operation_record(operation_data)
+                except Exception as e:
+                    logging.warning(f"创建初始库存操作记录失败: {str(e)}")
+                    # 不抛出异常，因为备件已经创建成功
+
+            return part_id
 
     except sqlite3.IntegrityError as e:
         if "UNIQUE constraint failed" in str(e):
@@ -445,83 +504,162 @@ def get_all_spare_parts():
 
 
 def create_operation_record(operation_data):
-    """创建操作记录 - 修复库存更新版本"""
+    """创建操作记录 - 修正库存计算版本"""
     db_manager = DatabaseManager()
-    try:
-        with db_manager.get_connection() as conn:
-            # 验证必要字段
-            if not operation_data.get('operation_type'):
-                raise ValueError("操作类型不能为空")
-            if not operation_data.get('part_no'):
-                raise ValueError("备件编号不能为空")
+    max_retries = 5
+    retry_delay = 0.5
 
-            quantity = safe_int(operation_data.get('quantity', 0))
-            if quantity == 0:
-                raise ValueError("操作数量不能为0")
+    for attempt in range(max_retries):
+        try:
+            with db_manager.get_connection() as conn:
+                # 验证必要字段
+                if not operation_data.get('operation_type'):
+                    raise ValueError("操作类型不能为空")
+                if not operation_data.get('part_no'):
+                    raise ValueError("备件编号不能为空")
 
-            # 验证操作类型和数量的关系
-            operation_type = operation_data['operation_type'].lower()
-            if any(in_type in operation_type for in_type in ['stock in', 'disassemble', 'return']):
-                # 入库操作，数量应该为正数
-                if quantity < 0:
-                    raise ValueError("入库操作数量不能为负数")
-            elif 'stock out' in operation_type:
-                # 出库操作，数量应该为负数
-                if quantity > 0:
-                    raise ValueError("出库操作数量不能为正数")
-                # 确保出库数量存储为负数
-                quantity = -abs(quantity)
+                quantity = safe_int(operation_data.get('quantity', 0))
+                if quantity == 0:
+                    raise ValueError("操作数量不能为0")
 
-            cursor = conn.execute('''
-                INSERT INTO operation_records 
-                (operation_type, supplier_recipient, location, part_no, description, 
-                 part_type, quantity, work_center)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (
-                operation_data['operation_type'], operation_data.get('supplier_recipient', ''),
-                operation_data.get('location', ''), operation_data['part_no'],
-                operation_data['description'], operation_data.get('part_type', ''),
-                quantity, operation_data.get('work_center', '')
-            ))
+                # 验证操作类型和数量的关系
+                operation_type = operation_data['operation_type']
+                if any(in_type in operation_type.lower() for in_type in ['stock in', 'disassemble', 'return']):
+                    if quantity < 0:
+                        raise ValueError("入库操作数量不能为负数")
+                elif 'stock out' in operation_type.lower():
+                    if quantity > 0:
+                        raise ValueError("出库操作数量不能为正数")
+                    quantity = -abs(quantity)
 
-            # 立即更新对应备件的库存
-            part_no = operation_data['part_no']
+                # 首先检查备件是否存在
+                cursor = conn.execute('SELECT id FROM spare_parts WHERE part_no = ?', (operation_data['part_no'],))
+                part_exists = cursor.fetchone() is not None
 
-            # 检查备件是否存在
-            part = get_spare_part_by_part_no(part_no)
-            if part:
-                # 备件存在，使用完整的库存计算
-                new_stock = calculate_stock_from_operations(part_no)
-                conn.execute('''
-                    UPDATE spare_parts 
-                    SET current_stock = ?, updated_date = CURRENT_TIMESTAMP 
-                    WHERE part_no = ?
-                ''', (new_stock, part_no))
-                current_app.logger.info(f"更新备件 {part_no} 库存为: {new_stock}")
+                # 插入操作记录
+                cursor = conn.execute('''
+                    INSERT INTO operation_records 
+                    (operation_type, operation_date, supplier_recipient, location, part_no, 
+                     description, part_type, product_model, quantity, work_center)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    operation_data['operation_type'],
+                    operation_data.get('operation_date', datetime.now()),
+                    operation_data.get('supplier_recipient', ''),
+                    operation_data.get('location', ''),
+                    operation_data['part_no'],
+                    operation_data.get('description', ''),
+                    operation_data.get('part_type', ''),
+                    operation_data.get('product_model', ''),
+                    quantity,
+                    operation_data.get('work_center', '')
+                ))
+
+                record_id = cursor.lastrowid
+
+                # 更新对应备件的库存 - 基于操作记录重新计算
+                part_no = operation_data['part_no']
+
+                if part_exists:
+                    # 备件存在，重新计算库存
+                    new_stock = calculate_stock_from_operations_with_connection(part_no, conn)
+                    conn.execute('''
+                        UPDATE spare_parts 
+                        SET current_stock = ?, updated_date = CURRENT_TIMESTAMP 
+                        WHERE part_no = ?
+                    ''', (new_stock, part_no))
+                    logging.info(f"更新备件 {part_no} 库存为: {new_stock}")
+                else:
+                    # 备件不存在，为新备件计算库存
+                    new_stock = calculate_stock_for_new_part_with_connection(part_no, conn)
+                    logging.info(f"新备件 {part_no} 计算库存为: {new_stock}")
+
+                    # 自动创建新备件（使用当前连接）
+                    try:
+                        conn.execute('''
+                            INSERT INTO spare_parts 
+                            (part_no, name, type, product_model, current_stock, min_stock, max_stock, 
+                             unit, location, supplier, description)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ''', (
+                            part_no,
+                            operation_data.get('description', '新备件'),
+                            operation_data.get('part_type', '通用'),
+                            operation_data.get('product_model', ''),
+                            new_stock, 0, 0,
+                            operation_data.get('unit', '个'),
+                            operation_data.get('location', ''),
+                            operation_data.get('supplier_recipient', ''),
+                            operation_data.get('description', '')
+                        ))
+                    except sqlite3.IntegrityError:
+                        # 如果备件已经存在（并发创建），忽略错误
+                        logging.warning(f"备件 {part_no} 已存在，跳过创建")
+                    except Exception as e:
+                        logging.warning(f"自动创建备件失败，但操作记录已保存: {str(e)}")
+
+                return record_id
+
+        except sqlite3.OperationalError as e:
+            if "database is locked" in str(e) and attempt < max_retries - 1:
+                logging.warning(f"数据库锁定，第 {attempt + 1} 次重试...")
+                time.sleep(retry_delay * (attempt + 1))
+                continue
             else:
-                # 备件不存在，为新备件计算库存
-                new_stock = calculate_stock_for_new_part(part_no)
-                current_app.logger.info(f"新备件 {part_no} 计算库存为: {new_stock}")
+                raise ValueError(f"数据库操作错误: {str(e)}")
+        except Exception as e:
+            raise ValueError(f"创建操作记录失败: {str(e)}")
 
-                # 自动创建新备件
-                part_data = {
-                    'part_no': part_no,
-                    'name': operation_data['description'],
-                    'type': operation_data.get('part_type', '通用'),
-                    'current_stock': new_stock,
-                    'location': operation_data.get('location', ''),
-                    'supplier': operation_data.get('supplier_recipient', ''),
-                    'description': operation_data['description']
-                }
-                create_spare_part(part_data)
+    raise ValueError("创建操作记录失败：数据库繁忙，请稍后重试")
 
-            return cursor.lastrowid
 
-    except sqlite3.IntegrityError as e:
-        raise ValueError(f"数据库完整性错误: {str(e)}")
-    except Exception as e:
-        raise ValueError(f"创建操作记录失败: {str(e)}")
+def calculate_stock_from_operations_with_connection(part_no, conn):
+    """使用现有连接计算库存 - 修正版本"""
+    # 计算所有入库操作的总和
+    cursor = conn.execute('''
+        SELECT COALESCE(SUM(quantity), 0) 
+        FROM operation_records 
+        WHERE part_no = ? AND operation_type IN ('Stock in', 'Stock in - disassemble', 'Stock in - return')
+    ''', (part_no,))
+    total_in = cursor.fetchone()[0] or 0
 
+    # 计算出库操作的总和
+    cursor = conn.execute('''
+        SELECT COALESCE(SUM(quantity), 0) 
+        FROM operation_records 
+        WHERE part_no = ? AND operation_type = 'Stock out'
+    ''', (part_no,))
+    total_out = cursor.fetchone()[0] or 0
+
+    # 计算总库存：所有入库 + 出库
+    total_stock = total_in + total_out
+    final_stock = max(0, total_stock)
+
+    logging.debug(f"库存计算: {part_no} = {total_in}(入库) + {total_out}(出库) = {final_stock}")
+    return final_stock
+
+
+def calculate_stock_for_new_part_with_connection(part_no, conn):
+    """使用现有连接为新备件计算库存 - 修正版本"""
+    # 计算所有入库操作的总和
+    cursor = conn.execute('''
+        SELECT COALESCE(SUM(quantity), 0) 
+        FROM operation_records 
+        WHERE part_no = ? AND operation_type IN ('Stock in', 'Stock in - disassemble', 'Stock in - return')
+    ''', (part_no,))
+    total_in = cursor.fetchone()[0] or 0
+
+    # 计算出库操作的总和
+    cursor = conn.execute('''
+        SELECT COALESCE(SUM(quantity), 0) 
+        FROM operation_records 
+        WHERE part_no = ? AND operation_type = 'Stock out'
+    ''', (part_no,))
+    total_out = cursor.fetchone()[0] or 0
+
+    # 计算总库存：所有入库 + 出库
+    total_stock = total_in + total_out
+    return max(0, total_stock)
 
 def create_location(location_data):
     """创建新库位 - 支持新字段结构"""
@@ -659,7 +797,12 @@ def get_all_operation_records(limit=None):
     """获取所有操作记录"""
     db_manager = DatabaseManager()
     with db_manager.get_connection() as conn:
-        query = 'SELECT * FROM operation_records ORDER BY operation_date DESC'
+        query = '''
+            SELECT id, operation_type, operation_date, supplier_recipient, location, 
+                   part_no, description, part_type, product_model, quantity, work_center, created_date
+            FROM operation_records 
+            ORDER BY operation_date DESC
+        '''
         if limit:
             query += f' LIMIT {limit}'
         cursor = conn.execute(query)
@@ -703,11 +846,11 @@ def get_location_stats():
 
 
 def get_recent_activities(limit=10):
-    """获取最近活动记录"""
+    """获取最近活动记录 - 修复日期处理版本"""
     db_manager = DatabaseManager()
     with db_manager.get_connection() as conn:
         cursor = conn.execute('''
-            SELECT operation_type, part_no, quantity, operation_date, description 
+            SELECT operation_type, part_no, quantity, operation_date, description, supplier_recipient
             FROM operation_records 
             ORDER BY operation_date DESC 
             LIMIT ?
@@ -715,12 +858,46 @@ def get_recent_activities(limit=10):
 
         activities = []
         for record in cursor.fetchall():
+            operation_type = record[0]
+            part_no = record[1]
+            quantity = record[2]
+            operation_date = record[3]
+            description = record[4]
+            supplier_recipient = record[5]
+
+            # 处理日期格式
+            if isinstance(operation_date, str):
+                try:
+                    # 尝试解析 ISO 格式
+                    if 'T' in operation_date:
+                        operation_date = datetime.datetime.fromisoformat(operation_date.replace('Z', '+00:00'))
+                    else:
+                        # 尝试其他常见格式
+                        for fmt in ['%Y-%m-%d %H:%M:%S', '%Y-%m-%d', '%H:%M:%S']:
+                            try:
+                                operation_date = datetime.datetime.strptime(operation_date, fmt)
+                                break
+                            except ValueError:
+                                continue
+                        else:
+                            operation_date = datetime.datetime.now()  # 无法解析，使用当前时间
+                except:
+                    operation_date = datetime.datetime.now()
+
+            # 确定操作类型和显示名称
+            if any(in_type in operation_type.lower() for in_type in ['stock in', 'disassemble', 'return']):
+                activity_type = 'inbound'
+                operator = supplier_recipient or '供应商'
+            else:
+                activity_type = 'outbound'
+                operator = supplier_recipient or '内部领用'
+
             activities.append({
-                'type': 'inbound' if 'in' in record[0].lower() else 'outbound',
-                'part_name': record[4] or record[1],
-                'quantity': record[2],
-                'time': record[3],
-                'operator': '系统导入'
+                'type': activity_type,
+                'part_name': description or part_no,
+                'quantity': quantity,
+                'time': operation_date,
+                'operator': operator
             })
         return activities
 

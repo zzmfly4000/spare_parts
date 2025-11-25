@@ -1,44 +1,34 @@
 {% extends "base.html" %}
 
-{% block title %}智能入库 - 设备备件管理系统{% endblock %}
+{% block title %}智能出库 - 设备备件管理系统{% endblock %}
 
 {% block content %}
 <!-- 页面标题和操作 -->
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-4 mb-4 border-bottom">
     <div>
-        <h1 class="h3 mb-2">智能入库</h1>
-        <p class="text-muted mb-0">快速完成备件入库操作，支持新备件创建和库存更新</p>
+        <h1 class="h3 mb-2">智能出库</h1>
+        <p class="text-muted mb-0">快速完成备件出库操作，实时更新库存状态</p>
     </div>
     <div class="btn-toolbar mb-2 mb-md-0">
         <a href="{{ url_for('operation_records') }}" class="btn btn-outline-secondary me-2">
             <i class="fas fa-history me-1"></i>查看记录
         </a>
-        <a href="{{ url_for('smart_outbound') }}" class="btn btn-outline-danger">
-            <i class="fas fa-arrow-up me-1"></i>转到出库
+        <a href="{{ url_for('smart_inbound') }}" class="btn btn-outline-primary">
+            <i class="fas fa-arrow-down me-1"></i>转到入库
         </a>
     </div>
 </div>
 
 <div class="row">
-    <!-- 左侧：入库表单 -->
+    <!-- 左侧：出库表单 -->
     <div class="col-lg-8">
         <div class="card">
             <div class="card-header">
-                <h5 class="card-title mb-0"><i class="fas fa-arrow-down text-success me-2"></i>入库信息</h5>
+                <h5 class="card-title mb-0"><i class="fas fa-arrow-up text-danger me-2"></i>出库信息</h5>
             </div>
             <div class="card-body">
-                <form method="post" id="inboundForm">
+                <form method="post" id="outboundForm">
                     <div class="row g-3">
-                        <!-- 操作类型选择 -->
-                        <div class="col-md-6">
-                            <label class="form-label">入库类型 *</label>
-                            <select class="form-select" name="operation_type" required>
-                                <option value="Stock in">常规入库</option>
-                                <option value="Stock in - disassemble">拆机件入库</option>
-                                <option value="Stock in - return">返库入库</option>
-                            </select>
-                        </div>
-
                         <!-- 备件选择 - 智能搜索版本 -->
                         <div class="col-md-6">
                             <label class="form-label">选择备件 *</label>
@@ -49,9 +39,6 @@
                                            placeholder="输入备件编号、名称、产品型号或描述..."
                                            autocomplete="off">
                                     <input type="hidden" id="selectedPartNo" name="part_no" required>
-                                    <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#newPartModal">
-                                        <i class="fas fa-plus"></i>
-                                    </button>
                                 </div>
 
                                 <!-- 搜索结果下拉框 -->
@@ -64,6 +51,17 @@
                             <div class="form-text">
                                 <span id="stockInfo" class="text-muted">当前库存: -</span>
                             </div>
+                        </div>
+
+                        <!-- 出库类型选择 -->
+                        <div class="col-md-6">
+                            <label class="form-label">出库类型 *</label>
+                            <select class="form-select" name="operation_type" required>
+                                <option value="Stock out">常规出库</option>
+                                <option value="Stock out - maintenance">维修出库</option>
+                                <option value="Stock out - project">项目出库</option>
+                                <option value="Stock out - emergency">紧急出库</option>
+                            </select>
                         </div>
 
                         <!-- 备件信息显示 -->
@@ -80,8 +78,8 @@
                                             <span id="currentStock" class="fw-bold">-</span>
                                         </div>
                                         <div class="col-md-3">
-                                            <strong>最高库存:</strong>
-                                            <span id="maxStock">-</span>
+                                            <strong>最低库存:</strong>
+                                            <span id="minStock">-</span>
                                         </div>
                                         <div class="col-md-3">
                                             <strong>备件类型:</strong>
@@ -103,26 +101,29 @@
                         </div>
 
                         <div class="col-md-6">
-                            <label for="quantity" class="form-label">入库数量 *</label>
+                            <label for="quantity" class="form-label">出库数量 *</label>
                             <div class="input-group">
                                 <span class="input-group-text"><i class="fas fa-hashtag"></i></span>
                                 <input type="number" class="form-control" id="quantity" name="quantity"
-                                       required min="1" placeholder="请输入入库数量">
+                                       required min="1" placeholder="请输入出库数量">
                                 <span class="input-group-text" id="unitDisplay">单位</span>
                             </div>
-                        </div>
-
-                        <div class="col-md-6">
-                            <label for="supplier" class="form-label">供应商</label>
-                            <div class="input-group">
-                                <span class="input-group-text"><i class="fas fa-truck"></i></span>
-                                <input type="text" class="form-control" id="supplier" name="supplier"
-                                       placeholder="供应商名称">
+                            <div class="form-text">
+                                <span id="remainingStock" class="text-muted">出库后剩余: -</span>
                             </div>
                         </div>
 
                         <div class="col-md-6">
-                            <label for="location" class="form-label">目标库位</label>
+                            <label for="recipient" class="form-label">领用人/部门 *</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-user"></i></span>
+                                <input type="text" class="form-control" id="recipient" name="recipient"
+                                       placeholder="领用人姓名或部门名称" required>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="location" class="form-label">源库位</label>
                             <div class="input-group">
                                 <span class="input-group-text"><i class="fas fa-warehouse"></i></span>
                                 <select class="form-select" id="location" name="location">
@@ -164,20 +165,24 @@
                         </div>
 
                         <div class="col-12">
-                            <label for="description" class="form-label">入库说明</label>
+                            <label for="description" class="form-label">出库说明 *</label>
                             <textarea class="form-control" id="description" name="description"
-                                      rows="3" placeholder="入库来源、批次信息等说明"></textarea>
+                                      rows="3" placeholder="出库用途、项目信息、维修设备等说明" required></textarea>
                         </div>
 
-                        <!-- 库存提示 -->
+                        <!-- 库存预警 -->
                         <div class="col-12">
+                            <div class="alert alert-warning" id="lowStockWarning" style="display: none;">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                <strong>库存预警:</strong> 出库后库存将低于最低库存水平！
+                            </div>
+                            <div class="alert alert-danger" id="outOfStockWarning" style="display: none;">
+                                <i class="fas fa-times-circle me-2"></i>
+                                <strong>库存不足:</strong> 当前库存无法满足出库需求！
+                            </div>
                             <div class="alert alert-info" id="stockUpdateInfo" style="display: none;">
                                 <i class="fas fa-info-circle me-2"></i>
-                                <strong>库存更新:</strong> 入库后库存将更新为 <span id="newStockValue">-</span>
-                            </div>
-                            <div class="alert alert-warning" id="overStockWarning" style="display: none;">
-                                <i class="fas fa-exclamation-triangle me-2"></i>
-                                <strong>库存提醒:</strong> 入库后库存将超过最高库存水平！
+                                <strong>库存更新:</strong> 出库后库存将更新为 <span id="newStockValue">-</span>
                             </div>
                         </div>
 
@@ -187,8 +192,8 @@
                                 <button type="reset" class="btn btn-outline-secondary me-md-2" onclick="resetForm()">
                                     <i class="fas fa-redo me-1"></i>重置
                                 </button>
-                                <button type="submit" class="btn btn-success" id="submitBtn">
-                                    <i class="fas fa-save me-1"></i>确认入库
+                                <button type="submit" class="btn btn-danger" id="submitBtn">
+                                    <i class="fas fa-arrow-up me-1"></i>确认出库
                                 </button>
                             </div>
                         </div>
@@ -202,26 +207,26 @@
     <div class="col-lg-4">
         <!-- 操作指引 -->
         <div class="card mb-4">
-            <div class="card-header bg-success text-white">
+            <div class="card-header bg-danger text-white">
                 <h5 class="card-title mb-0"><i class="fas fa-info-circle me-2"></i>操作指引</h5>
             </div>
             <div class="card-body">
                 <div class="list-group list-group-flush">
                     <div class="list-group-item border-0 px-0">
                         <i class="fas fa-check text-success me-2"></i>
-                        <small>选择入库类型和备件</small>
+                        <small>搜索并选择要出库的备件</small>
                     </div>
                     <div class="list-group-item border-0 px-0">
                         <i class="fas fa-check text-success me-2"></i>
-                        <small>输入准确的入库数量</small>
+                        <small>输入准确的出库数量</small>
                     </div>
                     <div class="list-group-item border-0 px-0">
                         <i class="fas fa-check text-success me-2"></i>
-                        <small>填写供应商和库位信息</small>
+                        <small>填写领用人和用途信息</small>
                     </div>
                     <div class="list-group-item border-0 px-0">
                         <i class="fas fa-check text-success me-2"></i>
-                        <small>系统自动更新库存数量</small>
+                        <small>系统自动检查库存并更新</small>
                     </div>
                 </div>
             </div>
@@ -240,88 +245,18 @@
             </div>
         </div>
 
-        <!-- 最近入库 -->
+        <!-- 最近出库 -->
         <div class="card">
             <div class="card-header">
-                <h5 class="card-title mb-0"><i class="fas fa-clock me-2"></i>最近入库</h5>
+                <h5 class="card-title mb-0"><i class="fas fa-clock me-2"></i>最近出库</h5>
             </div>
             <div class="card-body">
-                <div class="list-group list-group-flush" id="recentInbound">
+                <div class="list-group list-group-flush" id="recentOutbound">
                     <div class="text-center py-3">
-                        <i class="fas fa-arrow-down fa-2x text-muted mb-2"></i>
-                        <p class="text-muted mb-0">暂无入库记录</p>
+                        <i class="fas fa-arrow-up fa-2x text-muted mb-2"></i>
+                        <p class="text-muted mb-0">暂无出库记录</p>
                     </div>
                 </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- 新建备件模态框 -->
-<div class="modal fade" id="newPartModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title"><i class="fas fa-plus-circle me-2"></i>新建备件</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <form id="newPartForm">
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label">备件编号 *</label>
-                            <input type="text" class="form-control" name="part_no" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">备件名称 *</label>
-                            <input type="text" class="form-control" name="name" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">备件类型</label>
-                            <select class="form-select" name="type">
-                                <option value="">选择类型</option>
-                                <option value="机械">机械</option>
-                                <option value="电子">电子</option>
-                                <option value="电气">电气</option>
-                                <option value="液压">液压</option>
-                                <option value="通用">通用</option>
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">产品型号</label>
-                            <input type="text" class="form-control" name="product_model" placeholder="产品具体型号">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">初始库存</label>
-                            <input type="number" class="form-control" name="current_stock" value="0" min="0">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">单位</label>
-                            <input type="text" class="form-control" name="unit" placeholder="个、件、套">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">库位</label>
-                            <select class="form-select" name="location">
-                                <option value="">选择库位...</option>
-                                {% for location in locations %}
-                                <option value="{{ location[0] }}">{{ location[0] }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">供应商</label>
-                            <input type="text" class="form-control" name="supplier" placeholder="供应商名称">
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label">描述</label>
-                            <textarea class="form-control" name="description" rows="2"></textarea>
-                        </div>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                <button type="button" class="btn btn-primary" onclick="createNewPart()">创建备件</button>
             </div>
         </div>
     </div>
@@ -364,12 +299,33 @@
     background-color: #e9ecef;
     border-color: #dee2e6;
 }
+
+.stock-indicator {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+}
+
+.stock-normal {
+    background-color: #d1e7dd;
+    color: #0f5132;
+}
+
+.stock-low {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.stock-out {
+    background-color: #f8d7da;
+    color: #721c24;
+}
 </style>
 {% endblock %}
 
 {% block scripts %}
 <script>
-// 智能搜索功能 - 完整修复版本
+// 智能搜索功能 - 针对出库优化版本
 document.addEventListener('DOMContentLoaded', function() {
     const partSearch = document.getElementById('partSearch');
     const selectedPartNo = document.getElementById('selectedPartNo');
@@ -378,12 +334,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const quantityInput = document.getElementById('quantity');
     const partInfoCard = document.getElementById('partInfoCard');
     const stockInfo = document.getElementById('stockInfo');
+    const remainingStock = document.getElementById('remainingStock');
     const unitDisplay = document.getElementById('unitDisplay');
+    const lowStockWarning = document.getElementById('lowStockWarning');
+    const outOfStockWarning = document.getElementById('outOfStockWarning');
     const stockUpdateInfo = document.getElementById('stockUpdateInfo');
-    const overStockWarning = document.getElementById('overStockWarning');
     const partName = document.getElementById('partName');
     const currentStock = document.getElementById('currentStock');
-    const maxStock = document.getElementById('maxStock');
+    const minStock = document.getElementById('minStock');
     const partType = document.getElementById('partType');
     const productModel = document.getElementById('productModel');
     const partLocation = document.getElementById('partLocation');
@@ -392,10 +350,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const partTypeInput = document.getElementById('part_type');
     const productModelInput = document.getElementById('product_model');
     const stockStats = document.getElementById('stockStats');
-    const recentInbound = document.getElementById('recentInbound');
+    const recentOutbound = document.getElementById('recentOutbound');
 
     let searchTimeout;
     let currentSelection = -1;
+    let currentPartData = null;
 
     // 搜索输入处理
     partSearch.addEventListener('input', function() {
@@ -456,7 +415,13 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .then(data => {
                 if (data.success && data.results && data.results.length > 0) {
-                    displaySearchResults(data.results);
+                    // 过滤掉库存为0的备件
+                    const availableParts = data.results.filter(part => part.current_stock > 0);
+                    if (availableParts.length > 0) {
+                        displaySearchResults(availableParts);
+                    } else {
+                        showNoAvailableParts();
+                    }
                 } else {
                     showNoResults();
                 }
@@ -477,6 +442,19 @@ document.addEventListener('DOMContentLoaded', function() {
             item.href = '#';
             item.className = 'list-group-item list-group-item-action';
             item.dataset.index = index;
+
+            // 根据库存状态确定样式
+            let stockStatus = 'stock-normal';
+            let statusText = '库存充足';
+
+            if (part.current_stock === 0) {
+                stockStatus = 'stock-out';
+                statusText = '缺货';
+            } else if (part.current_stock <= (part.min_stock || 0)) {
+                stockStatus = 'stock-low';
+                statusText = '低库存';
+            }
+
             item.innerHTML = `
                 <div class="d-flex w-100 justify-content-between align-items-start">
                     <div class="flex-grow-1">
@@ -485,12 +463,12 @@ document.addEventListener('DOMContentLoaded', function() {
                             ${part.type ? `<span class="badge bg-secondary me-1">${escapeHtml(part.type)}</span>` : ''}
                             ${part.product_model ? `<span class="badge bg-primary me-1">型号: ${escapeHtml(part.product_model)}</span>` : ''}
                             ${part.location ? `<span class="badge bg-info me-1">${escapeHtml(part.location)}</span>` : ''}
-                            ${part.supplier ? `<span class="badge bg-warning">${escapeHtml(part.supplier)}</span>` : ''}
+                            <span class="stock-indicator ${stockStatus}">${statusText}</span>
                         </p>
                         <small class="text-muted">${escapeHtml(part.description || '无描述')}</small>
                     </div>
                     <div class="text-end">
-                        <div class="fw-bold ${part.current_stock <= 0 ? 'text-danger' : part.current_stock < 10 ? 'text-warning' : 'text-success'}">
+                        <div class="fw-bold ${part.current_stock === 0 ? 'text-danger' : part.current_stock <= (part.min_stock || 0) ? 'text-warning' : 'text-success'}">
                             ${part.current_stock}
                         </div>
                         <small class="text-muted">库存</small>
@@ -520,6 +498,7 @@ document.addEventListener('DOMContentLoaded', function() {
         selectedPartNo.value = part.part_no;
         hideSearchResults();
         currentSelection = -1;
+        currentPartData = part;
 
         // 更新备件信息显示
         updatePartInfo(part);
@@ -550,7 +529,7 @@ document.addEventListener('DOMContentLoaded', function() {
         fetchOperationStats(part.part_no);
 
         // 更新库存信息显示
-        updateStockInfo();
+        updateStockWarnings();
     }
 
     // 获取备件详细信息
@@ -560,7 +539,7 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 if (data.success) {
                     const part = data.part;
-                    maxStock.textContent = part.max_stock || '未设置';
+                    minStock.textContent = part.min_stock || '未设置';
                     unitDisplay.textContent = part.unit || '个';
 
                     // 更新库存统计显示
@@ -582,7 +561,10 @@ document.addEventListener('DOMContentLoaded', function() {
         let stockStatus = 'success';
         let statusText = '库存充足';
 
-        if (currentStockValue <= minStockValue) {
+        if (currentStockValue === 0) {
+            stockStatus = 'danger';
+            statusText = '缺货';
+        } else if (currentStockValue <= minStockValue) {
             stockStatus = 'danger';
             statusText = '库存告急';
         } else if (currentStockValue <= minStockValue * 1.5) {
@@ -620,107 +602,81 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    updateRecentInbound(data.stats);
+                    updateRecentOutbound(data.stats);
                 }
             })
             .catch(error => {
                 console.error('获取操作统计失败:', error);
                 // 即使获取失败也显示默认信息
-                updateRecentInbound({
-                    new_parts_in: 0,
-                    disassemble_parts_in: 0,
-                    return_parts_in: 0,
+                updateRecentOutbound({
                     parts_out: 0
                 });
             });
     }
 
-    // 更新最近入库记录
-    function updateRecentInbound(stats) {
-        let content = '';
-        let hasData = false;
-
-        if (stats.new_parts_in > 0) {
-            content += `
+    // 更新最近出库记录
+    function updateRecentOutbound(stats) {
+        if (stats.parts_out > 0) {
+            recentOutbound.innerHTML = `
                 <div class="list-group-item border-0 px-0 py-2">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
-                            <strong class="d-block">全新件入库</strong>
+                            <strong class="d-block">总出库量</strong>
                             <small class="text-muted">历史累计</small>
                         </div>
-                        <span class="badge bg-success">+${stats.new_parts_in}</span>
+                        <span class="badge bg-danger">${Math.abs(stats.parts_out)}</span>
                     </div>
                 </div>
             `;
-            hasData = true;
-        }
-        if (stats.disassemble_parts_in > 0) {
-            content += `
-                <div class="list-group-item border-0 px-0 py-2">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <strong class="d-block">拆机件入库</strong>
-                            <small class="text-muted">历史累计</small>
-                        </div>
-                        <span class="badge bg-info">+${stats.disassemble_parts_in}</span>
-                    </div>
-                </div>
-            `;
-            hasData = true;
-        }
-        if (stats.return_parts_in > 0) {
-            content += `
-                <div class="list-group-item border-0 px-0 py-2">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <strong class="d-block">返库入库</strong>
-                            <small class="text-muted">历史累计</small>
-                        </div>
-                        <span class="badge bg-warning">+${stats.return_parts_in}</span>
-                    </div>
-                </div>
-            `;
-            hasData = true;
-        }
-
-        if (hasData) {
-            recentInbound.innerHTML = content;
         } else {
-            recentInbound.innerHTML = `
+            recentOutbound.innerHTML = `
                 <div class="text-center py-3">
-                    <i class="fas fa-arrow-down fa-2x text-muted mb-2"></i>
-                    <p class="text-muted mb-0">暂无入库记录</p>
+                    <i class="fas fa-arrow-up fa-2x text-muted mb-2"></i>
+                    <p class="text-muted mb-0">暂无出库记录</p>
                 </div>
             `;
         }
     }
 
-    // 更新库存信息
-    function updateStockInfo() {
+    // 更新库存警告
+    function updateStockWarnings() {
         const selectedPartNoValue = selectedPartNo.value;
-        const inboundQuantity = parseInt(quantityInput.value) || 0;
+        const outboundQuantity = parseInt(quantityInput.value) || 0;
 
-        resetInfo();
+        resetWarnings();
 
-        if (selectedPartNoValue && inboundQuantity > 0) {
+        if (selectedPartNoValue && outboundQuantity > 0) {
             // 从当前显示的库存信息获取数据
             const currentStockValue = parseInt(currentStock.textContent) || 0;
-            const maxStockValue = parseInt(maxStock.textContent) || 0;
+            const minStockValue = parseInt(minStock.textContent) || 0;
 
-            const newStock = currentStockValue + inboundQuantity;
+            const newStock = currentStockValue - outboundQuantity;
             newStockValue.textContent = newStock;
-            stockUpdateInfo.style.display = 'block';
 
-            if (maxStockValue > 0 && newStock > maxStockValue) {
-                overStockWarning.style.display = 'block';
+            // 更新剩余库存显示
+            remainingStock.textContent = `出库后剩余: ${newStock}`;
+
+            if (newStock < 0) {
+                outOfStockWarning.style.display = 'block';
+                document.getElementById('submitBtn').disabled = true;
+            } else {
+                stockUpdateInfo.style.display = 'block';
+                document.getElementById('submitBtn').disabled = false;
+
+                if (newStock <= minStockValue) {
+                    lowStockWarning.style.display = 'block';
+                }
             }
         }
     }
 
-    // 重置信息
-    function resetInfo() {
+    // 重置警告
+    function resetWarnings() {
+        lowStockWarning.style.display = 'none';
+        outOfStockWarning.style.display = 'none';
         stockUpdateInfo.style.display = 'none';
-        overStockWarning.style.display = 'none';
+        remainingStock.textContent = '出库后剩余: -';
+        document.getElementById('submitBtn').disabled = false;
     }
 
     // 重置备件信息
@@ -731,16 +687,16 @@ document.addEventListener('DOMContentLoaded', function() {
         locationSelect.value = '';
         partTypeInput.value = '';
         productModelInput.value = '';
-        stockUpdateInfo.style.display = 'none';
-        overStockWarning.style.display = 'none';
+        currentPartData = null;
+        resetWarnings();
         stockStats.innerHTML = `
             <i class="fas fa-box-open fa-2x text-muted mb-3"></i>
             <p class="text-muted mb-0">请选择备件查看库存状态</p>
         `;
-        recentInbound.innerHTML = `
+        recentOutbound.innerHTML = `
             <div class="text-center py-3">
-                <i class="fas fa-arrow-down fa-2x text-muted mb-2"></i>
-                <p class="text-muted mb-0">暂无入库记录</p>
+                <i class="fas fa-arrow-up fa-2x text-muted mb-2"></i>
+                <p class="text-muted mb-0">暂无出库记录</p>
             </div>
         `;
     }
@@ -750,7 +706,7 @@ document.addEventListener('DOMContentLoaded', function() {
         partSearch.value = '';
         resetPartInfo();
         quantityInput.value = '';
-        document.getElementById('supplier').value = '';
+        document.getElementById('recipient').value = '';
         document.getElementById('work_center').value = '';
         document.getElementById('description').value = '';
     }
@@ -782,6 +738,17 @@ document.addEventListener('DOMContentLoaded', function() {
             <div class="list-group-item text-center text-muted py-3">
                 <i class="fas fa-search me-2"></i>
                 未找到匹配的备件
+            </div>
+        `;
+        showSearchResults();
+    }
+
+    // 显示无可用备件
+    function showNoAvailableParts() {
+        searchResultsList.innerHTML = `
+            <div class="list-group-item text-center text-warning py-3">
+                <i class="fas fa-exclamation-circle me-2"></i>
+                找到匹配备件但库存均为0，无法出库
             </div>
         `;
         showSearchResults();
@@ -828,87 +795,48 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // 数量输入变化事件
-    quantityInput.addEventListener('input', updateStockInfo);
-
-    // 创建新备件
-    window.createNewPart = function() {
-        const form = document.getElementById('newPartForm');
-        const formData = new FormData(form);
-
-        // 验证必填字段
-        const partNo = formData.get('part_no');
-        const name = formData.get('name');
-
-        if (!partNo || !name) {
-            alert('请填写备件编号和名称');
-            return;
-        }
-
-        // 创建AJAX请求创建新备件
-        fetch('/api/create_part', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                part_no: partNo,
-                name: name,
-                type: formData.get('type'),
-                product_model: formData.get('product_model'),
-                current_stock: parseInt(formData.get('current_stock')) || 0,
-                unit: formData.get('unit'),
-                location: formData.get('location'),
-                supplier: formData.get('supplier'),
-                description: formData.get('description')
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // 添加到备件选择下拉框
-                const part = {
-                    part_no: partNo,
-                    name: name,
-                    current_stock: parseInt(formData.get('current_stock')) || 0,
-                    location: formData.get('location') || '',
-                    type: formData.get('type') || '',
-                    product_model: formData.get('product_model') || '',
-                    supplier: formData.get('supplier') || '',
-                    description: formData.get('description') || ''
-                };
-
-                selectPart(part);
-
-                // 关闭模态框
-                bootstrap.Modal.getInstance(document.getElementById('newPartModal')).hide();
-                form.reset();
-
-                alert('备件创建成功！');
-            } else {
-                alert('创建备件失败: ' + data.message);
-            }
-        })
-        .catch(error => {
-            console.error('创建备件失败:', error);
-            alert('创建备件失败，请重试');
-        });
-    }
+    quantityInput.addEventListener('input', updateStockWarnings);
 
     // 表单提交处理
-    document.getElementById('inboundForm').addEventListener('submit', function(e) {
+    document.getElementById('outboundForm').addEventListener('submit', function(e) {
         const partNo = selectedPartNo.value;
         const quantity = quantityInput.value;
+        const recipient = document.getElementById('recipient').value;
+        const description = document.getElementById('description').value;
 
         if (!partNo) {
             e.preventDefault();
-            alert('请选择要入库的备件！');
+            alert('请选择要出库的备件！');
             partSearch.focus();
             return false;
         }
 
         if (!quantity || quantity < 1) {
             e.preventDefault();
-            alert('请输入有效的入库数量！');
+            alert('请输入有效的出库数量！');
+            quantityInput.focus();
+            return false;
+        }
+
+        if (!recipient) {
+            e.preventDefault();
+            alert('请输入领用人/部门信息！');
+            document.getElementById('recipient').focus();
+            return false;
+        }
+
+        if (!description) {
+            e.preventDefault();
+            alert('请输入出库说明！');
+            document.getElementById('description').focus();
+            return false;
+        }
+
+        // 检查库存是否足够
+        const currentStockValue = parseInt(currentStock.textContent) || 0;
+        if (quantity > currentStockValue) {
+            e.preventDefault();
+            alert(`出库数量超过当前库存！当前库存: ${currentStockValue}`);
             quantityInput.focus();
             return false;
         }
