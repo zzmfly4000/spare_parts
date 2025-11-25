@@ -341,6 +341,7 @@ def update_spare_part(part_id, part_data):
             # 构建动态更新语句
             fields = []
             values = []
+
             for key, value in part_data.items():
                 if key != 'id':  # 排除ID字段
                     fields.append(f"{key} = ?")
@@ -356,6 +357,14 @@ def update_spare_part(part_id, part_data):
                         if validated_value < 0:
                             raise ValueError("单价不能为负数")
                         values.append(validated_value)
+                    elif key == 'key_part':
+                        # 处理布尔值
+                        if isinstance(value, bool):
+                            values.append(value)
+                        elif isinstance(value, str):
+                            values.append(value.lower() in ['true', 'yes', '1', '是'])
+                        else:
+                            values.append(bool(value))
                     else:
                         values.append(value)
 
@@ -364,7 +373,7 @@ def update_spare_part(part_id, part_data):
 
             values.append(part_id)  # 添加WHERE条件值
 
-            query = f"UPDATE spare_parts SET {', '.join(fields)} WHERE id = ?"
+            query = f"UPDATE spare_parts SET {', '.join(fields)}, updated_date = CURRENT_TIMESTAMP WHERE id = ?"
             cursor = conn.execute(query, values)
 
             if cursor.rowcount == 0:
@@ -377,6 +386,47 @@ def update_spare_part(part_id, part_data):
     except Exception as e:
         raise ValueError(f"更新备件失败: {str(e)}")
 
+
+def batch_update_part_info(update_list):
+    """批量更新备件信息 - 专门用于导入优化"""
+    db_manager = DatabaseManager()
+    updated_count = 0
+    errors = []
+
+    try:
+        with db_manager.get_connection() as conn:
+            for update_item in update_list:
+                try:
+                    part_id = update_item['part_id']
+                    update_data = update_item['update_data']
+
+                    # 构建动态更新语句
+                    fields = []
+                    values = []
+
+                    for key, value in update_data.items():
+                        fields.append(f"{key} = ?")
+                        values.append(value)
+
+                    # 添加更新时间
+                    fields.append("updated_date = CURRENT_TIMESTAMP")
+
+                    # 添加WHERE条件
+                    values.append(part_id)
+
+                    query = f"UPDATE spare_parts SET {', '.join(fields)} WHERE id = ?"
+                    cursor = conn.execute(query, values)
+
+                    if cursor.rowcount > 0:
+                        updated_count += 1
+
+                except Exception as e:
+                    errors.append(f"备件ID {part_id} 更新失败: {str(e)}")
+
+    except Exception as e:
+        errors.append(f"批量更新过程失败: {str(e)}")
+
+    return updated_count, errors
 
 def delete_spare_part(part_id):
     """删除备件"""
