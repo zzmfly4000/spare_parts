@@ -217,6 +217,37 @@ equipment_spare_parts_system/
 #### 3.5.2 静态资源
 - `static/css/style.css`: 自定义样式文件
 - `static/js/main.js`: 自定义JavaScript文件
+### 3.3.5 `routes/import_export_routes.py` - 数据导入导出路由模块
+- **功能描述**: 处理数据导入导出相关的HTTP请求和文件操作，提供完整的Excel数据处理能力
+- **核心特性**:
+  - 支持备件信息、库位信息和操作记录的批量导入导出
+  - 提供标准模板下载功能
+  - 实现优化的库存计算和批量处理机制
+  - 支持详细的错误处理和报告生成
+- **路由端点**:
+  - `GET /import_locations`: 库位信息导入页面
+  - `POST /import_locations`: 处理库位信息导入
+  - `GET /download_locations_template`: 下载库位导入模板
+  - `GET /import_part_info_only`: 备件信息更新导入页面
+  - `POST /import_part_info_only`: 处理备件信息更新导入
+  - `GET /download_part_info_update_template`: 下载备件信息更新模板
+  - `GET /import_operations`: 操作记录导入页面（库存计算优化版）
+  - `POST /import_operations`: 处理操作记录导入
+  - `GET /download_operations_template`: 下载操作记录导入模板
+  - `GET /download_import_report/<import_type>/<import_id>`: 下载导入错误报告
+  - `GET /export_parts`: 导出备件信息
+  - `GET /export_parts_advanced`: 高级备件信息导出
+  - `GET /export_operations`: 导出操作记录
+- **核心优化**:
+  - `process_operations_import_optimized`: 优化的操作记录导入处理函数，实现实时库存更新和批量处理
+  - `process_part_info_update_advanced`: 高级备件信息更新处理函数，针对大数据量优化
+  - 内存缓存预加载机制，减少数据库查询次数
+  - 批量SQL操作提高处理效率
+- **安全特性**:
+  - 文件类型和大小验证
+  - 数据清理和验证机制
+  - 详细的错误日志记录
+  - 权限控制通过路由层实现
 
 ## 4. 数据库设计
 
