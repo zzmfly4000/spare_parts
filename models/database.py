@@ -661,45 +661,46 @@ def calculate_stock_for_new_part_with_connection(part_no, conn):
     total_stock = total_in + total_out
     return max(0, total_stock)
 
-def create_location(location_data):
-    """创建新库位 - 支持新字段结构"""
-    db_manager = DatabaseManager()
+
+def create_location_fast(location_data, conn=None):
+    """创建新库位 - 高性能版本"""
     try:
-        with db_manager.get_connection() as conn:
-            # 验证关键字段
-            if not location_data.get('location_code'):
-                raise ValueError("实际库位不能为空")
+        if conn is None:
+            db_manager = DatabaseManager()
+            conn = db_manager.get_connection()
 
-            # 验证容量
-            capacity = safe_int(location_data.get('capacity', 0))
-            if capacity < 0:
-                raise ValueError("库位容量不能为负数")
+        # 验证关键字段
+        if not location_data.get('location_code'):
+            raise ValueError("实际库位不能为空")
 
-            # 验证状态 - 放宽验证
-            valid_statuses = ['free', 'in_use', 'low_stock']
-            status = location_data.get('status', 'free')
-            if status not in valid_statuses:
-                # 不在标准列表中，使用默认值但不报错
-                status = 'free'
-                logging.warning(f"库位状态值 '{location_data.get('status')}' 不在标准列表中，已设置为默认值 'free'")
+        # 验证容量
+        capacity = safe_int(location_data.get('capacity', 0))
+        if capacity < 0:
+            raise ValueError("库位容量不能为负数")
 
-            cursor = conn.execute('''
-                INSERT INTO locations 
-                (location_code, rack, level, position, side, status, capacity, size_type, description, part_count)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (
-                location_data['location_code'],
-                location_data.get('rack', ''),
-                location_data.get('level', ''),
-                location_data.get('position', ''),
-                location_data.get('side', ''),
-                status,
-                capacity,
-                location_data.get('size_type', ''),
-                location_data.get('description', ''),
-                location_data.get('part_count', 0)
-            ))
-            return cursor.lastrowid
+        # 验证状态
+        valid_statuses = ['free', 'in_use', 'low_stock']
+        status = location_data.get('status', 'free')
+        if status not in valid_statuses:
+            status = 'free'
+
+        cursor = conn.execute('''
+            INSERT INTO locations 
+            (location_code, rack, level, position, side, status, capacity, size_type, description, part_count)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            location_data['location_code'],
+            location_data.get('rack', ''),
+            location_data.get('level', ''),
+            location_data.get('position', ''),
+            location_data.get('side', ''),
+            status,
+            capacity,
+            location_data.get('size_type', ''),
+            location_data.get('description', ''),
+            location_data.get('part_count', 0)
+        ))
+        return True
 
     except sqlite3.IntegrityError as e:
         if "UNIQUE constraint failed" in str(e):
@@ -707,7 +708,7 @@ def create_location(location_data):
         else:
             raise ValueError(f"数据库完整性错误: {str(e)}")
     except Exception as e:
-        raise ValueError(f"创建库位失败: {str(e)}")
+        pass
 
 
 def get_location_by_code(location_code):
@@ -718,48 +719,46 @@ def get_location_by_code(location_code):
         return cursor.fetchone()
 
 
-def update_location(location_code, location_data):
-    """更新库位信息 - 支持新字段结构"""
-    db_manager = DatabaseManager()
+def update_location_fast(location_code, location_data, conn=None):
+    """更新库位信息 - 高性能版本（使用现有连接）"""
     try:
-        with db_manager.get_connection() as conn:
-            # 构建动态更新语句
-            fields = []
-            values = []
-            for key, value in location_data.items():
-                if key != 'location_code':  # 排除主键字段
-                    fields.append(f"{key} = ?")
+        if conn is None:
+            db_manager = DatabaseManager()
+            conn = db_manager.get_connection()
 
-                    # 验证关键字段
-                    if key == 'capacity':
-                        validated_value = safe_int(value)
-                        if validated_value < 0:
-                            raise ValueError("容量不能为负数")
-                        values.append(validated_value)
-                    elif key == 'status':
-                        # 状态标准化
-                        valid_statuses = ['free', 'in_use', 'low_stock']
-                        if value not in valid_statuses:
-                            # 不在标准列表中，使用默认值但不报错
-                            value = 'free'
-                            logging.warning(
-                                f"更新库位时状态值 '{location_data.get('status')}' 不在标准列表中，已设置为默认值 'free'")
-                        values.append(value)
-                    else:
-                        values.append(value)
+        # 构建动态更新语句
+        fields = []
+        values = []
+        for key, value in location_data.items():
+            if key != 'location_code':
+                fields.append(f"{key} = ?")
 
-            if not fields:
-                raise ValueError("没有需要更新的字段")
+                # 验证关键字段
+                if key == 'capacity':
+                    validated_value = safe_int(value)
+                    if validated_value < 0:
+                        raise ValueError("容量不能为负数")
+                    values.append(validated_value)
+                elif key == 'status':
+                    valid_statuses = ['free', 'in_use', 'low_stock']
+                    if value not in valid_statuses:
+                        value = 'free'
+                    values.append(value)
+                else:
+                    values.append(value)
 
-            values.append(location_code)  # 添加WHERE条件值
+        if not fields:
+            raise ValueError("没有需要更新的字段")
 
-            query = f"UPDATE locations SET {', '.join(fields)} WHERE location_code = ?"
-            cursor = conn.execute(query, values)
+        values.append(location_code)
 
-            if cursor.rowcount == 0:
-                raise ValueError("库位不存在或没有数据被更新")
+        query = f"UPDATE locations SET {', '.join(fields)} WHERE location_code = ?"
+        cursor = conn.execute(query, values)
 
-            return cursor.rowcount
+        if cursor.rowcount == 0:
+            return False
+
+        return True
 
     except Exception as e:
         raise ValueError(f"更新库位失败: {str(e)}")
@@ -1001,6 +1000,67 @@ def get_operation_statistics(part_no):
 
         return stats
 
+
+def batch_create_locations(locations_data, conn=None):
+    """批量创建库位 - 高性能版本"""
+    if not locations_data:
+        return 0
+
+    created_count = 0
+
+    try:
+        if conn is None:
+            db_manager = DatabaseManager()
+            conn = db_manager.get_connection()
+
+        for location_data in locations_data:
+            try:
+                create_location_fast(location_data, conn)
+                created_count += 1
+            except Exception:
+                # 跳过错误，继续处理其他记录
+                continue
+
+        if conn is None:
+            conn.commit()
+
+        return created_count
+
+    except Exception as e:
+        if conn is None:
+            conn.rollback()
+        raise e
+
+
+def batch_update_locations(update_list, conn=None):
+    """批量更新库位 - 高性能版本"""
+    if not update_list:
+        return 0
+
+    updated_count = 0
+
+    try:
+        if conn is None:
+            db_manager = DatabaseManager()
+            conn = db_manager.get_connection()
+
+        for update_item in update_list:
+            try:
+                update_location_fast(update_item['location_code'], update_item['update_data'], conn)
+                updated_count += 1
+            except Exception:
+                # 跳过错误，继续处理其他记录
+                continue
+
+        if conn is None:
+            conn.commit()
+
+        return updated_count
+
+    except Exception as e:
+        if conn is None:
+            conn.rollback()
+        raise e
 
 # 添加辅助函数
 def safe_int(value, default=0):

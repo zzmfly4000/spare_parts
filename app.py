@@ -19,9 +19,9 @@ def create_app(config_name='default'):
         app.config['DEBUG'] = True
         app.config['SECRET_KEY'] = 'dev-secret-key'
         app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-        # 开发环境日志配置
+        # 开发环境日志配置 - 减少导入时的日志输出
         logging.basicConfig(
-            level=logging.DEBUG,
+            level=logging.INFO,  # 从DEBUG改为INFO，减少日志量
             format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
         )
     elif config_name == 'production':
@@ -30,9 +30,18 @@ def create_app(config_name='default'):
         app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
         # 生产环境日志配置
         logging.basicConfig(
-            level=logging.INFO,
+            level=logging.WARNING,  # 生产环境减少日志
             format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
         )
+
+    # 性能优化：配置数据库连接池和超时
+    app.config.update(
+        DATABASE_OPTIONS={
+            'timeout': 60.0,  # 增加超时时间
+            'check_same_thread': False,
+            'isolation_level': None  # 自动提交模式
+        }
+    )
 
     # 配置数据库连接池
     app.config.update(
