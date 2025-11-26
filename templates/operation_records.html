@@ -1,3 +1,5 @@
+<!-- [file name]: operation_records.html -->
+<!-- [file content begin] -->
 {% extends "base.html" %}
 
 {% block title %}操作记录 - 设备备件管理系统{% endblock %}
@@ -7,7 +9,7 @@
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-4 mb-4 border-bottom">
     <div>
         <h1 class="h3 mb-2">操作记录</h1>
-        <p class="text-muted mb-0">查看所有入库和出库操作记录</p>
+        <p class="text-muted mb-0">查看所有入库和出库操作记录 - 实时更新</p>
     </div>
     <div class="btn-toolbar mb-2 mb-md-0">
         <div class="btn-group">
@@ -24,10 +26,10 @@
 <!-- 筛选工具栏 -->
 <div class="card mb-4">
     <div class="card-body">
-        <form method="get" class="row g-3">
+        <form method="get" class="row g-3" id="filterForm">
             <div class="col-md-3">
                 <label class="form-label">操作类型</label>
-                <select class="form-select" name="operation_type">
+                <select class="form-select" name="operation_type" onchange="this.form.submit()">
                     <option value="">所有类型</option>
                     <option value="Stock in" {% if operation_type == 'Stock in' %}selected{% endif %}>入库</option>
                     <option value="Stock out" {% if operation_type == 'Stock out' %}selected{% endif %}>出库</option>
@@ -37,21 +39,32 @@
             </div>
             <div class="col-md-3">
                 <label class="form-label">开始日期</label>
-                <input type="date" class="form-control" name="date_from" value="{{ date_from }}">
+                <input type="date" class="form-control" name="date_from" value="{{ date_from }}" onchange="this.form.submit()">
             </div>
             <div class="col-md-3">
                 <label class="form-label">结束日期</label>
-                <input type="date" class="form-control" name="date_to" value="{{ date_to }}">
+                <input type="date" class="form-control" name="date_to" value="{{ date_to }}" onchange="this.form.submit()">
             </div>
             <div class="col-md-3">
                 <label class="form-label">备件编号</label>
-                <input type="text" class="form-control" name="part_no" value="{{ part_no }}" placeholder="备件编号">
+                <div class="input-group">
+                    <input type="text" class="form-control" name="part_no" value="{{ part_no }}" placeholder="备件编号">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
             </div>
             <div class="col-12">
-                <div class="d-flex justify-content-end">
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-filter me-1"></i>筛选
-                    </button>
+                <div class="d-flex justify-content-between align-items-center">
+                    <small class="text-muted">共 {{ total_operations }} 条记录</small>
+                    <div>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearFilters()">
+                            <i class="fas fa-times me-1"></i>清除筛选
+                        </button>
+                        <button type="button" class="btn btn-outline-primary btn-sm ms-2" onclick="refreshData()">
+                            <i class="fas fa-sync-alt me-1"></i>刷新
+                        </button>
+                    </div>
                 </div>
             </div>
         </form>
@@ -61,8 +74,21 @@
 <!-- 操作记录列表 -->
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="card-title mb-0">操作记录列表</h5>
-        <span class="text-muted">共 {{ total_operations }} 条记录</span>
+        <h5 class="card-title mb-0">
+            <i class="fas fa-list me-2"></i>操作记录列表
+            {% if operations %}
+            <span class="badge bg-primary ms-2">{{ operations|length }}/{{ total_operations }}</span>
+            {% endif %}
+        </h5>
+        <div class="d-flex align-items-center">
+            <span class="text-muted me-3">每页显示:</span>
+            <select class="form-select form-select-sm" style="width: auto;" onchange="changePerPage(this.value)">
+                <option value="10" {% if per_page == 10 %}selected{% endif %}>10</option>
+                <option value="20" {% if per_page == 20 %}selected{% endif %}>20</option>
+                <option value="50" {% if per_page == 50 %}selected{% endif %}>50</option>
+                <option value="100" {% if per_page == 100 %}selected{% endif %}>100</option>
+            </select>
+        </div>
     </div>
     <div class="card-body">
         {% if operations %}
@@ -85,7 +111,7 @@
                 </thead>
                 <tbody>
                     {% for record in operations %}
-                    <tr>
+                    <tr id="record-{{ record[0] }}" class="{% if loop.index <= 3 %}table-active{% endif %}">
                         <td>
                             {% if 'stock in' in record[1].lower() %}
                             <span class="badge bg-success">{{ record[1] }}</span>
@@ -154,23 +180,27 @@
 
                 <li class="page-item {% if current_page == 1 %}disabled{% endif %}">
                     <a class="page-link" href="{{ url_for('operation_records', page=current_page-1, operation_type=operation_type, date_from=date_from, date_to=date_to, part_no=part_no, per_page=per_page) }}">
-                        上一页
+                        <i class="fas fa-chevron-left"></i> 上一页
                     </a>
                 </li>
 
                 {% for p in range(1, total_pages + 1) %}
-                    {% if p >= current_page - 2 and p <= current_page + 2 %}
+                    {% if p == 1 or p == total_pages or (p >= current_page - 1 and p <= current_page + 1) %}
                     <li class="page-item {% if p == current_page %}active{% endif %}">
                         <a class="page-link" href="{{ url_for('operation_records', page=p, operation_type=operation_type, date_from=date_from, date_to=date_to, part_no=part_no, per_page=per_page) }}">
                             {{ p }}
                         </a>
+                    </li>
+                    {% elif p == current_page - 2 or p == current_page + 2 %}
+                    <li class="page-item disabled">
+                        <span class="page-link">...</span>
                     </li>
                     {% endif %}
                 {% endfor %}
 
                 <li class="page-item {% if current_page == total_pages %}disabled{% endif %}">
                     <a class="page-link" href="{{ url_for('operation_records', page=current_page+1, operation_type=operation_type, date_from=date_from, date_to=date_to, part_no=part_no, per_page=per_page) }}">
-                        下一页
+                        下一页 <i class="fas fa-chevron-right"></i>
                     </a>
                 </li>
             </ul>
@@ -203,12 +233,7 @@
             <div class="card-body text-center">
                 <i class="fas fa-arrow-down text-success"></i>
                 <div class="number">
-                    {% set inbound_count = 0 %}
-                    {% for record in operations %}
-                        {% if 'stock in' in record[1].lower() %}
-                            {% set inbound_count = inbound_count + 1 %}
-                        {% endif %}
-                    {% endfor %}
+                    {% set inbound_count = operations|selectattr('1', 'equalto', 'Stock in')|list|length %}
                     {{ inbound_count }}
                 </div>
                 <div class="text-muted">入库记录</div>
@@ -220,12 +245,7 @@
             <div class="card-body text-center">
                 <i class="fas fa-arrow-up text-danger"></i>
                 <div class="number">
-                    {% set outbound_count = 0 %}
-                    {% for record in operations %}
-                        {% if 'stock out' in record[1].lower() %}
-                            {% set outbound_count = outbound_count + 1 %}
-                        {% endif %}
-                    {% endfor %}
+                    {% set outbound_count = operations|selectattr('1', 'equalto', 'Stock out')|list|length %}
                     {{ outbound_count }}
                 </div>
                 <div class="text-muted">出库记录</div>
@@ -237,30 +257,127 @@
             <div class="card-body text-center">
                 <i class="fas fa-boxes text-primary"></i>
                 <div class="number">{{ operations|length }}</div>
-                <div class="text-muted">总记录数</div>
+                <div class="text-muted">当前页记录</div>
             </div>
         </div>
     </div>
     <div class="col-md-3">
         <div class="card stat-card">
             <div class="card-body text-center">
-                <i class="fas fa-calendar text-info"></i>
-                <div class="number">
-                    {% set unique_dates = [] %}
-                    {% for record in operations %}
-                        {% if record[2] %}
-                            {% set date_str = record[2]|date('%Y-%m-%d') %}
-                            {% if date_str and date_str not in unique_dates %}
-                                {% set _ = unique_dates.append(date_str) %}
-                            {% endif %}
-                        {% endif %}
-                    {% endfor %}
-                    {{ unique_dates|length }}
-                </div>
-                <div class="text-muted">涉及天数</div>
+                <i class="fas fa-database text-info"></i>
+                <div class="number">{{ total_operations }}</div>
+                <div class="text-muted">总记录数</div>
             </div>
         </div>
     </div>
 </div>
 {% endif %}
 {% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 检查URL中是否有锚点，如果有则滚动到该记录
+    const hash = window.location.hash;
+    if (hash && hash.startsWith('#record-')) {
+        const targetElement = document.querySelector(hash);
+        if (targetElement) {
+            setTimeout(() => {
+                targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                targetElement.classList.add('highlight-record');
+                setTimeout(() => {
+                    targetElement.classList.remove('highlight-record');
+                }, 3000);
+            }, 500);
+        }
+    }
+
+    // 添加高亮样式
+    const style = document.createElement('style');
+    style.textContent = `
+        .highlight-record {
+            animation: highlightFlash 3s ease-in-out;
+            background-color: rgba(255, 255, 0, 0.2) !important;
+        }
+        @keyframes highlightFlash {
+            0% { background-color: rgba(255, 255, 0, 0.8); }
+            50% { background-color: rgba(255, 255, 0, 0.4); }
+            100% { background-color: rgba(255, 255, 0, 0.2); }
+        }
+        .table-active {
+            background-color: rgba(0, 123, 255, 0.1) !important;
+        }
+    `;
+    document.head.appendChild(style);
+});
+
+function clearFilters() {
+    // 清除所有筛选条件
+    window.location.href = "{{ url_for('operation_records') }}";
+}
+
+function refreshData() {
+    // 刷新页面数据
+    window.location.reload();
+}
+
+function changePerPage(value) {
+    // 更改每页显示数量
+    const url = new URL(window.location.href);
+    url.searchParams.set('per_page', value);
+    url.searchParams.set('page', '1'); // 重置到第一页
+    window.location.href = url.toString();
+}
+
+// 自动刷新功能（可选）
+let autoRefreshInterval = null;
+
+function startAutoRefresh(interval = 30000) {
+    // 开始自动刷新（30秒）
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+    }
+    autoRefreshInterval = setInterval(() => {
+        refreshData();
+    }, interval);
+    
+    // 显示自动刷新状态
+    showAutoRefreshStatus(true);
+}
+
+function stopAutoRefresh() {
+    // 停止自动刷新
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+        autoRefreshInterval = null;
+    }
+    showAutoRefreshStatus(false);
+}
+
+function showAutoRefreshStatus(enabled) {
+    // 显示自动刷新状态
+    let statusElement = document.getElementById('autoRefreshStatus');
+    if (!statusElement) {
+        statusElement = document.createElement('div');
+        statusElement.id = 'autoRefreshStatus';
+        statusElement.className = 'alert alert-info alert-dismissible fade show mt-3';
+        statusElement.innerHTML = `
+            <i class="fas fa-sync-alt me-2"></i>
+            <span>自动刷新已${enabled ? '开启' : '关闭'}</span>
+            <button type="button" class="btn-close" onclick="this.parentElement.remove()"></button>
+        `;
+        document.querySelector('.card-body').appendChild(statusElement);
+    } else {
+        statusElement.querySelector('span').textContent = `自动刷新已${enabled ? '开启' : '关闭'}`;
+    }
+}
+
+// 导出函数到全局作用域
+window.clearFilters = clearFilters;
+window.refreshData = refreshData;
+window.changePerPage = changePerPage;
+window.startAutoRefresh = startAutoRefresh;
+window.stopAutoRefresh = stopAutoRefresh;
+</script>
+{% endblock %}
+<!-- [file content end] -->

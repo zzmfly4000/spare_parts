@@ -1,5 +1,8 @@
-from flask import Flask, render_template, redirect, url_for, request, flash
-from models.database import init_db, get_spare_parts_count, get_locations_count, get_all_locations, get_location_stats
+# [file name]: app.py
+# [file content begin]
+from flask import Flask, render_template, redirect, url_for, request, flash, session
+from models.database import init_db, get_spare_parts_count, get_locations_count, get_all_locations, get_location_stats, \
+    DatabaseManager
 from routes.parts_routes import setup_parts_routes
 from routes.location_routes import setup_location_routes
 from routes.operation_routes import setup_operation_routes
@@ -182,6 +185,42 @@ def create_app(config_name='default'):
             flash('加载低库存信息失败', 'danger')
             return redirect(url_for('index'))
 
+    # 数据库诊断路由
+    @app.route('/debug/database')
+    def debug_database():
+        """数据库诊断页面"""
+        try:
+            db_manager = DatabaseManager()
+            with db_manager.get_connection() as conn:
+                # 检查所有表
+                tables = conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+                table_info = {}
+
+                for table in tables:
+                    table_name = table[0]
+                    count = conn.execute(f'SELECT COUNT(*) FROM {table_name}').fetchone()[0]
+                    columns = conn.execute(f'PRAGMA table_info({table_name})').fetchall()
+                    table_info[table_name] = {
+                        'count': count,
+                        'columns': [col[1] for col in columns]  # 列名
+                    }
+
+                # 检查操作记录表的前几条记录
+                recent_operations = conn.execute('''
+                    SELECT id, operation_type, part_no, quantity, operation_date 
+                    FROM operation_records 
+                    ORDER BY id DESC LIMIT 10
+                ''').fetchall()
+
+            return render_template('debug_database.html',
+                                   table_info=table_info,
+                                   recent_operations=recent_operations,
+                                   now=datetime.datetime.now())
+
+        except Exception as e:
+            app.logger.error(f"数据库诊断失败: {str(e)}")
+            return f"诊断失败: {str(e)}", 500
+
     # 注册错误处理器
     @app.errorhandler(404)
     def not_found(error):
@@ -193,9 +232,170 @@ def create_app(config_name='default'):
         app.logger.error(f"500错误: {str(error)}")
         return render_template('error.html', error_message="服务器内部错误", error_code=500), 500
 
+    @app.route('/debug/test_db')
+    def debug_test_db():
+        """测试数据库连接和基本操作"""
+        try:
+            db_manager = DatabaseManager()
+            results = []
+
+            with db_manager.get_connection() as conn:
+                # 测试1：检查表是否存在
+                tables = conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+                results.append(f"✅ 找到 {len(tables)} 个表: {[t[0] for t in tables]}")
+
+                # 测试2：检查操作记录表
+                if any('operation_records' in t[0] for t in tables):
+                    count = conn.execute('SELECT COUNT(*) FROM operation_records').fetchone()[0]
+                    results.append(f"✅ operation_records 表有 {count} 条记录")
+
+                    # 测试3：插入测试记录
+                    test_id = conn.execute('''
+                        INSERT INTO operation_records 
+                        (operation_type, part_no, description, quantity, operation_date)
+                        VALUES (?, ?, ?, ?, ?)
+                    ''', ('Stock in', 'TEST-001', '测试记录', 10, datetime.datetime.now())).lastrowid
+                    results.append(f"✅ 成功插入测试记录，ID: {test_id}")
+
+                    # 测试4：读取测试记录
+                    test_record = conn.execute('SELECT * FROM operation_records WHERE id = ?', (test_id,)).fetchone()
+                    if test_record:
+                        results.append(f"✅ 成功读取测试记录: {test_record[1]} - {test_record[5]}")
+
+                    # 测试5：删除测试记录
+                    conn.execute('DELETE FROM operation_records WHERE id = ?', (test_id,))
+                    results.append("✅ 成功删除测试记录")
+                else:
+                    results.append("❌ operation_records 表不存在")
+
+                conn.commit()
+
+            return '<br>'.join(results)
+
+        except Exception as e:
+            return f"❌ 测试失败: {str(e)}", 500
+
+    # [在 app.py 中添加紧急修复路由]
+
+    @app.route('/debug/recalculate_all_stock')
+    def debug_recalculate_all_stock():
+        """重新计算所有备件库存"""
+        try:
+            from models.database import recalculate_all_stock
+            updated_count = recalculate_all_stock()
+
+            return f"""
+            <h1>库存重算完成</h1>
+            <p>成功更新了 {updated_count} 个备件的库存</p>
+            <p><a href="{url_for('parts_list')}">查看备件列表</a></p>
+            <p><a href="{url_for('operation_records')}">查看操作记录</a></p>
+            """
+        except Exception as e:
+            return f"库存重算失败: {str(e)}", 500
+
+    @app.route('/debug/fix_operations')
+    def debug_fix_operations():
+        """紧急修复操作记录表"""
+        try:
+            db_manager = DatabaseManager()
+            with db_manager.get_connection() as conn:
+                # 检查表结构
+                table_info = conn.execute("PRAGMA table_info(operation_records)").fetchall()
+                app.logger.info(f"operation_records 表结构: {table_info}")
+
+                # 检查是否有数据
+                count = conn.execute('SELECT COUNT(*) FROM operation_records').fetchone()[0]
+                app.logger.info(f"当前操作记录数: {count}")
+
+                # 尝试手动插入一条测试记录
+                test_id = conn.execute('''
+                    INSERT INTO operation_records 
+                    (operation_type, operation_date, part_no, description, quantity)
+                    VALUES (?, ?, ?, ?, ?)
+                ''', ('Stock in', datetime.datetime.now(), 'TEST-001', '测试记录', 10)).lastrowid
+
+                conn.commit()
+
+                # 验证插入
+                test_record = conn.execute('SELECT * FROM operation_records WHERE id = ?', (test_id,)).fetchone()
+
+                return f"""
+                <h1>紧急修复结果</h1>
+                <p>表结构: {table_info}</p>
+                <p>原有记录数: {count}</p>
+                <p>测试记录ID: {test_id}</p>
+                <p>测试记录: {test_record}</p>
+                <p><a href="{url_for('operation_records')}">查看操作记录</a></p>
+                """
+
+        except Exception as e:
+            app.logger.error(f"修复失败: {str(e)}")
+            return f"修复失败: {str(e)}", 500
+
+    @app.route('/debug/fix_stock_calculation')
+    def debug_fix_stock_calculation():
+        """紧急修复库存计算"""
+        try:
+            from models.database import DatabaseManager
+
+            db_manager = DatabaseManager()
+            with db_manager.get_connection() as conn:
+                # 获取所有备件
+                parts = conn.execute('SELECT id, part_no, current_stock FROM spare_parts').fetchall()
+                updated_count = 0
+
+                for part in parts:
+                    part_id = part[0]
+                    part_no = part[1]
+                    old_stock = part[2]
+
+                    # 重新计算库存
+                    # 计算所有入库操作的总和（正数）
+                    cursor = conn.execute('''
+                        SELECT COALESCE(SUM(quantity), 0) 
+                        FROM operation_records 
+                        WHERE part_no = ? AND quantity > 0
+                    ''', (part_no,))
+                    total_in = cursor.fetchone()[0] or 0
+
+                    # 计算出库操作的总和（负数，但取绝对值）
+                    cursor = conn.execute('''
+                        SELECT COALESCE(SUM(ABS(quantity)), 0) 
+                        FROM operation_records 
+                        WHERE part_no = ? AND quantity < 0
+                    ''', (part_no,))
+                    total_out = cursor.fetchone()[0] or 0
+
+                    # 计算总库存：所有入库 - 所有出库
+                    new_stock = total_in - total_out
+                    new_stock = max(0, new_stock)
+
+                    # 只有在库存变化时才更新
+                    if new_stock != old_stock:
+                        conn.execute('''
+                            UPDATE spare_parts 
+                            SET current_stock = ?, updated_date = CURRENT_TIMESTAMP 
+                            WHERE id = ?
+                        ''', (new_stock, part_id))
+                        updated_count += 1
+                        app.logger.info(f"修复备件 {part_no} 库存: {old_stock} -> {new_stock}")
+
+                conn.commit()
+
+                return f"""
+                <h1>库存修复完成</h1>
+                <p>成功修复了 {updated_count} 个备件的库存计算</p>
+                <p><a href="{url_for('parts_list')}">查看备件列表</a></p>
+                <p><a href="{url_for('operation_records')}">查看操作记录</a></p>
+                """
+
+        except Exception as e:
+            return f"库存修复失败: {str(e)}", 500
+
     # 添加上下文处理器，使now在所有模板中可用
     @app.context_processor
     def inject_now():
         return {'now': datetime.datetime.now()}
 
     return app
+# [file content end]

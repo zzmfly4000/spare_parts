@@ -1,0 +1,101 @@
+<!-- [file name]: templates/debug_database.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>数据库诊断 - 设备备件管理系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { padding: 20px; background-color: #f8f9fa; }
+        .table-info { background-color: #e9ecef; }
+        .table-success { background-color: #d1e7dd; }
+        .table-warning { background-color: #fff3cd; }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h1 class="h3 mb-0">数据库诊断</h1>
+                <p class="mb-0">检查数据库表状态和操作记录</p>
+            </div>
+            <div class="card-body">
+
+                <h2 class="mt-4">数据库表信息</h2>
+                <table class="table table-bordered table-striped">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>表名</th>
+                            <th>记录数</th>
+                            <th>列</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for table_name, info in table_info.items() %}
+                        <tr class="{% if table_name == 'operation_records' %}table-info{% endif %}">
+                            <td><strong>{{ table_name }}</strong></td>
+                            <td><span class="badge bg-primary">{{ info.count }}</span></td>
+                            <td><small>{{ info.columns | join(', ') }}</small></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+                <h2 class="mt-4">最近10条操作记录</h2>
+                {% if recent_operations %}
+                <table class="table table-bordered table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>ID</th>
+                            <th>操作类型</th>
+                            <th>备件编号</th>
+                            <th>数量</th>
+                            <th>操作日期</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for op in recent_operations %}
+                        <tr class="{% if op[1] == 'Stock in' %}table-success{% elif op[1] == 'Stock out' %}table-warning{% endif %}">
+                            <td>{{ op[0] }}</td>
+                            <td>
+                                <span class="badge {% if op[1] == 'Stock in' %}bg-success{% else %}bg-danger{% endif %}">
+                                    {{ op[1] }}
+                                </span>
+                            </td>
+                            <td><code>{{ op[2] }}</code></td>
+                            <td>
+                                <span class="{% if op[3] > 0 %}text-success{% else %}text-danger{% endif %} fw-bold">
+                                    {{ op[3] }}
+                                </span>
+                            </td>
+                            <td>{{ op[4] }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="alert alert-warning">
+                    <h5>⚠️ 没有找到操作记录</h5>
+                    <p class="mb-0">operation_records 表中没有数据，请检查导入过程。</p>
+                </div>
+                {% endif %}
+
+                <div class="mt-4 p-3 bg-light rounded">
+                    <h5>诊断建议：</h5>
+                    <ul>
+                        <li>如果 <code>operation_records</code> 表为空，说明导入过程中数据没有正确插入</li>
+                        <li>检查导入日志，确认是否有数据库错误</li>
+                        <li>验证 Excel 文件格式是否正确</li>
+                        <li>检查数据库文件权限</li>
+                    </ul>
+                </div>
+
+                <div class="mt-4">
+                    <a href="{{ url_for('operation_records') }}" class="btn btn-primary">返回操作记录</a>
+                    <a href="{{ url_for('import_operations') }}" class="btn btn-success">返回导入页面</a>
+                    <a href="{{ url_for('index') }}" class="btn btn-secondary">返回首页</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
