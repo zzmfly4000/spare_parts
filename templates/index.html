@@ -289,13 +289,24 @@
         </div>
 
         <!-- 最近活动 -->
-        <!-- 最近活动 -->
         <div class="card mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="card-title mb-0"><i class="fas fa-history me-2"></i>最近活动</h5>
-                <a href="{{ url_for('operation_records') }}" class="btn btn-sm btn-outline-secondary">查看全部</a>
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-history me-2"></i>最近活动
+                    <span class="badge bg-primary ms-2" id="recentActivitiesCount">
+                        {% if recent_activities %}{{ recent_activities|length }}{% else %}0{% endif %}
+                    </span>
+                </h5>
+                <div>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="refreshRecentActivities()">
+                        <i class="fas fa-sync-alt me-1"></i>刷新
+                    </button>
+                    <a href="{{ url_for('operation_records') }}" class="btn btn-sm btn-outline-primary ms-1">
+                        查看全部
+                    </a>
+                </div>
             </div>
-            <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+            <div class="card-body" style="max-height: 400px; overflow-y: auto;" id="recentActivitiesContainer">
                 {% if recent_activities %}
                 <div class="timeline">
                     {% for activity in recent_activities %}
@@ -307,14 +318,25 @@
                             <div class="flex-grow-1">
                                 <div class="d-flex justify-content-between mb-1">
                                     <strong class="text-truncate" style="max-width: 150px;">{{ activity.part_name }}</strong>
-                                    <small class="text-muted">{{ activity.time.strftime('%H:%M') if activity.time is string else activity.time.strftime('%H:%M') }}</small>
+                                    <small class="text-muted">
+                                        {% if activity.time %}
+                                            {{ activity.time | date('%H:%M') }}
+                                        {% else %}
+                                            --
+                                        {% endif %}
+                                    </small>
                                 </div>
                                 <div class="d-flex justify-content-between align-items-center">
                                     <span class="badge {% if activity.type == 'inbound' %}bg-success{% else %}bg-danger{% endif %}">
-                                        {% if activity.type == 'inbound' %}+{% else %}-{% endif %}{{ activity.quantity|abs }}
-                                    </span>
+    {% if activity.type == 'inbound' %}+{% else %}-{% endif %}{{ activity.quantity|safe_abs }}
+</span>
                                     <small class="text-muted">{{ activity.operator }}</small>
                                 </div>
+                                {% if activity.time %}
+                                <small class="text-muted d-block mt-1">
+                                    {{ activity.time | date('%m-%d %H:%M') }}
+                                </small>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
@@ -421,6 +443,54 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     `;
     document.head.appendChild(timelineStyle);
+
+    // 自动刷新最近活动（每30秒）
+    setInterval(refreshRecentActivities, 30000);
 });
+
+// 刷新最近活动
+function refreshRecentActivities() {
+    fetch('/')
+        .then(response => response.text())
+        .then(html => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const newActivities = doc.querySelector('#recentActivitiesContainer');
+            const newCount = doc.querySelector('#recentActivitiesCount');
+
+            if (newActivities && newCount) {
+                document.querySelector('#recentActivitiesContainer').innerHTML = newActivities.innerHTML;
+                document.querySelector('#recentActivitiesCount').textContent = newCount.textContent;
+
+                // 显示刷新提示
+                showRefreshToast('最近活动已更新');
+            }
+        })
+        .catch(error => {
+            console.error('刷新最近活动失败:', error);
+        });
+}
+
+// 显示刷新提示
+function showRefreshToast(message) {
+    const toast = document.createElement('div');
+    toast.className = 'toast align-items-center text-white bg-success border-0 position-fixed bottom-0 end-0 m-3';
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">
+                <i class="fas fa-check-circle me-2"></i>${message}
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    `;
+    document.body.appendChild(toast);
+
+    const bsToast = new bootstrap.Toast(toast);
+    bsToast.show();
+
+    toast.addEventListener('hidden.bs.toast', () => {
+        toast.remove();
+    });
+}
 </script>
 {% endblock %}

@@ -466,46 +466,44 @@
                                 </a>
                             </li>
 
-                            <!-- 在 base.html 的导航菜单中添加以下内容 -->
-
+                            <li class="nav-group-title">数据管理</li>
                             <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                                <a class="nav-link dropdown-toggle {{ 'active' if request.endpoint in ['import_locations', 'import_part_info_only', 'import_operations', 'download_locations_template', 'download_part_info_update_template', 'download_operations_template'] }}"
+                                   href="#" role="button" data-bs-toggle="dropdown">
                                     <i class="fas fa-file-import me-1"></i>数据导入
                                 </a>
                                 <ul class="dropdown-menu">
-                                    <li><a class="dropdown-item" href="{{ url_for('import_locations') }}">
+                                    <li><a class="dropdown-item {{ 'active' if request.endpoint == 'import_locations' }}"
+                                           href="{{ url_for('import_locations') }}">
                                         <i class="fas fa-warehouse me-2"></i>库位导入
                                     </a></li>
-                                    <li><a class="dropdown-item" href="{{ url_for('import_part_info_only') }}">
+                                    <li><a class="dropdown-item {{ 'active' if request.endpoint == 'import_part_info_only' }}"
+                                           href="{{ url_for('import_part_info_only') }}">
                                         <i class="fas fa-cube me-2"></i>备件信息更新导入
                                     </a></li>
-                                    <li><a class="dropdown-item" href="{{ url_for('import_operations') }}">
+                                    <li><a class="dropdown-item {{ 'active' if request.endpoint == 'import_operations' }}"
+                                           href="{{ url_for('import_operations') }}">
                                         <i class="fas fa-exchange-alt me-2"></i>操作记录导入
                                     </a></li>
                                     <li><hr class="dropdown-divider"></li>
-                                    <li><a class="dropdown-item" href="{{ url_for('download_locations_template') }}">
+                                    <li><a class="dropdown-item {{ 'active' if request.endpoint == 'download_locations_template' }}"
+                                           href="{{ url_for('download_locations_template') }}">
                                         <i class="fas fa-download me-2"></i>下载库位模板
                                     </a></li>
-                                    <li><a class="dropdown-item" href="{{ url_for('download_part_info_update_template') }}">
+                                    <li><a class="dropdown-item {{ 'active' if request.endpoint == 'download_part_info_update_template' }}"
+                                           href="{{ url_for('download_part_info_update_template') }}">
                                         <i class="fas fa-download me-2"></i>下载备件模板
                                     </a></li>
-                                    <li><a class="dropdown-item" href="{{ url_for('download_operations_template') }}">
+                                    <li><a class="dropdown-item {{ 'active' if request.endpoint == 'download_operations_template' }}"
+                                           href="{{ url_for('download_operations_template') }}">
                                         <i class="fas fa-download me-2"></i>下载操作模板
                                     </a></li>
                                 </ul>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link {{ 'active' if request.endpoint == 'import_parts' }}"
-                                   href="{{ url_for('import_part_info_only') }}">
-                                    <li><a class="dropdown-item" href="{{ url_for('import_locations') }}">库位导入</a></li>
-                                    <li><a class="dropdown-item" href="{{ url_for('import_part_info_only') }}">备件信息更新</a></li>
-                                    <li><a class="dropdown-item" href="{{ url_for('import_operations') }}">操作记录导入</a></li>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link {{ 'active' if request.endpoint == 'export_data' }}"
+                                <a class="nav-link {{ 'active' if request.endpoint == 'export_parts_advanced' }}"
                                    href="{{ url_for('export_parts_advanced') }}">
-                                    <i class="fas fa-file-export"></i>数据导出
+                                    <i class="fas fa-file-export me-1"></i>数据导出
                                 </a>
                             </li>
 
