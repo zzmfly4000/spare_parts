@@ -43,6 +43,13 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
+                                <label class="form-label">产品型号</label>
+                                <input type="text" class="form-control" name="product_model"
+                                       placeholder="产品具体型号">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
                                 <label class="form-label">类型</label>
                                 <select class="form-select" name="type">
                                     <option value="">选择类型</option>
@@ -54,34 +61,27 @@
                                 </select>
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label">单位</label>
-                                <input type="text" class="form-control" name="unit" 
-                                       placeholder="如：个、件、套">
-                            </div>
-                        </div>
                     </div>
 
                     <div class="row">
                         <div class="col-md-4">
                             <div class="mb-3">
                                 <label class="form-label">当前库存</label>
-                                <input type="number" class="form-control" name="current_stock" 
+                                <input type="number" class="form-control" name="current_stock"
                                        value="0" min="0">
                             </div>
                         </div>
                         <div class="col-md-4">
                             <div class="mb-3">
                                 <label class="form-label">最低库存</label>
-                                <input type="number" class="form-control" name="min_stock" 
+                                <input type="number" class="form-control" name="min_stock"
                                        value="0" min="0">
                             </div>
                         </div>
                         <div class="col-md-4">
                             <div class="mb-3">
                                 <label class="form-label">最高库存</label>
-                                <input type="number" class="form-control" name="max_stock" 
+                                <input type="number" class="form-control" name="max_stock"
                                        value="0" min="0">
                             </div>
                         </div>
@@ -91,14 +91,14 @@
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label class="form-label">单价 (元)</label>
-                                <input type="number" class="form-control" name="unit_price" 
+                                <input type="number" class="form-control" name="unit_price"
                                        step="0.01" min="0" value="0">
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label class="form-label">交货周期 (周)</label>
-                                <input type="number" class="form-control" name="lt_weeks" 
+                                <input type="number" class="form-control" name="lt_weeks"
                                        value="0" min="0">
                             </div>
                         </div>
@@ -107,15 +107,25 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label class="form-label">库位</label>
-                                <input type="text" class="form-control" name="location" 
-                                       placeholder="库位代码">
+                                <label class="form-label">单位</label>
+                                <input type="text" class="form-control" name="unit"
+                                       placeholder="如：个、件、套">
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
+                                <label class="form-label">库位</label>
+                                <input type="text" class="form-control" name="location"
+                                       placeholder="库位代码">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
                                 <label class="form-label">供应商</label>
-                                <input type="text" class="form-control" name="supplier" 
+                                <input type="text" class="form-control" name="supplier"
                                        placeholder="供应商名称">
                             </div>
                         </div>
@@ -123,7 +133,7 @@
 
                     <div class="mb-3">
                         <label class="form-label">描述</label>
-                        <textarea class="form-control" name="description" rows="3" 
+                        <textarea class="form-control" name="description" rows="3"
                                   placeholder="备件详细描述"></textarea>
                     </div>
 
@@ -161,6 +171,11 @@
                     <li><strong>最高库存</strong>：建议的最大库存量</li>
                     <li><strong>当前库存</strong>：实际库存数量</li>
                 </ul>
+
+                <h6>产品型号：</h6>
+                <p class="small text-muted">
+                    填写备件的具体产品型号，便于在智能搜索中快速定位。
+                </p>
 
                 <h6>关键备件：</h6>
                 <p class="small text-muted">

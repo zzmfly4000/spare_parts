@@ -139,7 +139,7 @@ def calculate_stock_from_operations_with_connection(part_no, conn):
     cursor = conn.execute('''
         SELECT COALESCE(SUM(ABS(quantity)), 0) 
         FROM operation_records 
-        WHERE part_no = ? AND quantity < 0
+            WHERE part_no = ? AND quantity < 0
     ''', (part_no,))
     total_out = cursor.fetchone()[0] or 0
 
@@ -229,13 +229,14 @@ def init_db():
     db_manager = DatabaseManager()
 
     with db_manager.get_connection() as conn:
-        # 创建备件表
+        # 创建备件表 - 修复版本：添加 product_model 字段
         conn.execute('''
             CREATE TABLE IF NOT EXISTS spare_parts (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 part_no TEXT NOT NULL,
                 name TEXT NOT NULL,
                 type TEXT,
+                product_model TEXT,  -- 新增字段
                 current_stock INTEGER DEFAULT 0,
                 min_stock INTEGER DEFAULT 0,
                 max_stock INTEGER DEFAULT 0,
@@ -286,6 +287,13 @@ def init_db():
                 last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
+
+        # 为现有表添加缺失的列（如果不存在）
+        try:
+            conn.execute('ALTER TABLE spare_parts ADD COLUMN product_model TEXT')
+        except sqlite3.OperationalError:
+            # 列已存在，忽略错误
+            pass
 
         # 创建索引
         conn.execute('CREATE INDEX IF NOT EXISTS idx_spare_parts_location ON spare_parts(location)')
@@ -344,7 +352,7 @@ def create_spare_part(part_data):
             ''', (
                 part_data['part_no'], part_data['name'],
                 part_data.get('type', ''),
-                part_data.get('product_model', ''),
+                part_data.get('product_model', ''),  # 新增字段
                 current_stock,
                 min_stock, max_stock, part_data.get('key_part', False),
                 safe_int(part_data.get('lt_weeks', 0)), safe_float(part_data.get('unit_price', 0.0)),
@@ -362,7 +370,9 @@ def create_spare_part(part_data):
                     'quantity': current_stock,
                     'description': f'初始库存设置 - {part_data.get("description", "")}',
                     'location': part_data.get('location', ''),
-                    'supplier_recipient': part_data.get('supplier', '系统')
+                    'supplier_recipient': part_data.get('supplier', '系统'),
+                    'product_model': part_data.get('product_model', ''),  # 新增字段
+                    'part_type': part_data.get('type', '')  # 新增字段
                 }
 
                 try:

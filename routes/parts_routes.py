@@ -42,7 +42,8 @@ def setup_parts_routes(app):
                 if search:
                     search_lower = search.lower()
                     if (search_lower not in safe_str(part[1]).lower() and  # part_no
-                            search_lower not in safe_str(part[2]).lower()):  # name
+                            search_lower not in safe_str(part[2]).lower() and  # name
+                            search_lower not in safe_str(part[4]).lower()):  # product_model
                         continue
 
                 # 类型过滤
@@ -51,8 +52,8 @@ def setup_parts_routes(app):
 
                 # 库存状态过滤
                 if stock_status:
-                    current_stock = safe_int(part[4])
-                    min_stock = safe_int(part[5])
+                    current_stock = safe_int(part[5])
+                    min_stock = safe_int(part[6])
 
                     if stock_status == 'low' and current_stock > min_stock:
                         continue
@@ -117,6 +118,7 @@ def setup_parts_routes(app):
                     'part_no': request.form.get('part_no', '').strip(),
                     'name': request.form.get('name', '').strip(),
                     'type': request.form.get('type', '').strip(),
+                    'product_model': request.form.get('product_model', '').strip(),  # 新增字段
                     'current_stock': safe_int(request.form.get('current_stock', 0)),
                     'min_stock': safe_int(request.form.get('min_stock', 0)),
                     'max_stock': safe_int(request.form.get('max_stock', 0)),
@@ -155,6 +157,7 @@ def setup_parts_routes(app):
                     'part_no': request.form.get('part_no', '').strip(),
                     'name': request.form.get('name', '').strip(),
                     'type': request.form.get('type', '').strip(),
+                    'product_model': request.form.get('product_model', '').strip(),  # 新增字段
                     'min_stock': safe_int(request.form.get('min_stock', 0)),
                     'max_stock': safe_int(request.form.get('max_stock', 0)),
                     'key_part': bool(request.form.get('key_part')),
@@ -271,12 +274,14 @@ def setup_parts_routes(app):
         try:
             db_manager = DatabaseManager()
             with db_manager.get_connection() as conn:
-                # 在备件编号、名称、类型、描述、供应商中搜索
+                # 在备件编号、名称、类型、描述、供应商、产品型号中搜索
                 search_pattern = f'%{keyword}%'
                 parts = conn.execute('''
-                    SELECT id, part_no, name, type, current_stock, location, description, supplier
+                    SELECT id, part_no, name, type, product_model, current_stock, min_stock, 
+                           location, description, supplier, unit
                     FROM spare_parts 
-                    WHERE part_no LIKE ? OR name LIKE ? OR type LIKE ? OR description LIKE ? OR supplier LIKE ?
+                    WHERE part_no LIKE ? OR name LIKE ? OR type LIKE ? OR description LIKE ? 
+                          OR supplier LIKE ? OR product_model LIKE ?
                     ORDER BY 
                         CASE 
                             WHEN part_no = ? THEN 1
@@ -286,8 +291,8 @@ def setup_parts_routes(app):
                         END,
                         part_no
                     LIMIT 20
-                ''', (search_pattern, search_pattern, search_pattern, search_pattern, search_pattern,
-                      keyword, f'{keyword}%', f'{keyword}%')).fetchall()
+                ''', (search_pattern, search_pattern, search_pattern, search_pattern,
+                      search_pattern, search_pattern, keyword, f'{keyword}%', f'{keyword}%')).fetchall()
 
                 results = []
                 for part in parts:
@@ -296,10 +301,13 @@ def setup_parts_routes(app):
                         'part_no': part[1],
                         'name': part[2],
                         'type': part[3],
-                        'current_stock': part[4],
-                        'location': part[5],
-                        'description': part[6],
-                        'supplier': part[7]
+                        'product_model': part[4],
+                        'current_stock': part[5],
+                        'min_stock': part[6],
+                        'location': part[7],
+                        'description': part[8],
+                        'supplier': part[9],
+                        'unit': part[10]
                     })
 
                 return jsonify({
@@ -325,16 +333,17 @@ def setup_parts_routes(app):
                         'part_no': part[1],
                         'name': part[2],
                         'type': part[3],
-                        'current_stock': part[4],
-                        'min_stock': part[5],
-                        'max_stock': part[6],
-                        'key_part': part[7],
-                        'lt_weeks': part[8],
-                        'unit_price': part[9],
-                        'unit': part[10],
-                        'location': part[11],
-                        'supplier': part[12],
-                        'description': part[13]
+                        'product_model': part[4],
+                        'current_stock': part[5],
+                        'min_stock': part[6],
+                        'max_stock': part[7],
+                        'key_part': part[8],
+                        'lt_weeks': part[9],
+                        'unit_price': part[10],
+                        'unit': part[11],
+                        'location': part[12],
+                        'supplier': part[13],
+                        'description': part[14]
                     }
                 })
             else:
@@ -376,6 +385,7 @@ def setup_parts_routes(app):
                 'part_no': data['part_no'],
                 'name': data['name'],
                 'type': data.get('type', ''),
+                'product_model': data.get('product_model', ''),  # 新增字段
                 'current_stock': data.get('current_stock', 0),
                 'min_stock': data.get('min_stock', 0),
                 'max_stock': data.get('max_stock', 0),
@@ -395,5 +405,3 @@ def setup_parts_routes(app):
         except Exception as e:
             logging.error(f'创建备件失败: {str(e)}')
             return jsonify({'success': False, 'message': f'创建备件失败: {str(e)}'})
-
-
