@@ -8,35 +8,121 @@
         <h1 class="h3 mb-2">
             <i class="fas fa-pallet me-2"></i>货架详情: {{ rack_code }}
         </h1>
-        <p class="text-muted mb-0">查看货架层级结构和库位状态</p>
+        <p class="text-muted mb-0">查看货架内部结构和库位详细信息</p>
     </div>
     <div class="btn-toolbar mb-2 mb-md-0">
         <a href="{{ url_for('location_management') }}" class="btn btn-outline-secondary">
-            <i class="fas fa-arrow-left me-1"></i>返回总览
+            <i class="fas fa-arrow-left me-1"></i>返回货架布局
         </a>
     </div>
 </div>
 
+<!-- 货架概览 -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card stat-card">
+            <div class="card-body text-center">
+                <i class="fas fa-cube text-primary"></i>
+                <div class="number">{{ total_locations }}</div>
+                <div class="text-muted">总库位数</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card">
+            <div class="card-body text-center">
+                <i class="fas fa-check-circle text-success"></i>
+                <div class="number">{{ free_count }}</div>
+                <div class="text-muted">空闲库位</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card">
+            <div class="card-body text-center">
+                <i class="fas fa-box-open text-primary"></i>
+                <div class="number">{{ in_use_count }}</div>
+                <div class="text-muted">使用中</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card">
+            <div class="card-body text-center">
+                <i class="fas fa-exclamation-triangle text-warning"></i>
+                <div class="number">{{ low_stock_count }}</div>
+                <div class="text-muted">低库存</div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="row">
-    <!-- 层级导航 -->
+    <!-- 货架结构信息 -->
     <div class="col-md-3">
         <div class="card">
             <div class="card-header">
-                <h6 class="card-title mb-0">层级导航</h6>
+                <h6 class="card-title mb-0">货架结构</h6>
             </div>
             <div class="card-body">
-                <div class="list-group list-group-flush" id="levelNav">
-                    <!-- 动态生成层级导航 -->
+                <div class="mb-3">
+                    <h6 class="text-muted mb-2">层级 (Levels)</h6>
+                    <div class="d-flex flex-wrap gap-1">
+                        {% for level in levels %}
+                        <span class="badge bg-primary">{{ level }}</span>
+                        {% endfor %}
+                    </div>
                 </div>
+
+                <div class="mb-3">
+                    <h6 class="text-muted mb-2">侧面 (Sides)</h6>
+                    <div class="d-flex flex-wrap gap-1">
+                        {% for side in sides %}
+                        <span class="badge bg-info">{{ side }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <h6 class="text-muted mb-2">位置 (Positions)</h6>
+                    <div class="d-flex flex-wrap gap-1">
+                        {% for position in positions %}
+                        <span class="badge bg-success">{{ position }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 快速操作 -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="card-title mb-0">快速操作</h6>
+            </div>
+            <div class="card-body">
+                <a href="{{ url_for('add_location') }}?rack={{ rack_code }}" class="btn btn-primary btn-sm w-100 mb-2">
+                    <i class="fas fa-plus me-1"></i>在此货架添加库位
+                </a>
+                <button class="btn btn-outline-secondary btn-sm w-100" onclick="exportRackData()">
+                    <i class="fas fa-download me-1"></i>导出货架数据
+                </button>
             </div>
         </div>
     </div>
 
-    <!-- 库位详情 -->
+    <!-- 库位详细信息 -->
     <div class="col-md-9">
         <div class="card">
-            <div class="card-header">
-                <h6 class="card-title mb-0">库位状态详情</h6>
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="card-title mb-0">库位详细信息</h6>
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-secondary" onclick="toggleViewMode()">
+                        <i class="fas fa-table me-1"></i>表格视图
+                    </button>
+                    <button class="btn btn-outline-secondary" onclick="toggleViewMode()">
+                        <i class="fas fa-th me-1"></i>网格视图
+                    </button>
+                </div>
             </div>
             <div class="card-body">
                 <div class="table-responsive">
@@ -55,25 +141,15 @@
                         </thead>
                         <tbody>
                             {% for location in locations %}
-                            {% set loc = location if location is mapping else {
-                                'location_code': location[0],
-                                'rack': location[1],
-                                'level': location[2],
-                                'position': location[3],
-                                'side': location[4],
-                                'status': location[5],
-                                'capacity': location[6],
-                                'part_count': location[9] if location|length > 9 else 0
-                            } %}
                             <tr>
-                                <td><strong>{{ loc.location_code }}</strong></td>
-                                <td>{{ loc.level }}</td>
-                                <td>{{ loc.position }}</td>
-                                <td>{{ loc.side }}</td>
+                                <td><strong>{{ location.location_code }}</strong></td>
+                                <td>{{ location.level }}</td>
+                                <td>{{ location.position }}</td>
+                                <td>{{ location.side }}</td>
                                 <td>
-                                    {% if loc.status == 'free' %}
+                                    {% if location.status == 'free' %}
                                     <span class="badge bg-success">空闲</span>
-                                    {% elif loc.status == 'in_use' %}
+                                    {% elif location.status == 'in_use' %}
                                     <span class="badge bg-primary">使用中</span>
                                     {% else %}
                                     <span class="badge bg-warning">低库存</span>
@@ -81,30 +157,30 @@
                                 </td>
                                 <td>
                                     <div class="d-flex align-items-center">
-                                        <span class="fw-bold me-2">{{ loc.part_count }}/{{ loc.capacity }}</span>
+                                        <span class="fw-bold me-2">{{ location.part_count }}/{{ location.capacity }}</span>
                                         <div class="progress flex-grow-1" style="height: 6px; width: 80px;">
-                                            <div class="progress-bar 
-                                                {% if loc.capacity > 0 and loc.part_count/loc.capacity >= 0.8 %}bg-warning
+                                            <div class="progress-bar
+                                                {% if location.capacity > 0 and location.part_count/location.capacity >= 0.8 %}bg-warning
                                                 {% else %}bg-success{% endif %}"
-                                                 style="width: {% if loc.capacity > 0 %}{{ (loc.part_count/loc.capacity*100)|round|int }}%{% else %}0%{% endif %}">
+                                                 style="width: {% if location.capacity > 0 %}{{ (location.part_count/location.capacity*100)|round|int }}%{% else %}0%{% endif %}">
                                             </div>
                                         </div>
                                     </div>
                                 </td>
                                 <td>
-                                    {% if loc.capacity > 0 %}
-                                    {{ (loc.part_count/loc.capacity*100)|round|int }}%
+                                    {% if location.capacity > 0 %}
+                                    {{ (location.part_count/location.capacity*100)|round|int }}%
                                     {% else %}
                                     0%
                                     {% endif %}
                                 </td>
                                 <td>
                                     <div class="btn-group btn-group-sm">
-                                        <a href="{{ url_for('location_detail', location_code=loc.location_code) }}" 
+                                        <a href="{{ url_for('location_detail', location_code=location.location_code) }}"
                                            class="btn btn-outline-primary" title="查看详情">
                                             <i class="fas fa-eye"></i>
                                         </a>
-                                        <a href="{{ url_for('edit_location', location_code=loc.location_code) }}" 
+                                        <a href="{{ url_for('edit_location', location_code=location.location_code) }}"
                                            class="btn btn-outline-secondary" title="编辑">
                                             <i class="fas fa-edit"></i>
                                         </a>
@@ -115,6 +191,17 @@
                         </tbody>
                     </table>
                 </div>
+
+                {% if not locations %}
+                <div class="text-center py-5">
+                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">此货架暂无库位</h5>
+                    <p class="text-muted">点击下方按钮添加库位到此货架</p>
+                    <a href="{{ url_for('add_location') }}?rack={{ rack_code }}" class="btn btn-primary">
+                        <i class="fas fa-plus me-1"></i>添加库位
+                    </a>
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -123,24 +210,18 @@
 
 {% block scripts %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // 生成层级导航
-    const levels = new Set();
-    {% for location in locations %}
-    levels.add('{{ location[2] if location is not mapping else location.level }}');
-    {% endfor %}
-    
-    const levelNav = document.getElementById('levelNav');
-    Array.from(levels).sort().forEach(level => {
-        const link = document.createElement('a');
-        link.href = `#level-${level}`;
-        link.className = 'list-group-item list-group-item-action';
-        link.innerHTML = `
-            <i class="fas fa-layer-group me-2"></i>
-            层级 ${level}
-        `;
-        levelNav.appendChild(link);
-    });
-});
+function toggleViewMode() {
+    // 切换表格和网格视图
+    const table = document.querySelector('table');
+    if (table) {
+        // 这里可以实现视图切换逻辑
+        showInfo('视图切换功能开发中');
+    }
+}
+
+function exportRackData() {
+    // 导出货架数据
+    showInfo('数据导出功能开发中');
+}
 </script>
 {% endblock %}

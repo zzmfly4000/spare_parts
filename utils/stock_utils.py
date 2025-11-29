@@ -1,4 +1,6 @@
-from models.database import get_all_spare_parts, get_all_operation_records
+# [file name]: stock_utils.py
+# [file content begin]
+from models.database import get_all_spare_parts, get_all_operation_records, safe_int
 from datetime import datetime, timedelta
 
 
@@ -22,6 +24,9 @@ def recalculate_all_stock():
 
 def calculate_stock_status(current_stock, min_stock):
     """计算备件库存状态"""
+    current_stock = safe_int(current_stock)
+    min_stock = safe_int(min_stock)
+
     if current_stock == 0:
         return 'out_of_stock'
     elif current_stock <= min_stock:
@@ -40,8 +45,8 @@ def calculate_location_status(part_count, capacity):
     """计算库位状态 - 彻底修复版本"""
     try:
         # 确保数值类型正确
-        part_count = int(part_count) if part_count is not None else 0
-        capacity = int(capacity) if capacity is not None else 0
+        part_count = safe_int(part_count)
+        capacity = safe_int(capacity)
 
         if capacity == 0:
             return 'free'
@@ -67,3 +72,17 @@ def get_recent_activities(limit=10):
     """获取最近活动 - 修复版本"""
     from models.database import get_recent_activities as db_get_recent_activities
     return db_get_recent_activities(limit)
+
+
+def calculate_rack_utilization(rack_locations):
+    """计算货架利用率"""
+    if not rack_locations:
+        return 0
+
+    total_capacity = sum(safe_int(loc.get('capacity', 0)) for loc in rack_locations)
+    total_parts = sum(safe_int(loc.get('part_count', 0)) for loc in rack_locations)
+
+    if total_capacity == 0:
+        return 0
+
+    return (total_parts / total_capacity) * 100

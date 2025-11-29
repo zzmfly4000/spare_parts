@@ -10,7 +10,7 @@ from datetime import datetime
 
 
 class DatabaseManager:
-    """数据库管理器，负责数据库连接和操作 - 修复数据查询版本"""
+    """数据库管理器，负责数据库连接和操作 - 优化版本"""
 
     def __init__(self, db_path='spare_parts.db'):
         self.db_path = db_path
@@ -51,7 +51,7 @@ class DatabaseManager:
 
     @contextmanager
     def get_connection(self):
-        """获取数据库连接的上下文管理器 - 修复版本"""
+        """获取数据库连接的上下文管理器 - 优化版本"""
         max_retries = 5
         retry_delay = 0.5
 
@@ -226,15 +226,29 @@ def get_low_stock_parts():
         # 确保所有数字字段都有有效值
         processed_results = []
         for part in results:
-            part_list = list(part)
-            # 确保关键字段不为None
-            if part_list[4] is None:  # current_stock
-                part_list[4] = 0
-            if part_list[6] is None:  # min_stock
-                part_list[6] = 0
-            if part_list[7] is None:  # max_stock
-                part_list[7] = 0
-            processed_results.append(tuple(part_list))
+            if hasattr(part, '_fields'):  # sqlite3.Row 对象
+                part_dict = {}
+                for i, field in enumerate(part._fields):
+                    value = part[i]
+                    # 处理数值字段的 None 值
+                    if field in ['current_stock', 'min_stock', 'max_stock', 'lt_weeks']:
+                        value = value if value is not None else 0
+                    elif field == 'unit_price':
+                        value = value if value is not None else 0.0
+                    elif field == 'key_part':
+                        value = value if value is not None else False
+                    part_dict[field] = value
+                processed_results.append(part_dict)
+            else:  # 元组格式
+                part_list = list(part)
+                # 确保关键字段不为None
+                if len(part_list) > 4 and part_list[4] is None:  # current_stock
+                    part_list[4] = 0
+                if len(part_list) > 6 and part_list[6] is None:  # min_stock
+                    part_list[6] = 0
+                if len(part_list) > 7 and part_list[7] is None:  # max_stock
+                    part_list[7] = 0
+                processed_results.append(tuple(part_list))
 
         return processed_results
 
@@ -244,6 +258,20 @@ def init_db():
     db_manager = DatabaseManager()
 
     with db_manager.get_connection() as conn:
+        # 创建货架布局表
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS rack_layouts (
+                rack TEXT PRIMARY KEY,
+                x INTEGER DEFAULT 100,
+                y INTEGER DEFAULT 100,
+                width INTEGER DEFAULT 300,
+                height INTEGER DEFAULT 200,
+                rotation INTEGER DEFAULT 0,
+                created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
         # 创建备件表 - 修复版本：添加 product_model 字段
         conn.execute('''
             CREATE TABLE IF NOT EXISTS spare_parts (
@@ -321,6 +349,54 @@ def init_db():
         conn.execute('CREATE INDEX IF NOT EXISTS idx_locations_status ON locations(status)')
         conn.execute('CREATE INDEX IF NOT EXISTS idx_locations_rack ON locations(rack)')
         conn.execute('CREATE INDEX IF NOT EXISTS idx_locations_level ON locations(level)')
+        conn.execute('CREATE INDEX IF NOT EXISTS idx_rack_layouts_rack ON rack_layouts(rack)')
+
+
+def get_rack_layout(rack):
+    """获取货架布局"""
+    db_manager = DatabaseManager()
+    with db_manager.get_connection() as conn:
+        cursor = conn.execute('SELECT * FROM rack_layouts WHERE rack = ?', (rack,))
+        result = cursor.fetchone()
+        if result:
+            return {
+                'rack': result[0],
+                'x': result[1],
+                'y': result[2],
+                'width': result[3],
+                'height': result[4],
+                'rotation': result[5]
+            }
+        return None
+
+
+def save_rack_layout(rack, layout_data):
+    """保存货架布局"""
+    db_manager = DatabaseManager()
+    with db_manager.get_connection() as conn:
+        conn.execute('''
+            INSERT OR REPLACE INTO rack_layouts (rack, x, y, width, height, rotation, updated_date)
+            VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ''', (rack, layout_data['x'], layout_data['y'], layout_data['width'],
+              layout_data['height'], layout_data['rotation']))
+        return True
+
+
+def get_all_rack_layouts():
+    """获取所有货架布局"""
+    db_manager = DatabaseManager()
+    with db_manager.get_connection() as conn:
+        cursor = conn.execute('SELECT * FROM rack_layouts')
+        layouts = {}
+        for row in cursor.fetchall():
+            layouts[row[0]] = {
+                'x': row[1],
+                'y': row[2],
+                'width': row[3],
+                'height': row[4],
+                'rotation': row[5]
+            }
+        return layouts
 
 
 def get_spare_part_by_id(part_id):
@@ -466,11 +542,44 @@ def delete_spare_part(part_id):
 
 
 def get_all_spare_parts():
-    """获取所有备件列表"""
+    """获取所有备件列表 - 修复 None 值问题"""
     db_manager = DatabaseManager()
     with db_manager.get_connection() as conn:
         cursor = conn.execute('SELECT * FROM spare_parts ORDER BY part_no')
-        return cursor.fetchall()
+        results = cursor.fetchall()
+
+        # 确保所有数字字段都有有效值
+        processed_results = []
+        for part in results:
+            if hasattr(part, '_fields'):  # sqlite3.Row 对象
+                part_dict = {}
+                for i, field in enumerate(part._fields):
+                    value = part[i]
+                    # 处理数值字段的 None 值
+                    if field in ['current_stock', 'min_stock', 'max_stock', 'lt_weeks']:
+                        value = value if value is not None else 0
+                    elif field == 'unit_price':
+                        value = value if value is not None else 0.0
+                    elif field == 'key_part':
+                        value = value if value is not None else False
+                    part_dict[field] = value
+                processed_results.append(part_dict)
+            else:  # 元组格式
+                part_list = list(part)
+                # 确保关键字段不为None
+                if len(part_list) > 4 and part_list[4] is None:  # current_stock
+                    part_list[4] = 0
+                if len(part_list) > 6 and part_list[6] is None:  # min_stock
+                    part_list[6] = 0
+                if len(part_list) > 7 and part_list[7] is None:  # max_stock
+                    part_list[7] = 0
+                if len(part_list) > 9 and part_list[9] is None:  # lt_weeks
+                    part_list[9] = 0
+                if len(part_list) > 10 and part_list[10] is None:  # unit_price
+                    part_list[10] = 0.0
+                processed_results.append(tuple(part_list))
+
+        return processed_results
 
 
 def create_operation_record(operation_data):
@@ -749,21 +858,37 @@ def get_location_stats():
     """获取库位统计信息 - 彻底修复版本"""
     db_manager = DatabaseManager()
     with db_manager.get_connection() as conn:
-        # 总库位数
-        total_result = conn.execute('SELECT COUNT(*) FROM locations').fetchone()
-        total_locations = total_result[0] if total_result else 0
+        # 使用实时计算状态，确保数据准确
+        cursor = conn.execute('SELECT part_count, capacity FROM locations')
+        locations = cursor.fetchall()
 
-        # 空闲库位数
-        free_result = conn.execute('SELECT COUNT(*) FROM locations WHERE status = "free"').fetchone()
-        free_locations = free_result[0] if free_result else 0
+        total_locations = len(locations)
+        free_locations = 0
+        in_use_locations = 0
+        low_stock_locations = 0
 
-        # 使用中库位数
-        in_use_result = conn.execute('SELECT COUNT(*) FROM locations WHERE status = "in_use"').fetchone()
-        in_use_locations = in_use_result[0] if in_use_result else 0
+        for location in locations:
+            part_count = safe_int(location[0])
+            capacity = safe_int(location[1])
 
-        # 低库存库位数
-        low_stock_result = conn.execute('SELECT COUNT(*) FROM locations WHERE status = "low_stock"').fetchone()
-        low_stock_locations = low_stock_result[0] if low_stock_result else 0
+            # 实时计算状态
+            if capacity == 0:
+                status = 'free'
+            else:
+                utilization = part_count / capacity
+                if utilization == 0:
+                    status = 'free'
+                elif utilization < 0.3:
+                    status = 'low_stock'
+                else:
+                    status = 'in_use'
+
+            if status == 'free':
+                free_locations += 1
+            elif status == 'in_use':
+                in_use_locations += 1
+            elif status == 'low_stock':
+                low_stock_locations += 1
 
         return {
             'total_locations': total_locations,
@@ -792,9 +917,6 @@ def get_recent_activities(limit=10):
             operation_date = record[3]
             description = record[4]
             supplier_recipient = record[5]
-
-            # 调试日志 - 记录原始数据类型
-            logging.info(f"原始数据 - 操作类型: {operation_type}, 数量: {quantity} (类型: {type(quantity)})")
 
             # 安全转换数量为整数 - 彻底修复
             try:
@@ -848,9 +970,6 @@ def get_recent_activities(limit=10):
                 'time': operation_date,
                 'operator': operator
             })
-
-            # 调试日志 - 记录转换后的数据
-            logging.info(f"转换后 - 操作类型: {activity_type}, 数量: {quantity} (类型: {type(quantity)})")
 
         return activities
 

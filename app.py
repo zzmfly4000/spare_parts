@@ -193,6 +193,53 @@ def create_app(config_name='default'):
         # 保持原有的 date_filter 代码不变
         # ...
 
+    # 在 app.py 的 create_app 函数中添加以下模板过滤器
+
+    # 添加安全的比较过滤器
+    @app.template_filter('safe_compare')
+    def safe_compare_filter(value1, value2, operator='eq'):
+        """安全的比较过滤器，处理 None 值和不同类型"""
+        try:
+            # 处理 None 值
+            if value1 is None:
+                value1 = 0
+            if value2 is None:
+                value2 = 0
+
+            # 转换为数值类型进行比较
+            try:
+                val1 = float(value1)
+                val2 = float(value2)
+            except (ValueError, TypeError):
+                # 如果无法转换为数值，使用字符串比较
+                val1 = str(value1)
+                val2 = str(value2)
+
+            if operator == 'eq':
+                return val1 == val2
+            elif operator == 'ne':
+                return val1 != val2
+            elif operator == 'lt':
+                return val1 < val2
+            elif operator == 'le':
+                return val1 <= val2
+            elif operator == 'gt':
+                return val1 > val2
+            elif operator == 'ge':
+                return val1 >= val2
+            else:
+                return False
+        except Exception:
+            return False
+
+    # 添加默认值过滤器
+    @app.template_filter('default')
+    def default_filter(value, default_value=0):
+        """提供默认值的过滤器"""
+        if value is None:
+            return default_value
+        return value
+
     # 添加安全的 abs 过滤器
     @app.template_filter('safe_abs')
     def safe_abs_filter(value):

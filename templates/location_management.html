@@ -1,233 +1,454 @@
+[file name]: location_management.html
+[file content begin]
 {% extends "base.html" %}
 
 {% block title %}库位管理 - 设备备件管理系统{% endblock %}
 
 {% block styles %}
 <style>
-/* 3D货架样式 */
-.rack-container {
-    perspective: 1200px;
-    margin-bottom: 2rem;
-}
-
-.rack-3d {
+/* 仓库布局容器 */
+.warehouse-container {
     position: relative;
-    transform-style: preserve-3d;
-    transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-    cursor: grab;
-}
-
-.rack-3d:hover {
-    transform: translateZ(20px) rotateX(5deg);
-}
-
-.rack-3d.dragging {
-    cursor: grabbing;
-    transform: translateZ(30px) rotateX(8deg) !important;
-}
-
-.rack-face {
-    position: absolute;
-    border: 2px solid rgba(255, 255, 255, 0.1);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: bold;
-    backface-visibility: hidden;
-}
-
-.rack-front {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    transform: translateZ(25px);
-}
-
-.rack-top {
-    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
-    height: 50px;
-    transform: rotateX(90deg) translateZ(25px);
-}
-
-.rack-side {
-    background: linear-gradient(135deg, #5a6fd8 0%, #6a4a9a 100%);
-    width: 50px;
-    transform: rotateY(90deg) translateZ(25px);
-}
-
-/* 网格布局 */
-.warehouse-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 2rem;
-    padding: 1rem;
-}
-
-.rack-card {
-    background: rgba(255, 255, 255, 0.95);
+    width: 100%;
+    height: 800px;
+    background:
+        linear-gradient(90deg, rgba(0,0,0,0.03) 1px, transparent 1px),
+        linear-gradient(rgba(0,0,0,0.03) 1px, transparent 1px),
+        #f8f9fa;
+    background-size: 20px 20px;
+    border: 2px solid #e9ecef;
     border-radius: 1rem;
-    padding: 1.5rem;
-    box-shadow:
-        0 10px 30px rgba(0, 0, 0, 0.1),
-        0 1px 8px rgba(0, 0, 0, 0.05);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    backdrop-filter: blur(10px);
+    overflow: hidden;
+    margin-bottom: 2rem;
+    box-shadow: inset 0 2px 10px rgba(0,0,0,0.1);
 }
 
-[data-bs-theme="dark"] .rack-card {
-    background: rgba(30, 41, 59, 0.95);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+[data-bs-theme="dark"] .warehouse-container {
+    background:
+        linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px),
+        linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+        #2d3748;
+    background-size: 20px 20px;
+    border-color: #4a5568;
 }
 
-.rack-card:hover {
-    transform: translateY(-8px);
+/* 货架元素 - 实物风格 */
+.rack-element {
+    position: absolute;
+    background: linear-gradient(135deg, #8B4513, #A0522D);
+    border: 2px solid #654321;
+    border-radius: 8px;
     box-shadow:
-        0 20px 40px rgba(0, 0, 0, 0.15),
-        0 5px 15px rgba(0, 0, 0, 0.1);
+        0 4px 15px rgba(0,0,0,0.3),
+        inset 0 1px 0 rgba(255,255,255,0.2),
+        inset 0 -1px 0 rgba(0,0,0,0.5);
+    cursor: move;
+    user-select: none;
+    transition: all 0.3s ease;
+    min-width: 200px;
+    min-height: 120px;
+    overflow: hidden;
+}
+
+.rack-element::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background:
+        linear-gradient(90deg,
+            transparent 48%,
+            rgba(0,0,0,0.1) 50%,
+            transparent 52%),
+        linear-gradient(0deg,
+            transparent 48%,
+            rgba(0,0,0,0.1) 50%,
+            transparent 52%);
+    background-size: 20px 20px;
+    pointer-events: none;
+}
+
+.rack-element:hover {
+    box-shadow:
+        0 6px 20px rgba(0,0,0,0.4),
+        inset 0 1px 0 rgba(255,255,255,0.3),
+        inset 0 -1px 0 rgba(0,0,0,0.6);
+    transform: translateY(-2px);
+}
+
+.rack-element.dragging {
+    z-index: 1000;
+    transform: rotate(3deg) scale(1.02);
+    box-shadow:
+        0 8px 25px rgba(0,0,0,0.5),
+        inset 0 1px 0 rgba(255,255,255,0.3);
+}
+
+/* 货架内容 */
+.rack-content {
+    position: relative;
+    z-index: 2;
+    padding: 15px;
+    color: white;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+    height: 100%;
+    display: flex;
+    flex-direction: column;
 }
 
 .rack-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1rem;
-    padding-bottom: 1rem;
-    border-bottom: 2px solid rgba(0, 0, 0, 0.1);
+    align-items: flex-start;
+    margin-bottom: 10px;
 }
 
-[data-bs-theme="dark"] .rack-header {
-    border-bottom-color: rgba(255, 255, 255, 0.1);
+.rack-title {
+    font-weight: bold;
+    font-size: 14px;
+    line-height: 1.2;
+}
+
+.rack-utilization {
+    background: rgba(0,0,0,0.6);
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: bold;
 }
 
 .rack-stats {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1rem;
-    margin-bottom: 1.5rem;
+    grid-template-columns: 1fr 1fr;
+    gap: 5px;
+    margin-bottom: 10px;
+    font-size: 11px;
 }
 
 .stat-item {
-    text-align: center;
-    padding: 0.75rem;
-    border-radius: 0.5rem;
-    background: rgba(0, 0, 0, 0.03);
+    display: flex;
+    align-items: center;
+    gap: 4px;
 }
 
-[data-bs-theme="dark"] .stat-item {
-    background: rgba(255, 255, 255, 0.05);
+.stat-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
 }
 
-.stat-value {
-    font-size: 1.5rem;
-    font-weight: bold;
-    margin-bottom: 0.25rem;
+.stat-dot.free { background: #28a745; }
+.stat-dot.in-use { background: #007bff; }
+.stat-dot.low-stock { background: #ffc107; }
+
+/* 调整大小手柄 */
+.resize-handle {
+    position: absolute;
+    background: rgba(255,255,255,0.8);
+    border: 1px solid #654321;
+    border-radius: 2px;
+    z-index: 10;
 }
 
-.stat-label {
-    font-size: 0.875rem;
-    color: #6c757d;
+.resize-handle.right {
+    right: -4px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 8px;
+    height: 40px;
+    cursor: ew-resize;
 }
 
-/* 层级视图 */
-.level-view {
-    margin-top: 1.5rem;
+.resize-handle.bottom {
+    bottom: -4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 40px;
+    height: 8px;
+    cursor: ns-resize;
 }
 
-.level-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
-    gap: 0.5rem;
+.resize-handle.corner {
+    width: 12px;
+    height: 12px;
+    background: #ffc107;
+    border: 2px solid #654321;
 }
 
-.location-cell {
-    aspect-ratio: 1;
-    border-radius: 0.375rem;
+.resize-handle.bottom-right {
+    right: -6px;
+    bottom: -6px;
+    cursor: nwse-resize;
+}
+
+.resize-handle.bottom-left {
+    left: -6px;
+    bottom: -6px;
+    cursor: nesw-resize;
+}
+
+.resize-handle.top-right {
+    right: -6px;
+    top: -6px;
+    cursor: nesw-resize;
+}
+
+.resize-handle.top-left {
+    left: -6px;
+    top: -6px;
+    cursor: nwse-resize;
+}
+
+/* 旋转手柄 */
+.rotate-handle {
+    position: absolute;
+    top: -25px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 20px;
+    height: 20px;
+    background: #007bff;
+    border-radius: 50%;
+    cursor: grab;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.75rem;
-    font-weight: 500;
-    transition: all 0.2s ease;
-    cursor: pointer;
-    position: relative;
-    overflow: hidden;
-}
-
-.location-cell.free {
-    background: linear-gradient(135deg, #28a745, #20c997);
     color: white;
+    font-size: 10px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
 }
 
-.location-cell.in_use {
-    background: linear-gradient(135deg, #007bff, #0056b3);
-    color: white;
+.rotate-handle:active {
+    cursor: grabbing;
 }
 
-.location-cell.low_stock {
-    background: linear-gradient(135deg, #ffc107, #fd7e14);
-    color: white;
-}
-
-.location-cell:hover {
-    transform: scale(1.05);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-/* 拖拽区域 */
-.drag-container {
-    min-height: 400px;
-    border: 2px dashed rgba(0, 0, 0, 0.1);
+/* 控制面板 */
+.control-panel {
+    background: rgba(255,255,255,0.95);
     border-radius: 1rem;
-    padding: 2rem;
-    transition: all 0.3s ease;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    backdrop-filter: blur(10px);
 }
 
-[data-bs-theme="dark"] .drag-container {
-    border-color: rgba(255, 255, 255, 0.1);
+[data-bs-theme="dark"] .control-panel {
+    background: rgba(30,41,59,0.95);
 }
 
-.drag-container.drag-over {
+.toolbar {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+}
+
+.tool-btn {
+    padding: 8px 15px;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    background: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+[data-bs-theme="dark"] .tool-btn {
+    background: #4a5568;
+    border-color: #718096;
+    color: white;
+}
+
+.tool-btn:hover {
+    background: #f8f9fa;
     border-color: #007bff;
-    background: rgba(0, 123, 255, 0.05);
 }
 
-/* 3D动画 */
-@keyframes float {
-    0%, 100% { transform: translateY(0px) rotateX(0deg); }
-    50% { transform: translateY(-10px) rotateX(5deg); }
+[data-bs-theme="dark"] .tool-btn:hover {
+    background: #2d3748;
 }
 
-.floating {
-    animation: float 6s ease-in-out infinite;
+.tool-btn.active {
+    background: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+/* 网格控制 */
+.grid-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.grid-size {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.grid-size input {
+    width: 60px;
+    text-align: center;
+}
+
+/* 货架属性面板 */
+.properties-panel {
+    background: rgba(255,255,255,0.95);
+    border-radius: 1rem;
+    padding: 1.5rem;
+    margin-top: 2rem;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    backdrop-filter: blur(10px);
+}
+
+[data-bs-theme="dark"] .properties-panel {
+    background: rgba(30,41,59,0.95);
+}
+
+.property-group {
+    margin-bottom: 1rem;
+}
+
+.property-label {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: #495057;
+}
+
+[data-bs-theme="dark"] .property-label {
+    color: #e2e8f0;
+}
+
+.property-inputs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.property-input {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.property-input label {
+    font-size: 12px;
+    color: #6c757d;
+}
+
+.property-input input {
+    padding: 6px 10px;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+[data-bs-theme="dark"] .property-input input {
+    background: #4a5568;
+    border-color: #718096;
+    color: white;
+}
+
+/* 状态指示器 */
+.status-indicators {
+    display: flex;
+    gap: 15px;
+    margin-top: 1rem;
+}
+
+.status-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+}
+
+.status-color {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+
+/* 空状态 */
+.empty-layout {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    color: #6c757d;
+}
+
+.empty-layout i {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+/* 测量工具 */
+.measurement-line {
+    position: absolute;
+    background: #007bff;
+    z-index: 999;
+    pointer-events: none;
+}
+
+.measurement-line.horizontal {
+    height: 1px;
+    border-top: 1px dashed #007bff;
+}
+
+.measurement-line.vertical {
+    width: 1px;
+    border-left: 1px dashed #007bff;
+}
+
+.measurement-label {
+    position: absolute;
+    background: #007bff;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 11px;
+    z-index: 1000;
+    pointer-events: none;
 }
 
 /* 响应式设计 */
 @media (max-width: 768px) {
-    .warehouse-grid {
-        grid-template-columns: 1fr;
-        gap: 1rem;
-        padding: 0.5rem;
+    .warehouse-container {
+        height: 500px;
     }
 
-    .rack-stats {
-        grid-template-columns: 1fr;
+    .toolbar {
+        flex-direction: column;
     }
 
-    .level-grid {
-        grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
+    .property-inputs {
+        grid-template-columns: 1fr;
     }
 }
 
-/* 搜索和筛选区域 */
-.search-container {
-    background: rgba(255, 255, 255, 0.9);
-    border-radius: 1rem;
-    padding: 1.5rem;
-    margin-bottom: 2rem;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+/* 动画效果 */
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
 }
 
-[data-bs-theme="dark"] .search-container {
-    background: rgba(30, 41, 59, 0.9);
+.rack-element.selected {
+    animation: pulse 2s infinite;
+    border-color: #007bff;
+    box-shadow:
+        0 0 0 3px rgba(0,123,255,0.3),
+        0 6px 20px rgba(0,0,0,0.4);
 }
 </style>
 {% endblock %}
@@ -236,51 +457,132 @@
 <!-- 页面标题和操作 -->
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-4 mb-4 border-bottom">
     <div>
-        <h1 class="h3 mb-2">智能库位管理</h1>
-        <p class="text-muted mb-0">3D可视化库位布局与实时状态监控</p>
+        <h1 class="h3 mb-2">智能仓库布局系统</h1>
+        <p class="text-muted mb-0">实物级货架布局设计与精细调整</p>
     </div>
     <div class="btn-toolbar mb-2 mb-md-0">
-        <div class="btn-group me-2">
-            <button type="button" class="btn btn-outline-primary" onclick="refreshRackLayout()">
-                <i class="fas fa-sync-alt me-1"></i>刷新视图
-            </button>
-            <button type="button" class="btn btn-outline-secondary" id="editModeBtn" onclick="toggleEditMode()">
-                <i class="fas fa-arrows-alt me-1"></i>布局模式
-            </button>
-        </div>
         <a href="{{ url_for('add_location') }}" class="btn btn-primary">
             <i class="fas fa-plus me-1"></i>添加库位
         </a>
     </div>
 </div>
 
-<!-- 搜索和筛选 -->
-<div class="search-container">
-    <div class="row g-3 align-items-end">
-        <div class="col-md-4">
-            <label for="search" class="form-label">搜索库位</label>
-            <input type="text" class="form-control" id="search"
-                   placeholder="输入库位代码或描述..." value="{{ search }}">
+<!-- 控制面板 -->
+<div class="control-panel">
+    <div class="toolbar">
+        <button class="tool-btn active" id="selectTool" onclick="setTool('select')">
+            <i class="fas fa-mouse-pointer"></i>选择
+        </button>
+        <button class="tool-btn" id="dragTool" onclick="setTool('drag')">
+            <i class="fas fa-arrows-alt"></i>拖拽
+        </button>
+        <button class="tool-btn" id="resizeTool" onclick="setTool('resize')">
+            <i class="fas fa-expand-arrows-alt"></i>调整大小
+        </button>
+        <button class="tool-btn" id="rotateTool" onclick="setTool('rotate')">
+            <i class="fas fa-redo"></i>旋转
+        </button>
+        <button class="tool-btn" onclick="addNewRack()">
+            <i class="fas fa-plus"></i>添加货架
+        </button>
+        <button class="tool-btn" onclick="deleteSelectedRack()">
+            <i class="fas fa-trash"></i>删除
+        </button>
+    </div>
+
+    <div class="grid-controls">
+        <label class="form-label mb-0">网格尺寸:</label>
+        <div class="grid-size">
+            <input type="number" id="gridSize" value="20" min="5" max="100" class="form-control form-control-sm">
+            <span class="text-muted">px</span>
         </div>
-        <div class="col-md-3">
-            <label for="status_filter" class="form-label">状态筛选</label>
-            <select class="form-select" id="status_filter">
-                <option value="">全部状态</option>
-                <option value="free" {% if status_filter == 'free' %}selected{% endif %}>空闲</option>
-                <option value="in_use" {% if status_filter == 'in_use' %}selected{% endif %}>使用中</option>
-                <option value="low_stock" {% if status_filter == 'low_stock' %}selected{% endif %}>低库存</option>
-            </select>
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="snapToGrid" checked>
+            <label class="form-check-label" for="snapToGrid">吸附网格</label>
         </div>
-        <div class="col-md-3">
-            <button type="button" class="btn btn-primary w-100" onclick="applyFilters()">
-                <i class="fas fa-filter me-1"></i>筛选
-            </button>
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="showMeasurements">
+            <label class="form-check-label" for="showMeasurements">显示尺寸</label>
+        </div>
+    </div>
+
+    <div class="d-flex gap-2">
+        <button class="btn btn-sm btn-success" onclick="saveLayout()">
+            <i class="fas fa-save me-1"></i>保存布局
+        </button>
+        <button class="btn btn-sm btn-outline-secondary" onclick="loadLayout()">
+            <i class="fas fa-folder-open me-1"></i>加载布局
+        </button>
+        <button class="btn btn-sm btn-outline-secondary" onclick="resetLayout()">
+            <i class="fas fa-redo me-1"></i>重置布局
+        </button>
+        <button class="btn btn-sm btn-outline-primary" onclick="autoArrange()">
+            <i class="fas fa-magic me-1"></i>自动排列
+        </button>
+    </div>
+</div>
+
+<!-- 仓库布局区域 -->
+<div class="warehouse-container" id="warehouseLayout">
+    <div id="rackContainer"></div>
+    <div class="empty-layout" id="emptyLayout" style="display: none;">
+        <i class="fas fa-warehouse"></i>
+        <h5 class="text-muted">仓库布局为空</h5>
+        <p class="text-muted">点击"添加货架"按钮开始设计您的仓库布局</p>
+        <button class="btn btn-primary mt-2" onclick="addNewRack()">
+            <i class="fas fa-plus me-1"></i>添加第一个货架
+        </button>
+    </div>
+</div>
+
+<!-- 属性面板 -->
+<div class="properties-panel">
+    <h6 class="property-label">选中的货架属性</h6>
+    <div class="property-inputs">
+        <div class="property-input">
+            <label>位置 X</label>
+            <input type="number" id="propX" onchange="updateSelectedRackProperty('x', this.value)">
+        </div>
+        <div class="property-input">
+            <label>位置 Y</label>
+            <input type="number" id="propY" onchange="updateSelectedRackProperty('y', this.value)">
+        </div>
+        <div class="property-input">
+            <label>宽度</label>
+            <input type="number" id="propWidth" onchange="updateSelectedRackProperty('width', this.value)">
+        </div>
+        <div class="property-input">
+            <label>高度</label>
+            <input type="number" id="propHeight" onchange="updateSelectedRackProperty('height', this.value)">
+        </div>
+        <div class="property-input">
+            <label>旋转角度</label>
+            <input type="number" id="propRotation" min="0" max="360" onchange="updateSelectedRackProperty('rotation', this.value)">
+        </div>
+        <div class="property-input">
+            <label>货架名称</label>
+            <input type="text" id="propName" onchange="updateSelectedRackProperty('name', this.value)">
+        </div>
+    </div>
+
+    <div class="status-indicators">
+        <div class="status-item">
+            <div class="status-color" style="background: #28a745;"></div>
+            <span>空闲库位</span>
+        </div>
+        <div class="status-item">
+            <div class="status-color" style="background: #007bff;"></div>
+            <span>使用中</span>
+        </div>
+        <div class="status-item">
+            <div class="status-color" style="background: #ffc107;"></div>
+            <span>低库存</span>
         </div>
     </div>
 </div>
 
 <!-- 统计概览 -->
-<div class="row mb-4">
+<div class="row mt-4">
     <div class="col-xl-2 col-md-4 col-6">
         <div class="card stat-card">
             <div class="card-body">
@@ -312,7 +614,7 @@
         <div class="card stat-card">
             <div class="card-body">
                 <i class="fas fa-exclamation-triangle text-warning"></i>
-                <div class="number" id="lowStockCount">0</div>
+                <div class="number" id="lowStockCount">{{ stats.low_stock_locations if stats else 0 }}</div>
                 <div class="text-muted">低库存</div>
             </div>
         </div>
@@ -320,267 +622,620 @@
     <div class="col-xl-2 col-md-4 col-6">
         <div class="card stat-card">
             <div class="card-body">
-                <i class="fas fa-chart-pie text-info"></i>
-                <div class="number" id="utilizationRate">0%</div>
-                <div class="text-muted">利用率</div>
+                <i class="fas fa-ruler-combined text-info"></i>
+                <div class="number" id="totalRacks">0</div>
+                <div class="text-muted">货架数量</div>
             </div>
         </div>
     </div>
     <div class="col-xl-2 col-md-4 col-6">
         <div class="card stat-card">
             <div class="card-body">
-                <i class="fas fa-layer-group text-secondary"></i>
-                <div class="number" id="totalRacks">0</div>
-                <div class="text-muted">货架总数</div>
+                <i class="fas fa-border-all text-secondary"></i>
+                <div class="number" id="areaUsed">0m²</div>
+                <div class="text-muted">使用面积</div>
             </div>
-        </div>
-    </div>
-</div>
-
-<!-- 3D货架布局 -->
-<div class="card mb-4">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="card-title mb-0">
-            <i class="fas fa-cube me-2"></i>3D货架布局
-            <small class="text-muted ms-2">拖拽货架可重新排列布局</small>
-        </h5>
-        <div class="form-check form-switch">
-            <input class="form-check-input" type="checkbox" id="autoArrange" checked>
-            <label class="form-check-label" for="autoArrange">自动排列</label>
-        </div>
-    </div>
-    <div class="card-body">
-        <div id="rackLayoutContainer" class="drag-container">
-            <div class="text-center py-5" id="loadingRacks">
-                <div class="spinner-border text-primary" role="status">
-                    <span class="visually-hidden">加载中...</span>
-                </div>
-                <p class="mt-2 text-muted">正在加载3D货架布局...</p>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- 货架列表视图 -->
-<div class="card">
-    <div class="card-header">
-        <h5 class="card-title mb-0">
-            <i class="fas fa-list me-2"></i>货架详细信息
-        </h5>
-    </div>
-    <div class="card-body">
-        <div id="rackListView" class="warehouse-grid">
-            <!-- 动态加载货架卡片 -->
         </div>
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
 <script>
 // 全局状态
-let editMode = false;
-let racksData = [];
+let currentTool = 'select';
+let selectedRack = null;
+let racks = [];
+let isDragging = false;
+let dragStartX, dragStartY;
+let originalX, originalY;
+let currentResizeHandle = null;
+let currentRotateAngle = 0;
 
 // 初始化页面
 document.addEventListener('DOMContentLoaded', function() {
-    loadRackLayout();
-    initDragAndDrop();
+    loadRackData();
+    initEventListeners();
+    updateToolButtons();
 });
 
-// 加载货架布局
-async function loadRackLayout() {
+// 加载货架数据
+async function loadRackData() {
     try {
-        showLoading(true);
+        showLoading('正在加载货架数据...');
         const response = await fetch('/api/locations/rack_layout');
         const data = await response.json();
 
         if (data.success) {
-            racksData = data.racks;
+            racks = data.racks;
             renderRackLayout();
             updateStatistics();
-            showLoading(false);
+            hideLoading();
+            showSuccess('货架数据加载成功');
         } else {
+            hideLoading();
             showError('加载货架数据失败: ' + data.error);
-            showLoading(false);
         }
     } catch (error) {
-        console.error('加载货架布局失败:', error);
+        console.error('加载货架数据失败:', error);
+        hideLoading();
         showError('网络错误，请稍后重试');
-        showLoading(false);
     }
 }
 
-// 显示/隐藏加载状态
-function showLoading(show) {
-    const container = document.getElementById('rackLayoutContainer');
-    const loading = document.getElementById('loadingRacks');
+// 初始化事件监听
+function initEventListeners() {
+    const warehouse = document.getElementById('warehouseLayout');
 
-    if (show) {
-        container.innerHTML = '';
-        container.appendChild(loading);
-        loading.style.display = 'block';
-    } else {
-        loading.style.display = 'none';
-    }
+    // 鼠标事件
+    warehouse.addEventListener('mousedown', handleMouseDown);
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    // 触摸事件
+    warehouse.addEventListener('touchstart', handleTouchStart);
+    document.addEventListener('touchmove', handleTouchMove);
+    document.addEventListener('touchend', handleTouchEnd);
+
+    // 键盘事件
+    document.addEventListener('keydown', handleKeyDown);
+
+    // 网格控制
+    document.getElementById('gridSize').addEventListener('change', updateGrid);
+    document.getElementById('snapToGrid').addEventListener('change', updateGrid);
 }
 
-// 渲染3D货架布局
+// 渲染货架布局
 function renderRackLayout() {
-    const container = document.getElementById('rackLayoutContainer');
+    const container = document.getElementById('rackContainer');
+    const emptyLayout = document.getElementById('emptyLayout');
 
-    if (racksData.length === 0) {
-        container.innerHTML = `
-            <div class="text-center py-5">
-                <i class="fas fa-warehouse fa-3x text-muted mb-3"></i>
-                <h5 class="text-muted">暂无货架数据</h5>
-                <p class="text-muted">请先添加库位信息</p>
-                <a href="{{ url_for('add_location') }}" class="btn btn-primary">
-                    <i class="fas fa-plus me-1"></i>添加库位
-                </a>
-            </div>
-        `;
+    if (racks.length === 0) {
+        container.innerHTML = '';
+        emptyLayout.style.display = 'block';
         return;
     }
 
-    let html = '<div class="warehouse-grid">';
+    emptyLayout.style.display = 'none';
 
-    racksData.forEach(rack => {
-        const utilization = rack.stats.utilization ? rack.stats.utilization.toFixed(1) : '0.0';
-        const statusColor = getRackStatusColor(rack.stats);
+    let html = '';
+
+    racks.forEach((rack, index) => {
+        const layout = rack.layout || { x: 100 + index * 50, y: 100 + index * 30, width: 300, height: 200, rotation: 0 };
+        const utilization = rack.stats.utilization ? Math.round(rack.stats.utilization) : 0;
 
         html += `
-            <div class="rack-card floating" data-rack="${rack.rack}">
-                <div class="rack-header">
-                    <h6 class="mb-0">
-                        <i class="fas fa-pallet me-2"></i>${rack.rack || '未分类'}
-                    </h6>
-                    <span class="badge" style="background: ${statusColor}">
-                        ${utilization}%
-                    </span>
+            <div class="rack-element"
+                 data-rack="${rack.rack}"
+                 data-index="${index}"
+                 style="left: ${layout.x}px; top: ${layout.y}px; width: ${layout.width}px; height: ${layout.height}px; transform: rotate(${layout.rotation}deg);">
+
+                <div class="rotate-handle" data-rack="${rack.rack}">
+                    <i class="fas fa-sync-alt"></i>
                 </div>
 
-                <div class="rack-stats">
-                    <div class="stat-item">
-                        <div class="stat-value text-primary">${rack.stats.total || 0}</div>
-                        <div class="stat-label">总库位</div>
+                <div class="rack-content">
+                    <div class="rack-header">
+                        <div class="rack-title">${rack.rack || '未命名货架'}</div>
+                        <div class="rack-utilization">${utilization}%</div>
                     </div>
-                    <div class="stat-item">
-                        <div class="stat-value text-success">${rack.stats.free || 0}</div>
-                        <div class="stat-label">空闲</div>
+
+                    <div class="rack-stats">
+                        <div class="stat-item">
+                            <div class="stat-dot free"></div>
+                            <span>${rack.stats.free || 0}</span>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-dot in-use"></div>
+                            <span>${rack.stats.in_use || 0}</span>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-dot low-stock"></div>
+                            <span>${rack.stats.low_stock || 0}</span>
+                        </div>
+                        <div class="stat-item">
+                            <i class="fas fa-layer-group"></i>
+                            <span>${rack.levels ? rack.levels.length : 0}层</span>
+                        </div>
                     </div>
-                    <div class="stat-item">
-                        <div class="stat-value text-primary">${rack.stats.in_use || 0}</div>
-                        <div class="stat-label">使用中</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-value text-warning">${rack.stats.low_stock || 0}</div>
-                        <div class="stat-label">低库存</div>
+
+                    <div style="font-size: 10px; margin-top: auto;">
+                        ${Math.round(layout.width)} × ${Math.round(layout.height)} px
                     </div>
                 </div>
 
-                <div class="level-view">
-                    <h6 class="mb-2">层级视图</h6>
-                    <div class="level-grid">
-                        ${renderLevelView(rack.locations)}
-                    </div>
-                </div>
-
-                <div class="mt-3 text-center">
-                    <a href="/rack_detail/${rack.rack || 'default'}" class="btn btn-sm btn-outline-primary">
-                        <i class="fas fa-expand me-1"></i>查看详情
-                    </a>
-                </div>
+                <!-- 调整大小手柄 -->
+                <div class="resize-handle right" data-rack="${rack.rack}" data-type="right"></div>
+                <div class="resize-handle bottom" data-rack="${rack.rack}" data-type="bottom"></div>
+                <div class="resize-handle corner bottom-right" data-rack="${rack.rack}" data-type="bottom-right"></div>
+                <div class="resize-handle corner bottom-left" data-rack="${rack.rack}" data-type="bottom-left"></div>
+                <div class="resize-handle corner top-right" data-rack="${rack.rack}" data-type="top-right"></div>
+                <div class="resize-handle corner top-left" data-rack="${rack.rack}" data-type="top-left"></div>
             </div>
         `;
     });
 
-    html += '</div>';
     container.innerHTML = html;
 
-    // 添加3D效果
-    init3DEffects();
+    // 更新货架数量显示
+    document.getElementById('totalRacks').textContent = racks.length;
+
+    // 计算使用面积（简化计算）
+    const totalArea = racks.reduce((sum, rack) => {
+        const layout = rack.layout || { width: 300, height: 200 };
+        return sum + (layout.width * layout.height) / 10000; // 转换为平方米
+    }, 0);
+
+    document.getElementById('areaUsed').textContent = totalArea.toFixed(1) + 'm²';
 }
 
-// 渲染层级视图
-function renderLevelView(locations) {
-    if (!locations || locations.length === 0) {
-        return '<div class="text-muted small">无层级数据</div>';
+// 工具设置
+function setTool(tool) {
+    currentTool = tool;
+    updateToolButtons();
+    
+    // 更新光标样式
+    const warehouse = document.getElementById('warehouseLayout');
+    switch(tool) {
+        case 'select':
+            warehouse.style.cursor = 'default';
+            break;
+        case 'drag':
+            warehouse.style.cursor = 'move';
+            break;
+        case 'resize':
+            warehouse.style.cursor = 'nwse-resize';
+            break;
+        case 'rotate':
+            warehouse.style.cursor = 'grab';
+            break;
+    }
+}
+
+// 更新工具按钮状态
+function updateToolButtons() {
+    document.querySelectorAll('.tool-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    switch(currentTool) {
+        case 'select':
+            document.getElementById('selectTool').classList.add('active');
+            break;
+        case 'drag':
+            document.getElementById('dragTool').classList.add('active');
+            break;
+        case 'resize':
+            document.getElementById('resizeTool').classList.add('active');
+            break;
+        case 'rotate':
+            document.getElementById('rotateTool').classList.add('active');
+            break;
+    }
+}
+
+// 鼠标事件处理
+function handleMouseDown(e) {
+    const rackElement = e.target.closest('.rack-element');
+    const resizeHandle = e.target.closest('.resize-handle');
+    const rotateHandle = e.target.closest('.rotate-handle');
+
+    if (rackElement) {
+        selectRack(rackElement);
+
+        if (currentTool === 'drag' || (!resizeHandle && !rotateHandle && currentTool !== 'rotate')) {
+            startDragging(rackElement, e.clientX, e.clientY);
+        } else if (resizeHandle && (currentTool === 'resize' || resizeHandle)) {
+            startResizing(rackElement, resizeHandle, e.clientX, e.clientY);
+        } else if (rotateHandle && (currentTool === 'rotate' || rotateHandle)) {
+            startRotating(rackElement, e.clientX, e.clientY);
+        }
+    } else {
+        // 点击空白处取消选择
+        clearSelection();
+    }
+}
+
+function handleMouseMove(e) {
+    if (isDragging && selectedRack) {
+        const dx = e.clientX - dragStartX;
+        const dy = e.clientY - dragStartY;
+
+        const gridSize = parseInt(document.getElementById('gridSize').value);
+        const snapToGrid = document.getElementById('snapToGrid').checked;
+
+        let newX = originalX + dx;
+        let newY = originalY + dy;
+
+        if (snapToGrid) {
+            newX = Math.round(newX / gridSize) * gridSize;
+            newY = Math.round(newY / gridSize) * gridSize;
+        }
+
+        selectedRack.element.style.left = newX + 'px';
+        selectedRack.element.style.top = newY + 'px';
+
+        // 更新属性面板
+        updatePropertyPanel(newX, newY);
+    } else if (currentResizeHandle && selectedRack) {
+        handleResizing(e.clientX, e.clientY);
+    } else if (currentRotateAngle !== null && selectedRack) {
+        handleRotating(e.clientX, e.clientY);
+    }
+}
+
+function handleMouseUp() {
+    isDragging = false;
+    currentResizeHandle = null;
+    currentRotateAngle = null;
+}
+
+// 触摸事件处理（移动端支持）
+function handleTouchStart(e) {
+    if (e.touches.length === 1) {
+        const touch = e.touches[0];
+        handleMouseDown({
+            clientX: touch.clientX,
+            clientY: touch.clientY,
+            target: document.elementFromPoint(touch.clientX, touch.clientY)
+        });
+    }
+}
+
+function handleTouchMove(e) {
+    if (e.touches.length === 1) {
+        const touch = e.touches[0];
+        handleMouseMove({
+            clientX: touch.clientX,
+            clientY: touch.clientY
+        });
+    }
+}
+
+function handleTouchEnd() {
+    handleMouseUp();
+}
+
+// 键盘事件处理
+function handleKeyDown(e) {
+    if (!selectedRack) return;
+
+    const step = parseInt(document.getElementById('gridSize').value) || 20;
+
+    switch(e.key) {
+        case 'ArrowUp':
+            e.preventDefault();
+            moveSelectedRack(0, -step);
+            break;
+        case 'ArrowDown':
+            e.preventDefault();
+            moveSelectedRack(0, step);
+            break;
+        case 'ArrowLeft':
+            e.preventDefault();
+            moveSelectedRack(-step, 0);
+            break;
+        case 'ArrowRight':
+            e.preventDefault();
+            moveSelectedRack(step, 0);
+            break;
+        case 'Delete':
+        case 'Backspace':
+            e.preventDefault();
+            deleteSelectedRack();
+            break;
+    }
+}
+
+// 选择货架
+function selectRack(element) {
+    clearSelection();
+
+    selectedRack = {
+        element: element,
+        rack: element.dataset.rack,
+        index: parseInt(element.dataset.index)
+    };
+
+    element.classList.add('selected');
+
+    // 更新属性面板
+    const style = element.style;
+    const transform = style.transform;
+    let rotation = 0;
+    if (transform) {
+        const match = transform.match(/rotate\(([-0-9]+)deg\)/);
+        if (match) {
+            rotation = parseInt(match[1]);
+        }
     }
 
-    // 按层级分组
-    const levels = {};
-    locations.forEach(loc => {
-        const level = loc.level || '未知';
-        if (!levels[level]) {
-            levels[level] = [];
+    updatePropertyPanel(
+        parseInt(style.left) || 0,
+        parseInt(style.top) || 0,
+        parseInt(style.width) || 0,
+        parseInt(style.height) || 0,
+        rotation,
+        element.querySelector('.rack-title').textContent
+    );
+}
+
+// 清除选择
+function clearSelection() {
+    if (selectedRack) {
+        selectedRack.element.classList.remove('selected');
+        selectedRack = null;
+    }
+
+    // 清空属性面板
+    updatePropertyPanel(0, 0, 0, 0, 0, '');
+}
+
+// 开始拖拽
+function startDragging(element, startX, startY) {
+    isDragging = true;
+    dragStartX = startX;
+    dragStartY = startY;
+    originalX = parseInt(element.style.left);
+    originalY = parseInt(element.style.top);
+}
+
+// 开始调整大小
+function startResizing(element, handle, startX, startY) {
+    currentResizeHandle = {
+        element: element,
+        type: handle.dataset.type,
+        startX: startX,
+        startY: startY,
+        startWidth: parseInt(element.style.width),
+        startHeight: parseInt(element.style.height),
+        startLeft: parseInt(element.style.left),
+        startTop: parseInt(element.style.top)
+    };
+}
+
+// 开始旋转
+function startRotating(element, startX, startY) {
+    const rect = element.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    
+    currentRotateAngle = {
+        element: element,
+        startX: startX,
+        startY: startY,
+        centerX: centerX,
+        centerY: centerY,
+        startAngle: getCurrentRotation(element)
+    };
+}
+
+// 处理调整大小
+function handleResizing(clientX, clientY) {
+    if (!currentResizeHandle) return;
+
+    const dx = clientX - currentResizeHandle.startX;
+    const dy = clientY - currentResizeHandle.startY;
+    const gridSize = parseInt(document.getElementById('gridSize').value);
+    const snapToGrid = document.getElementById('snapToGrid').checked;
+
+    let newWidth = currentResizeHandle.startWidth;
+    let newHeight = currentResizeHandle.startHeight;
+    let newLeft = currentResizeHandle.startLeft;
+    let newTop = currentResizeHandle.startTop;
+
+    switch(currentResizeHandle.type) {
+        case 'right':
+            newWidth = Math.max(100, currentResizeHandle.startWidth + dx);
+            break;
+        case 'bottom':
+            newHeight = Math.max(80, currentResizeHandle.startHeight + dy);
+            break;
+        case 'bottom-right':
+            newWidth = Math.max(100, currentResizeHandle.startWidth + dx);
+            newHeight = Math.max(80, currentResizeHandle.startHeight + dy);
+            break;
+        case 'bottom-left':
+            newWidth = Math.max(100, currentResizeHandle.startWidth - dx);
+            newHeight = Math.max(80, currentResizeHandle.startHeight + dy);
+            newLeft = currentResizeHandle.startLeft + dx;
+            break;
+        case 'top-right':
+            newWidth = Math.max(100, currentResizeHandle.startWidth + dx);
+            newHeight = Math.max(80, currentResizeHandle.startHeight - dy);
+            newTop = currentResizeHandle.startTop + dy;
+            break;
+        case 'top-left':
+            newWidth = Math.max(100, currentResizeHandle.startWidth - dx);
+            newHeight = Math.max(80, currentResizeHandle.startHeight - dy);
+            newLeft = currentResizeHandle.startLeft + dx;
+            newTop = currentResizeHandle.startTop + dy;
+            break;
+    }
+
+    if (snapToGrid) {
+        newWidth = Math.round(newWidth / gridSize) * gridSize;
+        newHeight = Math.round(newHeight / gridSize) * gridSize;
+        newLeft = Math.round(newLeft / gridSize) * gridSize;
+        newTop = Math.round(newTop / gridSize) * gridSize;
+    }
+
+    currentResizeHandle.element.style.width = newWidth + 'px';
+    currentResizeHandle.element.style.height = newHeight + 'px';
+    currentResizeHandle.element.style.left = newLeft + 'px';
+    currentResizeHandle.element.style.top = newTop + 'px';
+
+    updatePropertyPanel(newLeft, newTop, newWidth, newHeight);
+}
+
+// 处理旋转
+function handleRotating(clientX, clientY) {
+    if (!currentRotateAngle) return;
+
+    const dx = clientX - currentRotateAngle.centerX;
+    const dy = clientY - currentRotateAngle.centerY;
+    const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+    const newRotation = (currentRotateAngle.startAngle + angle + 360) % 360;
+
+    currentRotateAngle.element.style.transform = `rotate(${newRotation}deg)`;
+    updatePropertyPanel(null, null, null, null, newRotation);
+}
+
+// 获取当前旋转角度
+function getCurrentRotation(element) {
+    const transform = element.style.transform;
+    if (transform) {
+        const match = transform.match(/rotate\(([-0-9]+)deg\)/);
+        if (match) {
+            return parseInt(match[1]);
         }
-        levels[level].push(loc);
-    });
-
-    let html = '';
-    Object.keys(levels).forEach(level => {
-        const levelLocs = levels[level];
-        const status = levelLocs[0]?.status || 'free';
-        html += `<div class="location-cell ${status}" title="${level} - ${levelLocs.length}个库位">${level}</div>`;
-    });
-
-    return html;
+    }
+    return 0;
 }
 
-// 获取货架状态颜色
-function getRackStatusColor(stats) {
-    const utilization = stats.utilization || 0;
-    if (utilization === 0) return '#28a745'; // 绿色 - 完全空闲
-    if (utilization < 30) return '#20c997'; // 青绿色 - 低使用率
-    if (utilization < 70) return '#007bff'; // 蓝色 - 中等使用率
-    if (utilization < 90) return '#ffc107'; // 黄色 - 高使用率
-    return '#dc3545'; // 红色 - 接近满载
+// 移动选中的货架
+function moveSelectedRack(dx, dy) {
+    if (!selectedRack) return;
+
+    const element = selectedRack.element;
+    const currentX = parseInt(element.style.left);
+    const currentY = parseInt(element.style.top);
+
+    element.style.left = (currentX + dx) + 'px';
+    element.style.top = (currentY + dy) + 'px';
+
+    updatePropertyPanel(currentX + dx, currentY + dy);
 }
 
-// 初始化3D效果
-function init3DEffects() {
-    const rackCards = document.querySelectorAll('.rack-card');
-    rackCards.forEach(card => {
-        card.addEventListener('mouseenter', function() {
-            this.style.transform = 'translateY(-10px) rotateX(5deg)';
-        });
-
-        card.addEventListener('mouseleave', function() {
-            this.style.transform = 'translateY(0) rotateX(0deg)';
-        });
-    });
+// 更新属性面板
+function updatePropertyPanel(x, y, width, height, rotation, name) {
+    if (x !== null) document.getElementById('propX').value = x;
+    if (y !== null) document.getElementById('propY').value = y;
+    if (width !== null) document.getElementById('propWidth').value = width;
+    if (height !== null) document.getElementById('propHeight').value = height;
+    if (rotation !== null) document.getElementById('propRotation').value = rotation;
+    if (name !== undefined) document.getElementById('propName').value = name;
 }
 
-// 初始化拖拽功能
-function initDragAndDrop() {
-    const container = document.getElementById('rackLayoutContainer');
+// 更新选中的货架属性
+function updateSelectedRackProperty(property, value) {
+    if (!selectedRack) return;
 
-    if (container) {
-        new Sortable(container, {
-            animation: 150,
-            ghostClass: 'rack-3d dragging',
-            onStart: function(evt) {
-                evt.item.classList.add('dragging');
-            },
-            onEnd: function(evt) {
-                evt.item.classList.remove('dragging');
-                saveLayout();
+    const element = selectedRack.element;
+
+    switch(property) {
+        case 'x':
+            element.style.left = value + 'px';
+            break;
+        case 'y':
+            element.style.top = value + 'px';
+            break;
+        case 'width':
+            element.style.width = value + 'px';
+            break;
+        case 'height':
+            element.style.height = value + 'px';
+            break;
+        case 'rotation':
+            element.style.transform = `rotate(${value}deg)`;
+            break;
+        case 'name':
+            // 更新货架名称显示
+            const titleElement = element.querySelector('.rack-title');
+            if (titleElement) {
+                titleElement.textContent = value;
             }
-        });
+            break;
+    }
+}
+
+// 添加新货架
+function addNewRack() {
+    const newRackName = `货架${racks.length + 1}`;
+    const newRack = {
+        rack: newRackName,
+        locations: [],
+        stats: { total: 0, free: 0, in_use: 0, low_stock: 0, utilization: 0 },
+        levels: [],
+        positions: [],
+        sides: [],
+        layout: { 
+            x: 100 + (racks.length % 5) * 50, 
+            y: 100 + Math.floor(racks.length / 5) * 40, 
+            width: 300, 
+            height: 200, 
+            rotation: 0 
+        }
+    };
+
+    racks.push(newRack);
+    renderRackLayout();
+
+    // 选择新添加的货架
+    setTimeout(() => {
+        const newElement = document.querySelector(`.rack-element[data-rack="${newRackName}"]`);
+        if (newElement) {
+            selectRack(newElement);
+        }
+    }, 100);
+
+    showSuccess(`货架 "${newRackName}" 添加成功`);
+}
+
+// 删除选中的货架
+function deleteSelectedRack() {
+    if (!selectedRack) {
+        showError('请先选择一个货架');
+        return;
+    }
+
+    if (confirm(`确定要删除货架 "${selectedRack.rack}" 吗？`)) {
+        const rackName = selectedRack.rack;
+        racks.splice(selectedRack.index, 1);
+        renderRackLayout();
+        clearSelection();
+        showSuccess(`货架 "${rackName}" 删除成功`);
     }
 }
 
 // 保存布局
 async function saveLayout() {
-    if (!editMode) return;
-
     try {
-        const rackPositions = {};
-        const rackCards = document.querySelectorAll('.rack-card');
-        rackCards.forEach((card, index) => {
-            rackPositions[card.dataset.rack] = index;
+        showLoading('正在保存布局...');
+        const rackLayouts = {};
+
+        document.querySelectorAll('.rack-element').forEach(element => {
+            const rack = element.dataset.rack;
+            const style = element.style;
+            const rotation = getCurrentRotation(element);
+
+            rackLayouts[rack] = {
+                x: parseInt(style.left),
+                y: parseInt(style.top),
+                width: parseInt(style.width),
+                height: parseInt(style.height),
+                rotation: rotation
+            };
         });
 
         const response = await fetch('/api/locations/update_layout', {
@@ -588,82 +1243,92 @@ async function saveLayout() {
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ rack_positions: rackPositions })
+            body: JSON.stringify({ rack_layouts: rackLayouts })
         });
 
         const data = await response.json();
+        hideLoading();
         if (data.success) {
             showSuccess('布局保存成功');
+        } else {
+            showError('保存失败: ' + data.error);
         }
     } catch (error) {
         console.error('保存布局失败:', error);
+        hideLoading();
         showError('保存布局失败');
     }
 }
 
-// 切换编辑模式
-function toggleEditMode() {
-    editMode = !editMode;
-    const button = document.getElementById('editModeBtn');
-    const container = document.getElementById('rackLayoutContainer');
+// 加载布局
+function loadLayout() {
+    // 从服务器加载保存的布局
+    loadRackData();
+}
 
-    if (editMode) {
-        button.innerHTML = '<i class="fas fa-check me-1"></i>完成编辑';
-        container.classList.add('drag-over');
-        showInfo('拖拽模式已开启，可以重新排列货架位置');
-    } else {
-        button.innerHTML = '<i class="fas fa-arrows-alt me-1"></i>布局模式';
-        container.classList.remove('drag-over');
-        saveLayout();
+// 重置布局
+function resetLayout() {
+    if (confirm('确定要重置所有货架布局吗？')) {
+        racks.forEach(rack => {
+            if (rack.layout) {
+                rack.layout.x = 100;
+                rack.layout.y = 100;
+                rack.layout.width = 300;
+                rack.layout.height = 200;
+                rack.layout.rotation = 0;
+            }
+        });
+        renderRackLayout();
+        showSuccess('布局已重置');
     }
+}
+
+// 自动排列
+function autoArrange() {
+    const container = document.getElementById('warehouseLayout');
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
+
+    const rackWidth = 300;
+    const rackHeight = 200;
+    const margin = 20;
+
+    const racksPerRow = Math.floor((containerWidth - margin) / (rackWidth + margin));
+
+    racks.forEach((rack, index) => {
+        const row = Math.floor(index / racksPerRow);
+        const col = index % racksPerRow;
+
+        if (rack.layout) {
+            rack.layout.x = margin + col * (rackWidth + margin);
+            rack.layout.y = margin + row * (rackHeight + margin);
+            rack.layout.width = rackWidth;
+            rack.layout.height = rackHeight;
+            rack.layout.rotation = 0;
+        }
+    });
+
+    renderRackLayout();
+    showSuccess('自动排列完成');
+}
+
+// 更新网格
+function updateGrid() {
+    const gridSize = parseInt(document.getElementById('gridSize').value);
+    const warehouse = document.getElementById('warehouseLayout');
+    
+    warehouse.style.backgroundSize = `${gridSize}px ${gridSize}px`;
 }
 
 // 更新统计信息
 function updateStatistics() {
     let totalLowStock = 0;
-    let totalUtilization = 0;
 
-    racksData.forEach(rack => {
+    racks.forEach(rack => {
         totalLowStock += rack.stats.low_stock || 0;
-        totalUtilization += rack.stats.utilization || 0;
     });
-
-    const avgUtilization = racksData.length > 0 ? totalUtilization / racksData.length : 0;
 
     document.getElementById('lowStockCount').textContent = totalLowStock;
-    document.getElementById('utilizationRate').textContent = avgUtilization.toFixed(1) + '%';
-    document.getElementById('totalRacks').textContent = racksData.length;
-}
-
-// 应用筛选
-function applyFilters() {
-    const search = document.getElementById('search').value;
-    const statusFilter = document.getElementById('status_filter').value;
-
-    let url = '/location_management?';
-    if (search) url += `search=${encodeURIComponent(search)}&`;
-    if (statusFilter) url += `status_filter=${statusFilter}`;
-
-    // 移除末尾的 & 或 ?
-    url = url.replace(/[&?]$/, '');
-
-    window.location.href = url;
-}
-
-// 刷新布局
-function refreshRackLayout() {
-    const button = event?.target || document.querySelector('button[onclick="refreshRackLayout()"]');
-    const originalHtml = button.innerHTML;
-
-    button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>刷新中...';
-    button.disabled = true;
-
-    loadRackLayout().finally(() => {
-        setTimeout(() => {
-            button.innerHTML = originalHtml;
-            button.disabled = false;
-        }, 1000);
-    });
 }
 
 // 工具函数
@@ -675,18 +1340,19 @@ function showError(message) {
     flashMessage(message, 'danger');
 }
 
-function showInfo(message) {
-    flashMessage(message, 'info');
+function showLoading(message) {
+    // 可以在这里实现加载指示器
+    console.log('Loading:', message);
+}
+
+function hideLoading() {
+    // 隐藏加载指示器
 }
 
 function flashMessage(message, type) {
-    // 移除现有的消息
-    const existingAlerts = document.querySelectorAll('.alert-position-fixed');
-    existingAlerts.forEach(alert => alert.remove());
-
     const alert = document.createElement('div');
-    alert.className = `alert alert-${type} alert-dismissible fade show alert-position-fixed`;
-    alert.style.cssText = 'top: 20px; right: 20px; z-index: 1060; min-width: 300px; position: fixed;';
+    alert.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    alert.style.cssText = 'top: 20px; right: 20px; z-index: 1060; min-width: 300px;';
     alert.innerHTML = `
         ${message}
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
@@ -701,3 +1367,4 @@ function flashMessage(message, type) {
 }
 </script>
 {% endblock %}
+[file content end]
