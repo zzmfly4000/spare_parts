@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block title %}货架详情 - {{ rack_code }} - 设备备件管理系统{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-4 mb-4 border-bottom">
+    <div>
+        <h1 class="h3 mb-2">
+            <i class="fas fa-pallet me-2"></i>货架详情: {{ rack_code }}
+        </h1>
+        <p class="text-muted mb-0">查看货架层级结构和库位状态</p>
+    </div>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('location_management') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i>返回总览
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <!-- 层级导航 -->
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">层级导航</h6>
+            </div>
+            <div class="card-body">
+                <div class="list-group list-group-flush" id="levelNav">
+                    <!-- 动态生成层级导航 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 库位详情 -->
+    <div class="col-md-9">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">库位状态详情</h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>库位代码</th>
+                                <th>层级</th>
+                                <th>位置</th>
+                                <th>侧面</th>
+                                <th>状态</th>
+                                <th>库存/容量</th>
+                                <th>利用率</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for location in locations %}
+                            {% set loc = location if location is mapping else {
+                                'location_code': location[0],
+                                'rack': location[1],
+                                'level': location[2],
+                                'position': location[3],
+                                'side': location[4],
+                                'status': location[5],
+                                'capacity': location[6],
+                                'part_count': location[9] if location|length > 9 else 0
+                            } %}
+                            <tr>
+                                <td><strong>{{ loc.location_code }}</strong></td>
+                                <td>{{ loc.level }}</td>
+                                <td>{{ loc.position }}</td>
+                                <td>{{ loc.side }}</td>
+                                <td>
+                                    {% if loc.status == 'free' %}
+                                    <span class="badge bg-success">空闲</span>
+                                    {% elif loc.status == 'in_use' %}
+                                    <span class="badge bg-primary">使用中</span>
+                                    {% else %}
+                                    <span class="badge bg-warning">低库存</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <span class="fw-bold me-2">{{ loc.part_count }}/{{ loc.capacity }}</span>
+                                        <div class="progress flex-grow-1" style="height: 6px; width: 80px;">
+                                            <div class="progress-bar 
+                                                {% if loc.capacity > 0 and loc.part_count/loc.capacity >= 0.8 %}bg-warning
+                                                {% else %}bg-success{% endif %}"
+                                                 style="width: {% if loc.capacity > 0 %}{{ (loc.part_count/loc.capacity*100)|round|int }}%{% else %}0%{% endif %}">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    {% if loc.capacity > 0 %}
+                                    {{ (loc.part_count/loc.capacity*100)|round|int }}%
+                                    {% else %}
+                                    0%
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{{ url_for('location_detail', location_code=loc.location_code) }}" 
+                                           class="btn btn-outline-primary" title="查看详情">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="{{ url_for('edit_location', location_code=loc.location_code) }}" 
+                                           class="btn btn-outline-secondary" title="编辑">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 生成层级导航
+    const levels = new Set();
+    {% for location in locations %}
+    levels.add('{{ location[2] if location is not mapping else location.level }}');
+    {% endfor %}
+    
+    const levelNav = document.getElementById('levelNav');
+    Array.from(levels).sort().forEach(level => {
+        const link = document.createElement('a');
+        link.href = `#level-${level}`;
+        link.className = 'list-group-item list-group-item-action';
+        link.innerHTML = `
+            <i class="fas fa-layer-group me-2"></i>
+            层级 ${level}
+        `;
+        levelNav.appendChild(link);
+    });
+});
+</script>
+{% endblock %}

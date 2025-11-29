@@ -213,15 +213,30 @@ def is_low_stock(part_id):
 
 
 def get_low_stock_parts():
-    """获取所有低库存备件列表 - 修复版本"""
+    """获取所有低库存备件列表 - 彻底修复版本"""
     db_manager = DatabaseManager()
     with db_manager.get_connection() as conn:
         cursor = conn.execute('''
             SELECT * FROM spare_parts 
-            WHERE current_stock <= min_stock OR current_stock = 0
+            WHERE (current_stock <= min_stock OR current_stock = 0) AND current_stock >= 0
             ORDER BY current_stock ASC
         ''')
-        return cursor.fetchall()
+        results = cursor.fetchall()
+
+        # 确保所有数字字段都有有效值
+        processed_results = []
+        for part in results:
+            part_list = list(part)
+            # 确保关键字段不为None
+            if part_list[4] is None:  # current_stock
+                part_list[4] = 0
+            if part_list[6] is None:  # min_stock
+                part_list[6] = 0
+            if part_list[7] is None:  # max_stock
+                part_list[7] = 0
+            processed_results.append(tuple(part_list))
+
+        return processed_results
 
 
 def init_db():
@@ -573,11 +588,32 @@ def create_location_fast(location_data, conn=None):
 
 
 def get_location_by_code(location_code):
-    """根据库位代码获取库位信息"""
+    """根据库位代码获取库位信息 - 修复版本"""
     db_manager = DatabaseManager()
     with db_manager.get_connection() as conn:
         cursor = conn.execute('SELECT * FROM locations WHERE location_code = ?', (location_code,))
-        return cursor.fetchone()
+        row = cursor.fetchone()
+        if row:
+            if hasattr(row, '_fields'):  # sqlite3.Row 对象
+                location_dict = {}
+                for i, field in enumerate(row._fields):
+                    location_dict[field] = row[i]
+                return location_dict
+            else:  # 元组
+                return {
+                    'location_code': row[0] if len(row) > 0 else '',
+                    'rack': row[1] if len(row) > 1 else '',
+                    'level': row[2] if len(row) > 2 else '',
+                    'position': row[3] if len(row) > 3 else '',
+                    'side': row[4] if len(row) > 4 else '',
+                    'status': row[5] if len(row) > 5 else 'free',
+                    'capacity': row[6] if len(row) > 6 else 0,
+                    'size_type': row[7] if len(row) > 7 else '',
+                    'description': row[8] if len(row) > 8 else '',
+                    'part_count': row[9] if len(row) > 9 else 0,
+                    'last_updated': row[10] if len(row) > 10 else None
+                }
+        return None
 
 
 def update_location_fast(location_code, location_data, conn=None):
@@ -632,11 +668,35 @@ def delete_location(location_code):
 
 
 def get_all_locations():
-    """获取所有库位列表"""
+    """获取所有库位列表 - 修复版本"""
     db_manager = DatabaseManager()
     with db_manager.get_connection() as conn:
         cursor = conn.execute('SELECT * FROM locations ORDER BY location_code')
-        return cursor.fetchall()
+        # 返回列表而不是 sqlite3.Row 对象
+        results = cursor.fetchall()
+        # 转换为字典列表
+        locations = []
+        for row in results:
+            if hasattr(row, '_fields'):  # sqlite3.Row 对象
+                location_dict = {}
+                for i, field in enumerate(row._fields):
+                    location_dict[field] = row[i]
+                locations.append(location_dict)
+            else:  # 元组
+                locations.append({
+                    'location_code': row[0] if len(row) > 0 else '',
+                    'rack': row[1] if len(row) > 1 else '',
+                    'level': row[2] if len(row) > 2 else '',
+                    'position': row[3] if len(row) > 3 else '',
+                    'side': row[4] if len(row) > 4 else '',
+                    'status': row[5] if len(row) > 5 else 'free',
+                    'capacity': row[6] if len(row) > 6 else 0,
+                    'size_type': row[7] if len(row) > 7 else '',
+                    'description': row[8] if len(row) > 8 else '',
+                    'part_count': row[9] if len(row) > 9 else 0,
+                    'last_updated': row[10] if len(row) > 10 else None
+                })
+        return locations
 
 
 def update_location_status(location_code, status):
@@ -686,7 +746,7 @@ def get_locations_count():
 
 
 def get_location_stats():
-    """获取库位统计信息 - 修复版本"""
+    """获取库位统计信息 - 彻底修复版本"""
     db_manager = DatabaseManager()
     with db_manager.get_connection() as conn:
         # 总库位数
@@ -701,10 +761,15 @@ def get_location_stats():
         in_use_result = conn.execute('SELECT COUNT(*) FROM locations WHERE status = "in_use"').fetchone()
         in_use_locations = in_use_result[0] if in_use_result else 0
 
+        # 低库存库位数
+        low_stock_result = conn.execute('SELECT COUNT(*) FROM locations WHERE status = "low_stock"').fetchone()
+        low_stock_locations = low_stock_result[0] if low_stock_result else 0
+
         return {
             'total_locations': total_locations,
             'free_locations': free_locations,
-            'in_use_locations': in_use_locations
+            'in_use_locations': in_use_locations,
+            'low_stock_locations': low_stock_locations
         }
 
 

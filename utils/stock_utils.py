@@ -36,50 +36,34 @@ def is_low_stock(part_id):
     return db_is_low_stock(part_id)
 
 
+def calculate_location_status(part_count, capacity):
+    """计算库位状态 - 彻底修复版本"""
+    try:
+        # 确保数值类型正确
+        part_count = int(part_count) if part_count is not None else 0
+        capacity = int(capacity) if capacity is not None else 0
+
+        if capacity == 0:
+            return 'free'
+
+        utilization = part_count / capacity
+        if utilization == 0:
+            return 'free'
+        elif utilization < 0.3:
+            return 'low_stock'
+        else:
+            return 'in_use'
+    except (ValueError, TypeError, ZeroDivisionError):
+        return 'free'
+
+
 def get_low_stock_parts():
-    """获取所有低库存备件列表"""
-    from models.database import get_low_stock_parts as db_get_low_stock
-    return db_get_low_stock()
+    """获取低库存备件 - 修复版本"""
+    from models.database import get_low_stock_parts as db_get_low_stock_parts
+    return db_get_low_stock_parts()
 
 
 def get_recent_activities(limit=10):
-    """获取最近活动记录"""
-    operations = get_all_operation_records(limit=limit)
-    recent_activities = []
-
-    for op in operations:
-        # op结构: (id, operation_type, operation_date, supplier_recipient, location, part_no, description, part_type, quantity, work_center, created_date)
-        operation_type = op[1] if len(op) > 1 else 'Unknown'
-        operation_date = op[2] if len(op) > 2 else datetime.now()
-        description = op[6] if len(op) > 6 else '未知备件'
-        quantity = op[8] if len(op) > 8 else 0
-
-        # 处理日期格式
-        if isinstance(operation_date, str):
-            try:
-                operation_date = datetime.strptime(operation_date, '%Y-%m-%d %H:%M:%S')
-            except:
-                operation_date = datetime.now()
-
-        activity = {
-            'type': 'inbound' if 'in' in operation_type.lower() else 'outbound',
-            'part_name': description,
-            'quantity': quantity,
-            'time': operation_date.strftime('%H:%M') if isinstance(operation_date, datetime) else '未知',
-            'operator': '系统'
-        }
-        recent_activities.append(activity)
-
-    return recent_activities
-
-
-def calculate_location_status(part_count, capacity):
-    """计算库位状态"""
-    if part_count == 0:
-        return 'free'
-    elif capacity > 0 and part_count >= capacity:
-        return 'full'
-    elif capacity > 0 and part_count / capacity >= 0.8:
-        return 'low_stock'
-    else:
-        return 'in_use'
+    """获取最近活动 - 修复版本"""
+    from models.database import get_recent_activities as db_get_recent_activities
+    return db_get_recent_activities(limit)

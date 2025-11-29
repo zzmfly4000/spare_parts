@@ -189,7 +189,9 @@
                             {% for part in low_stock_parts[:5] %}  <!-- 只显示前5条 -->
                             <tr>
                                 <td>
-                                    {% if part[4] == 0 %}
+                                    {% set current_stock = part[4] or 0 %}
+                                    {% set min_stock = part[6] or 0 %}
+                                    {% if current_stock == 0 %}
                                     <span class="badge bg-danger">缺货</span>
                                     {% else %}
                                     <span class="badge bg-warning">低库存</span>
@@ -205,21 +207,23 @@
                                     </div>
                                 </td>
                                 <td>
+                                    {% set current_stock = part[4] or 0 %}
+                                    {% set min_stock = part[6] or 0 %}
                                     <div class="d-flex align-items-center">
-                                        <span class="fw-bold me-2 {% if part[4] == 0 %}text-danger{% else %}text-warning{% endif %}">
-                                            {{ part[4] }}
+                                        <span class="fw-bold me-2 {% if current_stock == 0 %}text-danger{% else %}text-warning{% endif %}">
+                                            {{ current_stock }}
                                         </span>
-                                        <small class="text-muted">/ {{ part[5] }}</small>
+                                        <small class="text-muted">/ {{ min_stock }}</small>
                                     </div>
-                                    {% if part[4] > 0 %}
+                                    {% if current_stock > 0 and min_stock > 0 %}
                                     <div class="progress mt-1" style="height: 4px; width: 80px;">
-                                        <div class="progress-bar bg-warning" style="width: {{ (part[4] / part[5] * 100) if part[5] > 0 else 0 }}%"></div>
+                                        <div class="progress-bar bg-warning" style="width: {{ (current_stock / min_stock * 100) if min_stock > 0 else 0 }}%"></div>
                                     </div>
                                     {% endif %}
                                 </td>
                                 <td>
-                                    {% if part[11] %}
-                                    <span class="badge bg-secondary">{{ part[11] }}</span>
+                                    {% if part[12] %}
+                                    <span class="badge bg-secondary">{{ part[12] }}</span>
                                     {% else %}
                                     <span class="text-muted">-</span>
                                     {% endif %}
@@ -328,8 +332,8 @@
                                 </div>
                                 <div class="d-flex justify-content-between align-items-center">
                                     <span class="badge {% if activity.type == 'inbound' %}bg-success{% else %}bg-danger{% endif %}">
-    {% if activity.type == 'inbound' %}+{% else %}-{% endif %}{{ activity.quantity|safe_abs }}
-</span>
+                                        {% if activity.type == 'inbound' %}+{% else %}-{% endif %}{{ activity.quantity|safe_abs }}
+                                    </span>
                                     <small class="text-muted">{{ activity.operator }}</small>
                                 </div>
                                 {% if activity.time %}
