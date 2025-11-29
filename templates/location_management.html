@@ -1,5 +1,3 @@
-[file name]: location_management.html
-[file content begin]
 {% extends "base.html" %}
 
 {% block title %}库位管理 - 设备备件管理系统{% endblock %}
@@ -139,9 +137,8 @@
     border-radius: 50%;
 }
 
-.stat-dot.free { background: #28a745; }
 .stat-dot.in-use { background: #007bff; }
-.stat-dot.low-stock { background: #ffc107; }
+.stat-dot.not-use { background: #28a745; }
 
 /* 调整大小手柄 */
 .resize-handle {
@@ -421,6 +418,81 @@
     pointer-events: none;
 }
 
+/* 模式切换 */
+.mode-switcher {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.mode-label {
+    font-weight: 600;
+    color: #495057;
+}
+
+[data-bs-theme="dark"] .mode-label {
+    color: #e2e8f0;
+}
+
+.mode-buttons {
+    display: flex;
+    gap: 5px;
+}
+
+.mode-btn {
+    padding: 6px 12px;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    background: white;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+[data-bs-theme="dark"] .mode-btn {
+    background: #4a5568;
+    border-color: #718096;
+    color: white;
+}
+
+.mode-btn.active {
+    background: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+.mode-btn:hover:not(.active) {
+    background: #f8f9fa;
+}
+
+[data-bs-theme="dark"] .mode-btn:hover:not(.active) {
+    background: #2d3748;
+}
+
+/* 查看模式样式 */
+.view-mode .rack-element {
+    cursor: default;
+}
+
+.view-mode .resize-handle,
+.view-mode .rotate-handle {
+    display: none;
+}
+
+.view-mode .toolbar .tool-btn:not(#selectTool) {
+    display: none;
+}
+
+.view-mode .properties-panel {
+    display: none;
+}
+
+/* 编辑模式样式 */
+.edit-mode .rack-element {
+    cursor: move;
+}
+
 /* 响应式设计 */
 @media (max-width: 768px) {
     .warehouse-container {
@@ -433,6 +505,11 @@
 
     .property-inputs {
         grid-template-columns: 1fr;
+    }
+    
+    .mode-switcher {
+        flex-direction: column;
+        align-items: flex-start;
     }
 }
 
@@ -467,8 +544,61 @@
     </div>
 </div>
 
+<!-- 统计概览 - 优化显示 -->
+<div class="row mb-4">
+    <div class="col-xl-3 col-md-4 col-6">
+        <div class="card stat-card">
+            <div class="card-body">
+                <i class="fas fa-warehouse text-primary"></i>
+                <div class="number">{{ stats.total_locations if stats else 0 }}</div>
+                <div class="text-muted">总库位数</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-4 col-6">
+        <div class="card stat-card">
+            <div class="card-body">
+                <i class="fas fa-box-open text-primary"></i>
+                <div class="number" id="inUseLocationsCount">{{ stats.in_use_locations if stats else 0 }}</div>
+                <div class="text-muted">使用中</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-4 col-6">
+        <div class="card stat-card">
+            <div class="card-body">
+                <i class="fas fa-check-circle text-success"></i>
+                <div class="number" id="notUseLocationsCount">{{ stats.not_use_locations if stats else 0 }}</div>
+                <div class="text-muted">未使用</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-4 col-6">
+        <div class="card stat-card">
+            <div class="card-body">
+                <i class="fas fa-ruler-combined text-info"></i>
+                <div class="number" id="totalRacks">0</div>
+                <div class="text-muted">货架数量</div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- 控制面板 -->
 <div class="control-panel">
+    <!-- 模式切换 -->
+    <div class="mode-switcher">
+        <span class="mode-label">模式:</span>
+        <div class="mode-buttons">
+            <button class="mode-btn active" id="viewModeBtn" onclick="setMode('view')">
+                <i class="fas fa-eye me-1"></i>查看模式
+            </button>
+            <button class="mode-btn" id="editModeBtn" onclick="setMode('edit')">
+                <i class="fas fa-edit me-1"></i>编辑模式
+            </button>
+        </div>
+    </div>
+
     <div class="toolbar">
         <button class="tool-btn active" id="selectTool" onclick="setTool('select')">
             <i class="fas fa-mouse-pointer"></i>选择
@@ -567,74 +697,12 @@
 
     <div class="status-indicators">
         <div class="status-item">
-            <div class="status-color" style="background: #28a745;"></div>
-            <span>空闲库位</span>
-        </div>
-        <div class="status-item">
             <div class="status-color" style="background: #007bff;"></div>
-            <span>使用中</span>
+            <span>使用中 (part_count > 0)</span>
         </div>
         <div class="status-item">
-            <div class="status-color" style="background: #ffc107;"></div>
-            <span>低库存</span>
-        </div>
-    </div>
-</div>
-
-<!-- 统计概览 -->
-<div class="row mt-4">
-    <div class="col-xl-2 col-md-4 col-6">
-        <div class="card stat-card">
-            <div class="card-body">
-                <i class="fas fa-warehouse text-primary"></i>
-                <div class="number">{{ stats.total_locations if stats else 0 }}</div>
-                <div class="text-muted">总库位数</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-xl-2 col-md-4 col-6">
-        <div class="card stat-card">
-            <div class="card-body">
-                <i class="fas fa-check-circle text-success"></i>
-                <div class="number">{{ stats.free_locations if stats else 0 }}</div>
-                <div class="text-muted">空闲库位</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-xl-2 col-md-4 col-6">
-        <div class="card stat-card">
-            <div class="card-body">
-                <i class="fas fa-box-open text-primary"></i>
-                <div class="number">{{ stats.in_use_locations if stats else 0 }}</div>
-                <div class="text-muted">使用中</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-xl-2 col-md-4 col-6">
-        <div class="card stat-card">
-            <div class="card-body">
-                <i class="fas fa-exclamation-triangle text-warning"></i>
-                <div class="number" id="lowStockCount">{{ stats.low_stock_locations if stats else 0 }}</div>
-                <div class="text-muted">低库存</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-xl-2 col-md-4 col-6">
-        <div class="card stat-card">
-            <div class="card-body">
-                <i class="fas fa-ruler-combined text-info"></i>
-                <div class="number" id="totalRacks">0</div>
-                <div class="text-muted">货架数量</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-xl-2 col-md-4 col-6">
-        <div class="card stat-card">
-            <div class="card-body">
-                <i class="fas fa-border-all text-secondary"></i>
-                <div class="number" id="areaUsed">0m²</div>
-                <div class="text-muted">使用面积</div>
-            </div>
+            <div class="status-color" style="background: #28a745;"></div>
+            <span>未使用 (part_count = 0)</span>
         </div>
     </div>
 </div>
@@ -650,14 +718,41 @@ let isDragging = false;
 let dragStartX, dragStartY;
 let originalX, originalY;
 let currentResizeHandle = null;
-let currentRotateAngle = 0;
+let currentRotateAngle = null;
+let currentMode = 'view'; // 'view' 或 'edit'
 
 // 初始化页面
 document.addEventListener('DOMContentLoaded', function() {
     loadRackData();
     initEventListeners();
     updateToolButtons();
+    setMode('view'); // 默认查看模式
 });
+
+// 设置模式
+function setMode(mode) {
+    currentMode = mode;
+    
+    // 更新模式按钮状态
+    document.getElementById('viewModeBtn').classList.toggle('active', mode === 'view');
+    document.getElementById('editModeBtn').classList.toggle('active', mode === 'edit');
+    
+    // 更新容器类
+    const warehouse = document.getElementById('warehouseLayout');
+    warehouse.classList.toggle('view-mode', mode === 'view');
+    warehouse.classList.toggle('edit-mode', mode === 'edit');
+    
+    // 清除选择
+    clearSelection();
+    
+    // 更新工具状态
+    if (mode === 'view') {
+        setTool('select');
+        document.getElementById('warehouseLayout').style.cursor = 'default';
+    } else {
+        document.getElementById('warehouseLayout').style.cursor = 'default';
+    }
+}
 
 // 加载货架数据
 async function loadRackData() {
@@ -742,20 +837,20 @@ function renderRackLayout() {
 
                     <div class="rack-stats">
                         <div class="stat-item">
-                            <div class="stat-dot free"></div>
-                            <span>${rack.stats.free || 0}</span>
-                        </div>
-                        <div class="stat-item">
                             <div class="stat-dot in-use"></div>
-                            <span>${rack.stats.in_use || 0}</span>
+                            <span>使用中: ${rack.stats.in_use || 0}</span>
                         </div>
                         <div class="stat-item">
-                            <div class="stat-dot low-stock"></div>
-                            <span>${rack.stats.low_stock || 0}</span>
+                            <div class="stat-dot not-use"></div>
+                            <span>未使用: ${rack.stats.not_use || 0}</span>
                         </div>
                         <div class="stat-item">
                             <i class="fas fa-layer-group"></i>
                             <span>${rack.levels ? rack.levels.length : 0}层</span>
+                        </div>
+                        <div class="stat-item">
+                            <i class="fas fa-boxes"></i>
+                            <span>${rack.stats.total || 0}库位</span>
                         </div>
                     </div>
 
@@ -779,18 +874,12 @@ function renderRackLayout() {
 
     // 更新货架数量显示
     document.getElementById('totalRacks').textContent = racks.length;
-
-    // 计算使用面积（简化计算）
-    const totalArea = racks.reduce((sum, rack) => {
-        const layout = rack.layout || { width: 300, height: 200 };
-        return sum + (layout.width * layout.height) / 10000; // 转换为平方米
-    }, 0);
-
-    document.getElementById('areaUsed').textContent = totalArea.toFixed(1) + 'm²';
 }
 
 // 工具设置
 function setTool(tool) {
+    if (currentMode !== 'edit') return;
+    
     currentTool = tool;
     updateToolButtons();
     
@@ -836,6 +925,8 @@ function updateToolButtons() {
 
 // 鼠标事件处理
 function handleMouseDown(e) {
+    if (currentMode !== 'edit') return;
+    
     const rackElement = e.target.closest('.rack-element');
     const resizeHandle = e.target.closest('.resize-handle');
     const rotateHandle = e.target.closest('.rotate-handle');
@@ -857,6 +948,8 @@ function handleMouseDown(e) {
 }
 
 function handleMouseMove(e) {
+    if (currentMode !== 'edit') return;
+    
     if (isDragging && selectedRack) {
         const dx = e.clientX - dragStartX;
         const dy = e.clientY - dragStartY;
@@ -892,6 +985,8 @@ function handleMouseUp() {
 
 // 触摸事件处理（移动端支持）
 function handleTouchStart(e) {
+    if (currentMode !== 'edit') return;
+    
     if (e.touches.length === 1) {
         const touch = e.touches[0];
         handleMouseDown({
@@ -903,6 +998,8 @@ function handleTouchStart(e) {
 }
 
 function handleTouchMove(e) {
+    if (currentMode !== 'edit') return;
+    
     if (e.touches.length === 1) {
         const touch = e.touches[0];
         handleMouseMove({
@@ -918,7 +1015,7 @@ function handleTouchEnd() {
 
 // 键盘事件处理
 function handleKeyDown(e) {
-    if (!selectedRack) return;
+    if (currentMode !== 'edit' || !selectedRack) return;
 
     const step = parseInt(document.getElementById('gridSize').value) || 20;
 
@@ -1171,11 +1268,16 @@ function updateSelectedRackProperty(property, value) {
 
 // 添加新货架
 function addNewRack() {
+    if (currentMode !== 'edit') {
+        showError('请在编辑模式下添加货架');
+        return;
+    }
+    
     const newRackName = `货架${racks.length + 1}`;
     const newRack = {
         rack: newRackName,
         locations: [],
-        stats: { total: 0, free: 0, in_use: 0, low_stock: 0, utilization: 0 },
+        stats: { total: 0, in_use: 0, not_use: 0, utilization: 0 },
         levels: [],
         positions: [],
         sides: [],
@@ -1204,6 +1306,11 @@ function addNewRack() {
 
 // 删除选中的货架
 function deleteSelectedRack() {
+    if (currentMode !== 'edit') {
+        showError('请在编辑模式下删除货架');
+        return;
+    }
+    
     if (!selectedRack) {
         showError('请先选择一个货架');
         return;
@@ -1269,10 +1376,10 @@ function loadLayout() {
 // 重置布局
 function resetLayout() {
     if (confirm('确定要重置所有货架布局吗？')) {
-        racks.forEach(rack => {
+        racks.forEach((rack, index) => {
             if (rack.layout) {
-                rack.layout.x = 100;
-                rack.layout.y = 100;
+                rack.layout.x = 100 + (index % 5) * 50;
+                rack.layout.y = 100 + Math.floor(index / 5) * 40;
                 rack.layout.width = 300;
                 rack.layout.height = 200;
                 rack.layout.rotation = 0;
@@ -1322,13 +1429,17 @@ function updateGrid() {
 
 // 更新统计信息
 function updateStatistics() {
-    let totalLowStock = 0;
+    let totalInUse = 0;
+    let totalNotUse = 0;
 
     racks.forEach(rack => {
-        totalLowStock += rack.stats.low_stock || 0;
+        totalInUse += rack.stats.in_use || 0;
+        totalNotUse += rack.stats.not_use || 0;
     });
 
-    document.getElementById('lowStockCount').textContent = totalLowStock;
+    // 更新前端统计显示
+    document.getElementById('inUseLocationsCount').textContent = totalInUse;
+    document.getElementById('notUseLocationsCount').textContent = totalNotUse;
 }
 
 // 工具函数
@@ -1367,4 +1478,3 @@ function flashMessage(message, type) {
 }
 </script>
 {% endblock %}
-[file content end]

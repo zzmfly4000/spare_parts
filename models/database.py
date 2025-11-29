@@ -1141,6 +1141,168 @@ def safe_int(value, default=0):
         return default
 
 
+def get_accurate_location_stats():
+    """获取准确的库位统计信息 - 优化版本"""
+    db_manager = DatabaseManager()
+    with db_manager.get_connection() as conn:
+        cursor = conn.execute('''
+            SELECT 
+                COUNT(*) as total_locations,
+                SUM(CASE WHEN part_count > 0 THEN 1 ELSE 0 END) as in_use_locations,
+                SUM(CASE WHEN part_count = 0 THEN 1 ELSE 0 END) as not_use_locations
+            FROM locations
+        ''')
+        result = cursor.fetchone()
+
+        if result:
+            return {
+                'total_locations': result[0] or 0,
+                'in_use_locations': result[1] or 0,
+                'not_use_locations': result[2] or 0
+            }
+        return {
+            'total_locations': 0,
+            'in_use_locations': 0,
+            'not_use_locations': 0
+        }
+
+
+def calculate_location_status(part_count, capacity, current_stock=0, min_stock=0, max_stock=0):
+    """计算库位状态 - 优化版本"""
+    # 如果库位没有分配给任何备件存储
+    if part_count == 0:
+        return 'not_use'
+
+    # 如果库位分配了备件存储
+    if current_stock == 0:
+        return 'out_of_stock'  # 缺货
+    elif current_stock <= min_stock:
+        return 'low_stock'  # 低库存
+    elif max_stock > 0 and current_stock > max_stock:
+        return 'high_stock'  # 库存过高
+    else:
+        return 'free'  # 库存充足
+
+
+def update_location_status_by_part(part_no):
+    """根据备件信息更新相关库位状态"""
+    db_manager = DatabaseManager()
+    with db_manager.get_connection() as conn:
+        # 获取备件信息
+        cursor = conn.execute('''
+            SELECT location, current_stock, min_stock, max_stock 
+            FROM spare_parts 
+            WHERE part_no = ?
+        ''', (part_no,))
+        part = cursor.fetchone()
+
+        if part and part['location']:
+            location_code = part['location']
+            current_stock = safe_int(part['current_stock'])
+            min_stock = safe_int(part['min_stock'])
+            max_stock = safe_int(part['max_stock'])
+
+            # 计算新的状态
+            new_status = calculate_location_status(1, 0, current_stock, min_stock, max_stock)
+
+            # 更新库位状态
+            conn.execute('''
+                UPDATE locations 
+                SET status = ?, last_updated = CURRENT_TIMESTAMP 
+                WHERE location_code = ?
+            ''', (new_status, location_code))
+
+            return True
+    return False
+
+
+def batch_update_location_statuses():
+    """批量更新所有库位状态"""
+    db_manager = DatabaseManager()
+    updated_count = 0
+
+    with db_manager.get_connection() as conn:
+        # 获取所有库位及其关联的备件信息
+        cursor = conn.execute('''
+            SELECT l.location_code, l.part_count,
+                   COALESCE(SUM(p.current_stock), 0) as total_stock,
+                   COALESCE(MIN(p.min_stock), 0) as min_stock,
+                   COALESCE(MAX(p.max_stock), 0) as max_stock
+            FROM locations l
+            LEFT JOIN spare_parts p ON l.location_code = p.location
+            GROUP BY l.location_code, l.part_count
+        ''')
+
+        locations = cursor.fetchall()
+
+        for location in locations:
+            location_code = location['location_code']
+            part_count = safe_int(location['part_count'])
+            total_stock = safe_int(location['total_stock'])
+            min_stock = safe_int(location['min_stock'])
+            max_stock = safe_int(location['max_stock'])
+
+            # 计算新的状态
+            if part_count == 0:
+                new_status = 'not_use'
+            else:
+                new_status = calculate_location_status(part_count, 0, total_stock, min_stock, max_stock)
+
+            # 更新库位状态
+            cursor = conn.execute('''
+                UPDATE locations 
+                SET status = ?, last_updated = CURRENT_TIMESTAMP 
+                WHERE location_code = ?
+            ''', (new_status, location_code))
+
+            if cursor.rowcount > 0:
+                updated_count += 1
+
+        conn.commit()
+
+    return updated_count
+
+
+def get_rack_statistics():
+    """获取货架统计信息 - 优化版本"""
+    db_manager = DatabaseManager()
+    with db_manager.get_connection() as conn:
+        cursor = conn.execute('''
+            SELECT 
+                rack,
+                COUNT(*) as total_locations,
+                SUM(CASE WHEN part_count > 0 THEN 1 ELSE 0 END) as in_use_locations,
+                SUM(CASE WHEN part_count = 0 THEN 1 ELSE 0 END) as not_use_locations,
+                SUM(part_count) as total_parts,
+                SUM(capacity) as total_capacity
+            FROM locations 
+            WHERE rack IS NOT NULL AND rack != ''
+            GROUP BY rack
+        ''')
+
+        rack_stats = {}
+        for row in cursor.fetchall():
+            rack = row[0]
+            total_locations = row[1] or 0
+            in_use_locations = row[2] or 0
+            not_use_locations = row[3] or 0
+            total_parts = row[4] or 0
+            total_capacity = row[5] or 0
+
+            utilization = (total_parts / total_capacity * 100) if total_capacity > 0 else 0
+
+            rack_stats[rack] = {
+                'total_locations': total_locations,
+                'in_use_locations': in_use_locations,
+                'not_use_locations': not_use_locations,
+                'total_parts': total_parts,
+                'total_capacity': total_capacity,
+                'utilization': utilization
+            }
+
+        return rack_stats
+
+
 def safe_float(value, default=0.0):
     """安全转换为浮点数"""
     if value is None or value == '':
@@ -1149,4 +1311,6 @@ def safe_float(value, default=0.0):
         return float(str(value))
     except (ValueError, TypeError):
         return default
+
+
 # [file content end]

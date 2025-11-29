@@ -1267,11 +1267,12 @@ def setup_import_export_routes(app):
         return df.reset_index(drop=True)
 
     def process_part_info_update_optimized(df, import_id):
-        """处理备件信息更新导入 - 优化版本"""
+        """处理备件信息更新导入 - 优化版本（包含库位状态更新）"""
         updated_count = 0
         not_found_count = 0
         error_count = 0
         errors = []
+        affected_locations = set()
 
         import_summary = {
             'total_rows': len(df),
@@ -1287,9 +1288,12 @@ def setup_import_export_routes(app):
             with db_manager.get_connection() as conn:
                 # 预加载所有备件数据到内存
                 parts_cache = {}
-                parts_result = conn.execute('SELECT id, part_no FROM spare_parts').fetchall()
+                parts_result = conn.execute('SELECT id, part_no, location FROM spare_parts').fetchall()
                 for part in parts_result:
-                    parts_cache[part['part_no']] = part['id']
+                    parts_cache[part['part_no']] = {
+                        'id': part['id'],
+                        'location': part['location']
+                    }
 
                 current_app.logger.info(f"预加载完成: {len(parts_cache)} 个备件")
 
@@ -1318,7 +1322,8 @@ def setup_import_export_routes(app):
                             not_found_count += 1
                             continue
 
-                        part_id = parts_cache[part_no]
+                        part_id = parts_cache[part_no]['id']
+                        part_location = parts_cache[part_no]['location']
                         update_data = extract_part_update_data_optimized(row, row_number)
 
                         if not update_data:
@@ -1328,10 +1333,15 @@ def setup_import_export_routes(app):
                             ))
                             continue
 
+                        # 记录受影响的库位
+                        if part_location:
+                            affected_locations.add(part_location)
+
                         # 添加到批量更新列表
                         update_batch.append({
                             'part_id': part_id,
                             'part_no': part_no,
+                            'location': part_location,
                             'update_data': update_data,
                             'row_number': row_number
                         })
@@ -1384,6 +1394,48 @@ def setup_import_export_routes(app):
                             '请检查数据格式或联系系统管理员'
                         ))
 
+                # 更新相关库位状态
+                if affected_locations:
+                    current_app.logger.info(f"更新 {len(affected_locations)} 个相关库位的状态")
+                    for location_code in affected_locations:
+                        try:
+                            # 重新计算库位状态
+                            cursor = conn.execute('''
+                                SELECT l.location_code, l.part_count,
+                                       COALESCE(SUM(p.current_stock), 0) as total_stock,
+                                       COALESCE(MIN(p.min_stock), 0) as min_stock,
+                                       COALESCE(MAX(p.max_stock), 0) as max_stock
+                                FROM locations l
+                                LEFT JOIN spare_parts p ON l.location_code = p.location
+                                WHERE l.location_code = ?
+                                GROUP BY l.location_code, l.part_count
+                            ''', (location_code,))
+
+                            location_data = cursor.fetchone()
+
+                            if location_data:
+                                part_count = safe_int(location_data['part_count'])
+                                total_stock = safe_int(location_data['total_stock'])
+                                min_stock = safe_int(location_data['min_stock'])
+                                max_stock = safe_int(location_data['max_stock'])
+
+                                # 计算新的状态
+                                if part_count == 0:
+                                    new_status = 'not_use'
+                                else:
+                                    new_status = calculate_location_status(part_count, 0, total_stock, min_stock,
+                                                                           max_stock)
+
+                                # 更新库位状态
+                                conn.execute('''
+                                    UPDATE locations 
+                                    SET status = ?, last_updated = CURRENT_TIMESTAMP 
+                                    WHERE location_code = ?
+                                ''', (new_status, location_code))
+
+                        except Exception as e:
+                            current_app.logger.error(f"更新库位 {location_code} 状态失败: {str(e)}")
+
                 # 合并验证错误
                 errors.extend(validation_errors)
                 error_count = len(validation_errors)
@@ -1407,6 +1459,7 @@ def setup_import_export_routes(app):
             'updated_count': updated_count,
             'not_found_count': not_found_count,
             'error_count': error_count,
+            'locations_updated': len(affected_locations),
             'import_duration': import_duration
         })
 
@@ -1416,9 +1469,9 @@ def setup_import_export_routes(app):
 
         if success:
             if error_count == 0:
-                message = f'导入成功！更新 {updated_count} 个备件'
+                message = f'导入成功！更新 {updated_count} 个备件，同步更新 {len(affected_locations)} 个库位状态'
             else:
-                message = f'部分导入成功！更新 {updated_count} 个备件，错误 {error_count} 个'
+                message = f'部分导入成功！更新 {updated_count} 个备件，同步更新 {len(affected_locations)} 个库位状态，错误 {error_count} 个'
         else:
             message = f'导入失败！未找到 {not_found_count} 个备件，错误 {error_count} 个'
 
@@ -1428,6 +1481,7 @@ def setup_import_export_routes(app):
             'updated_count': updated_count,
             'not_found_count': not_found_count,
             'error_count': error_count,
+            'locations_updated': len(affected_locations),
             'errors': errors,
             'import_summary': import_summary
         }

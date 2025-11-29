@@ -41,25 +41,21 @@ def is_low_stock(part_id):
     return db_is_low_stock(part_id)
 
 
-def calculate_location_status(part_count, capacity):
-    """计算库位状态 - 彻底修复版本"""
-    try:
-        # 确保数值类型正确
-        part_count = safe_int(part_count)
-        capacity = safe_int(capacity)
+def calculate_location_status(part_count, capacity, current_stock=0, min_stock=0, max_stock=0):
+    """计算库位状态"""
+    # 如果库位没有分配给任何备件存储
+    if part_count == 0:
+        return 'not_use'
 
-        if capacity == 0:
-            return 'free'
-
-        utilization = part_count / capacity
-        if utilization == 0:
-            return 'free'
-        elif utilization < 0.3:
-            return 'low_stock'
-        else:
-            return 'in_use'
-    except (ValueError, TypeError, ZeroDivisionError):
-        return 'free'
+    # 如果库位分配了备件存储
+    if current_stock == 0:
+        return 'out_of_stock'  # 缺货
+    elif current_stock <= min_stock:
+        return 'low_stock'  # 低库存
+    elif max_stock > 0 and current_stock > max_stock:
+        return 'high_stock'  # 库存过高
+    else:
+        return 'free'  # 库存充足
 
 
 def get_low_stock_parts():
@@ -86,3 +82,28 @@ def calculate_rack_utilization(rack_locations):
         return 0
 
     return (total_parts / total_capacity) * 100
+
+
+def get_location_utilization(location_code):
+    """获取库位利用率"""
+    from models.database import DatabaseManager, safe_int
+
+    db_manager = DatabaseManager()
+    with db_manager.get_connection() as conn:
+        cursor = conn.execute('''
+            SELECT l.capacity, COALESCE(SUM(p.current_stock), 0) as total_stock
+            FROM locations l
+            LEFT JOIN spare_parts p ON l.location_code = p.location
+            WHERE l.location_code = ?
+            GROUP BY l.capacity
+        ''', (location_code,))
+
+        result = cursor.fetchone()
+        if result:
+            capacity = safe_int(result['capacity'])
+            total_stock = safe_int(result['total_stock'])
+
+            if capacity > 0:
+                return round((total_stock / capacity) * 100, 1)
+
+        return 0
