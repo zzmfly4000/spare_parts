@@ -11,6 +11,7 @@ from routes.import_export_routes import setup_import_export_routes
 from utils.stock_utils import get_low_stock_parts, get_recent_activities
 import datetime
 import logging
+from routes.database_routes import setup_database_routes
 
 
 def create_app(config_name='default'):
@@ -85,6 +86,7 @@ def create_app(config_name='default'):
     setup_operation_routes(app)
     setup_settings_routes(app)
     setup_import_export_routes(app)
+    setup_database_routes(app)
 
     # 首页路由 - 修复版本
     @app.route('/')

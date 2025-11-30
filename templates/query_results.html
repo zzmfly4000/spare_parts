@@ -1,0 +1,155 @@
+<!-- [file name]: query_results.html -->
+<!-- [file content begin] -->
+{% extends "base.html" %}
+
+{% block title %}设备备件管理系统 - 查询结果{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-4 mb-4 border-bottom">
+    <div>
+        <h1 class="h3 mb-2">查询结果</h1>
+        <p class="text-muted mb-0">{{ sql_query }}</p>
+    </div>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <a href="{{ url_for('database_query') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i>返回
+            </a>
+            <button class="btn btn-outline-primary" onclick="window.history.back()">
+                <i class="fas fa-redo me-1"></i>重新查询
+            </button>
+        </div>
+    </div>
+</div>
+
+{% if columns and data %}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">查询结果 ({{ row_count }} 条记录)</h5>
+        <button class="btn btn-sm btn-outline-success" onclick="exportToCSV()">
+            <i class="fas fa-download me-1"></i>导出CSV
+        </button>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
+            <table class="table table-hover table-striped" id="resultTable">
+                <thead class="table-light sticky-top">
+                    <tr>
+                        {% for column in columns %}
+                        <th>{{ column }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in data %}
+                    <tr>
+                        {% for column in columns %}
+                        <td>
+                            {% set value = row[column] %}
+                            {% if value is none %}
+                                <span class="text-muted">NULL</span>
+                            {% elif value is string and value|length > 100 %}
+                                <span title="{{ value }}">{{ value[:100] }}...</span>
+                            {% else %}
+                                {{ value }}
+                            {% endif %}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% elif result %}
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">执行结果</h5>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>查询已执行</strong>
+            <p class="mb-0 mt-2">执行的SQL: <code>{{ sql_query }}</code></p>
+        </div>
+
+        {% if result %}
+        <div class="table-responsive">
+            <table class="table table-bordered">
+                <tbody>
+                    {% for row in result %}
+                    <tr>
+                        {% for item in row %}
+                        <td>{{ item }}</td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% else %}
+<div class="card">
+    <div class="card-body text-center py-5">
+        <i class="fas fa-exclamation-circle fa-3x text-warning mb-3"></i>
+        <h5 class="text-warning">无结果返回</h5>
+        <p class="text-muted">查询未返回任何数据</p>
+        <a href="{{ url_for('database_query') }}" class="btn btn-primary">
+            <i class="fas fa-redo me-1"></i>重新查询
+        </a>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function exportToCSV() {
+    let csv = [];
+    const headers = [];
+
+    // 获取表头
+    document.querySelectorAll('#resultTable thead th').forEach(th => {
+        headers.push(th.textContent.trim());
+    });
+    csv.push(headers.join(','));
+
+    // 获取数据行
+    document.querySelectorAll('#resultTable tbody tr').forEach(tr => {
+        const row = [];
+        tr.querySelectorAll('td').forEach(td => {
+            let text = td.textContent.trim();
+            // 处理包含逗号或引号的字段
+            if (text.includes(',') || text.includes('"') || text.includes('\n')) {
+                text = '"' + text.replace(/"/g, '""') + '"';
+            }
+            row.push(text);
+        });
+        csv.push(row.join(','));
+    });
+
+    // 创建下载链接
+    const blob = new Blob([csv.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `query_result_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+// 添加键盘快捷键
+document.addEventListener('keydown', function(e) {
+    if (e.ctrlKey && e.key === 'e') {
+        e.preventDefault();
+        exportToCSV();
+    }
+});
+</script>
+{% endblock %}
+<!-- [file content end] -->

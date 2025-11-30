@@ -1,0 +1,122 @@
+<!-- [file name]: database_query.html -->
+<!-- [file content begin] -->
+{% extends "base.html" %}
+
+{% block title %}设备备件管理系统 - SQL查询{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-4 mb-4 border-bottom">
+    <div>
+        <h1 class="h3 mb-2">SQL查询界面</h1>
+        <p class="text-muted mb-0">执行安全的SQL查询语句</p>
+    </div>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <a href="{{ url_for('database_management') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i>返回
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0"><i class="fas fa-code me-2"></i>SQL查询编辑器</h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    <div class="mb-3">
+                        <label class="form-label">SQL查询语句</label>
+                        <textarea class="form-control font-monospace" name="sql_query"
+                                  rows="8" placeholder="请输入SELECT查询语句..."
+                                  style="font-family: 'Courier New', monospace;"></textarea>
+                    </div>
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>安全提示：</strong>出于安全考虑，禁止执行数据修改操作（DROP、DELETE、UPDATE、INSERT、ALTER、CREATE等）。
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-play me-1"></i>执行查询
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <!-- 快速查询模板 -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0"><i class="fas fa-bolt me-2"></i>快速查询</h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group list-group-flush">
+                    <button class="list-group-item list-group-item-action"
+                            onclick="setQuery('SELECT * FROM spare_parts LIMIT 10')">
+                        <small>查看备件表</small>
+                    </button>
+                    <button class="list-group-item list-group-item-action"
+                            onclick="setQuery('SELECT * FROM locations LIMIT 10')">
+                        <small>查看库位表</small>
+                    </button>
+                    <button class="list-group-item list-group-item-action"
+                            onclick="setQuery('SELECT * FROM operation_records ORDER BY operation_date DESC LIMIT 10')">
+                        <small>查看操作记录</small>
+                    </button>
+                    <button class="list-group-item list-group-item-action"
+                            onclick="setQuery('SELECT name FROM sqlite_master WHERE type=\\'table\\'')">
+                        <small>查看所有表</small>
+                    </button>
+                    <button class="list-group-item list-group-item-action"
+                            onclick="setQuery('PRAGMA table_info(spare_parts)')">
+                        <small>查看备件表结构</small>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 查询历史 -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0"><i class="fas fa-history me-2"></i>查询帮助</h5>
+            </div>
+            <div class="card-body">
+                <h6>可用表：</h6>
+                <ul class="small">
+                    <li><code>spare_parts</code> - 备件信息</li>
+                    <li><code>locations</code> - 库位信息</li>
+                    <li><code>operation_records</code> - 操作记录</li>
+                    <li><code>rack_layouts</code> - 货架布局</li>
+                </ul>
+
+                <h6 class="mt-3">常用函数：</h6>
+                <ul class="small">
+                    <li><code>COUNT()</code> - 计数</li>
+                    <li><code>SUM()</code> - 求和</li>
+                    <li><code>AVG()</code> - 平均值</li>
+                    <li><code>MAX()/MIN()</code> - 最大/最小值</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function setQuery(sql) {
+    document.querySelector('textarea[name="sql_query"]').value = sql;
+}
+
+// 自动聚焦到文本区域
+document.addEventListener('DOMContentLoaded', function() {
+    const textarea = document.querySelector('textarea[name="sql_query"]');
+    if (textarea) {
+        textarea.focus();
+    }
+});
+</script>
+{% endblock %}
+<!-- [file content end] -->

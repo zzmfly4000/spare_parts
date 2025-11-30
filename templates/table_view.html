@@ -1,0 +1,179 @@
+<!-- [file name]: table_view.html -->
+<!-- [file content begin] -->
+{% extends "base.html" %}
+
+{% block title %}设备备件管理系统 - {{ table_name }} 数据{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-4 mb-4 border-bottom">
+    <div>
+        <h1 class="h3 mb-2">{{ table_name }} 数据</h1>
+        <p class="text-muted mb-0">共 {{ total_count }} 条记录</p>
+    </div>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <a href="{{ url_for('database_management') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i>返回
+            </a>
+            <button class="btn btn-outline-primary" onclick="location.reload()">
+                <i class="fas fa-sync-alt me-1"></i>刷新
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- 搜索框 -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-8">
+                <input type="text" name="search" class="form-control" placeholder="搜索关键词..."
+                       value="{{ search }}">
+            </div>
+            <div class="col-md-4">
+                <button type="submit" class="btn btn-primary me-2">
+                    <i class="fas fa-search me-1"></i>搜索
+                </button>
+                {% if search %}
+                <a href="{{ url_for('view_table_data', table_name=table_name) }}" class="btn btn-outline-secondary">
+                    清除
+                </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 数据表格 -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">数据记录</h5>
+        <div>
+            <small class="text-muted me-3">
+                第 {{ page }} 页 / 共 {{ total_pages }} 页
+            </small>
+            <div class="btn-group btn-group-sm">
+                <a href="{{ url_for('view_table_data', table_name=table_name, page=page-1, search=search) if page > 1 else '#' }}"
+                   class="btn btn-outline-secondary {{ 'disabled' if page <= 1 }}">
+                    <i class="fas fa-chevron-left"></i>
+                </a>
+                <a href="{{ url_for('view_table_data', table_name=table_name, page=page+1, search=search) if page < total_pages else '#' }}"
+                   class="btn btn-outline-secondary {{ 'disabled' if page >= total_pages }}">
+                    <i class="fas fa-chevron-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
+            <table class="table table-hover table-striped">
+                <thead class="table-light sticky-top">
+                    <tr>
+                        {% for column in columns %}
+                        <th>{{ column.name }}</th>
+                        {% endfor %}
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in data %}
+                    <tr>
+                        {% for column in columns %}
+                        <td>
+                            {% set value = row[column.name] %}
+                            {% if value is none %}
+                                <span class="text-muted">NULL</span>
+                            {% elif value is string and value|length > 50 %}
+                                <span title="{{ value }}">{{ value[:50] }}...</span>
+                            {% else %}
+                                {{ value }}
+                            {% endif %}
+                        </td>
+                        {% endfor %}
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-warning btn-sm"
+                                        onclick="editRecord('{{ table_name }}', '{{ row[columns[0].name] }}')"
+                                        title="编辑">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-outline-danger btn-sm"
+                                        onclick="deleteRecord('{{ table_name }}', '{{ row[columns[0].name] }}')"
+                                        title="删除">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if not data %}
+        <div class="text-center py-5">
+            <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">暂无数据</h5>
+            <p class="text-muted">未找到匹配的记录</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 编辑模态框 -->
+<div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">编辑记录</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="editModalBody">
+                <!-- 编辑表单将通过AJAX加载 -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function editRecord(tableName, recordId) {
+    // 这里可以实现记录编辑功能
+    alert(`编辑 ${tableName} 表的记录 ID: ${recordId}\n\n此功能需要根据具体表结构实现编辑界面。`);
+}
+
+function deleteRecord(tableName, recordId) {
+    if (confirm(`确定要删除 ${tableName} 表的记录 ID: ${recordId} 吗？此操作不可恢复！`)) {
+        fetch('/database/record/delete', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `table_name=${tableName}&record_id=${recordId}`
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                alert('记录删除成功');
+                location.reload();
+            } else {
+                alert('删除失败: ' + result.error);
+            }
+        })
+        .catch(error => {
+            alert('删除失败: ' + error);
+        });
+    }
+}
+
+// 键盘快捷键
+document.addEventListener('keydown', function(e) {
+    if (e.ctrlKey && e.key === 'r') {
+        e.preventDefault();
+        location.reload();
+    }
+});
+</script>
+{% endblock %}
+<!-- [file content end] -->

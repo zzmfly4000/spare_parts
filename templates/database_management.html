@@ -1,0 +1,327 @@
+<!-- [file name]: database_management.html -->
+<!-- [file content begin] -->
+{% extends "base.html" %}
+
+{% block title %}设备备件管理系统 - 数据库管理{% endblock %}
+
+{% block content %}
+<!-- 页面标题 -->
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-4 mb-4 border-bottom">
+    <div>
+        <h1 class="h3 mb-2">数据库管理</h1>
+        <p class="text-muted mb-0">监控数据库状态和执行管理操作</p>
+    </div>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <a href="{{ url_for('database_backup') }}" class="btn btn-outline-success">
+                <i class="fas fa-database me-1"></i>备份数据库
+            </a>
+            <a href="{{ url_for('database_optimize') }}" class="btn btn-outline-warning">
+                <i class="fas fa-magic me-1"></i>优化数据库
+            </a>
+            <a href="{{ url_for('database_query') }}" class="btn btn-outline-info">
+                <i class="fas fa-code me-1"></i>SQL查询
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- 数据库概览 -->
+    <div class="col-lg-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0"><i class="fas fa-database me-2"></i>数据库概览</h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group list-group-flush">
+                    <div class="list-group-item d-flex justify-content-between align-items-center border-0 px-0">
+                        <span>数据库文件大小</span>
+                        <span class="fw-bold text-primary">{{ "%.2f"|format(db_size / 1024 / 1024) }} MB</span>
+                    </div>
+                    <div class="list-group-item d-flex justify-content-between align-items-center border-0 px-0">
+                        <span>数据表数量</span>
+                        <span class="badge bg-primary">{{ tables|length }}</span>
+                    </div>
+                    <div class="list-group-item d-flex justify-content-between align-items-center border-0 px-0">
+                        <span>总记录数</span>
+                        <span class="fw-bold text-info">
+                            {{ table_stats.values()|sum(attribute='count') }}
+                        </span>
+                    </div>
+                    <div class="list-group-item d-flex justify-content-between align-items-center border-0 px-0">
+                        <span>数据库状态</span>
+                        <span class="badge bg-success">正常</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 性能统计 -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0"><i class="fas fa-tachometer-alt me-2"></i>性能统计</h5>
+            </div>
+            <div class="card-body">
+                {% if performance_stats %}
+                <div class="list-group list-group-flush">
+                    <div class="list-group-item d-flex justify-content-between align-items-center border-0 px-0">
+                        <span>页面大小</span>
+                        <span class="text-muted">{{ performance_stats.page_size }} bytes</span>
+                    </div>
+                    <div class="list-group-item d-flex justify-content-between align-items-center border-0 px-0">
+                        <span>总页数</span>
+                        <span class="text-muted">{{ performance_stats.page_count }}</span>
+                    </div>
+                    <div class="list-group-item d-flex justify-content-between align-items-center border-0 px-0">
+                        <span>空闲列表</span>
+                        <span class="text-muted">{{ performance_stats.freelist_count }}</span>
+                    </div>
+                    <div class="list-group-item d-flex justify-content-between align-items-center border-0 px-0">
+                        <span>缓存大小</span>
+                        <span class="text-muted">{{ performance_stats.cache_size }} pages</span>
+                    </div>
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-3">
+                    <i class="fas fa-exclamation-circle fa-2x mb-2"></i>
+                    <p>无法获取性能统计信息</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- 数据表管理 -->
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0"><i class="fas fa-table me-2"></i>数据表管理</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>表名</th>
+                                <th>记录数</th>
+                                <th>字段数</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for table in tables %}
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-table text-primary me-2"></i>
+                                        <strong>{{ table }}</strong>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary">{{ table_stats[table].count }}</span>
+                                </td>
+                                <td>
+                                    <span class="text-muted">{{ table_stats[table].columns }}</span>
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{{ url_for('view_table_data', table_name=table) }}"
+                                           class="btn btn-outline-primary" title="查看数据">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <button class="btn btn-outline-info" title="表结构"
+                                                onclick="showTableSchema('{{ table }}')">
+                                            <i class="fas fa-info-circle"></i>
+                                        </button>
+                                        <button class="btn btn-outline-warning" title="导出数据"
+                                                onclick="exportTableData('{{ table }}')">
+                                            <i class="fas fa-download"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 快速操作 -->
+        <div class="row mt-4">
+            <div class="col-md-4">
+                <div class="card bg-light">
+                    <div class="card-body text-center py-4">
+                        <i class="fas fa-shield-alt fa-2x text-success mb-3"></i>
+                        <h6>数据完整性检查</h6>
+                        <p class="text-muted small mb-3">检查数据库完整性并修复错误</p>
+                        <button class="btn btn-success btn-sm" onclick="checkIntegrity()">
+                            <i class="fas fa-check-circle me-1"></i>立即检查
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-light">
+                    <div class="card-body text-center py-4">
+                        <i class="fas fa-chart-bar fa-2x text-info mb-3"></i>
+                        <h6>性能分析</h6>
+                        <p class="text-muted small mb-3">分析数据库性能并生成报告</p>
+                        <button class="btn btn-info btn-sm" onclick="analyzePerformance()">
+                            <i class="fas fa-chart-line me-1"></i>开始分析
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-light">
+                    <div class="card-body text-center py-4">
+                        <i class="fas fa-history fa-2x text-warning mb-3"></i>
+                        <h6>操作日志</h6>
+                        <p class="text-muted small mb-3">查看数据库操作历史记录</p>
+                        <a href="{{ url_for('view_table_data', table_name='operation_records') }}"
+                           class="btn btn-warning btn-sm">
+                            <i class="fas fa-list me-1"></i>查看日志
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 表结构模态框 -->
+<div class="modal fade" id="schemaModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">表结构 - <span id="schemaTableName"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="schemaContent" class="table-responsive">
+                    <!-- 表结构内容将通过AJAX加载 -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function showTableSchema(tableName) {
+    $('#schemaTableName').text(tableName);
+    $('#schemaContent').html(`
+        <div class="text-center py-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">加载中...</span>
+            </div>
+            <p class="mt-2">加载表结构中...</p>
+        </div>
+    `);
+
+    $('#schemaModal').modal('show');
+
+    // 通过AJAX获取表结构
+    fetch(`/database/query`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `sql_query=PRAGMA table_info(${tableName})`
+    })
+    .then(response => response.text())
+    .then(html => {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const resultTable = doc.querySelector('table');
+        if (resultTable) {
+            $('#schemaContent').html(resultTable.outerHTML);
+        } else {
+            $('#schemaContent').html('<div class="alert alert-warning">无法获取表结构</div>');
+        }
+    })
+    .catch(error => {
+        $('#schemaContent').html(`<div class="alert alert-danger">加载失败: ${error}</div>`);
+    });
+}
+
+function exportTableData(tableName) {
+    // 简单的导出功能
+    const link = document.createElement('a');
+    link.href = `/database/query?sql_query=SELECT * FROM ${tableName}`;
+    link.download = `${tableName}_export_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+}
+
+function checkIntegrity() {
+    fetch('/database/query', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: 'sql_query=PRAGMA integrity_check'
+    })
+    .then(response => response.text())
+    .then(html => {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const result = doc.querySelector('.alert') || doc.querySelector('table');
+
+        if (result) {
+            // 显示结果在模态框中
+            $('#schemaTableName').text('完整性检查结果');
+            $('#schemaContent').html(result.outerHTML);
+            $('#schemaModal').modal('show');
+        }
+    })
+    .catch(error => {
+        alert('完整性检查失败: ' + error);
+    });
+}
+
+function analyzePerformance() {
+    fetch('/database/stats')
+    .then(response => response.json())
+    .then(stats => {
+        let html = `
+            <div class="alert alert-info">
+                <h6><i class="fas fa-chart-bar me-2"></i>数据库统计报告</h6>
+                <hr>
+        `;
+
+        if (stats.schema) {
+            html += `
+                <p><strong>表数量:</strong> ${stats.schema.table_count}</p>
+                <p><strong>索引数量:</strong> ${stats.schema.index_count}</p>
+            `;
+        }
+
+        if (stats.table_counts) {
+            html += `<h6 class="mt-3">各表记录数:</h6><ul>`;
+            for (const [table, count] of Object.entries(stats.table_counts)) {
+                html += `<li>${table}: ${count} 条记录</li>`;
+            }
+            html += `</ul>`;
+        }
+
+        html += `</div>`;
+
+        $('#schemaTableName').text('性能分析报告');
+        $('#schemaContent').html(html);
+        $('#schemaModal').modal('show');
+    })
+    .catch(error => {
+        alert('性能分析失败: ' + error);
+    });
+}
+
+// 页面加载完成后初始化
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('数据库管理页面已加载');
+});
+</script>
+{% endblock %}
+<!-- [file content end] -->

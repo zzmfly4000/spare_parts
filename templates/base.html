@@ -514,6 +514,12 @@
                                     <i class="fas fa-cog"></i>系统设置
                                 </a>
                             </li>
+                            <li class="nav-item">
+                                <a class="nav-link {{ 'active' if request.endpoint in ['database_management', 'view_table_data', 'database_query'] }}"
+                                   href="{{ url_for('database_management') }}">
+                                    <i class="fas fa-database"></i>数据库管理
+                                </a>
+                            </li>
                         </ul>
                     </div>
                 </div>
