@@ -1,0 +1,206 @@
+<!-- [file name]: integrity_check_results.html -->
+<!-- [file content begin] -->
+{% extends "base.html" %}
+
+{% block title %}设备备件管理系统 - 完整性检查结果{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-4 mb-4 border-bottom">
+    <div>
+        <h1 class="h3 mb-2">数据库完整性检查结果</h1>
+        <p class="text-muted mb-0">数据库完整性检查报告</p>
+    </div>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <a href="{{ url_for('database_management') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i>返回
+            </a>
+            <a href="{{ url_for('database_integrity_check') }}" class="btn btn-outline-primary">
+                <i class="fas fa-redo me-1"></i>重新检查
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-12">
+        <!-- 检查概览 -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0"><i class="fas fa-clipboard-check me-2"></i>检查概览</h5>
+            </div>
+            <div class="card-body">
+                {% if result.success %}
+                <div class="row text-center">
+                    <div class="col-md-3">
+                        <div class="border rounded p-3">
+                            <div class="h4 {% if result.integrity_check and result.integrity_check[0][0] == 'ok' %}text-success{% else %}text-danger{% endif %}">
+                                {% if result.integrity_check and result.integrity_check[0][0] == 'ok' %}
+                                    <i class="fas fa-check-circle"></i> 通过
+                                {% else %}
+                                    <i class="fas fa-times-circle"></i> 失败
+                                {% endif %}
+                            </div>
+                            <small class="text-muted">完整性检查</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="border rounded p-3">
+                            <div class="h4 {% if not result.foreign_key_errors %}text-success{% else %}text-danger{% endif %}">
+                                {% if not result.foreign_key_errors %}
+                                    <i class="fas fa-check-circle"></i> 正常
+                                {% else %}
+                                    <i class="fas fa-times-circle"></i> {{ result.foreign_key_errors|length }} 错误
+                                {% endif %}
+                            </div>
+                            <small class="text-muted">外键约束</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="border rounded p-3">
+                            <div class="h4 text-info">{{ "%.1f"|format(result.database_size / 1024 / 1024) }} MB</div>
+                            <small class="text-muted">数据库大小</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="border rounded p-3">
+                            <div class="h4 text-info">{{ "%.3f"|format(result.execution_time) }}s</div>
+                            <small class="text-muted">执行时间</small>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>检查失败:</strong> {{ result.error }}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if result.success %}
+        <!-- 详细检查结果 -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0"><i class="fas fa-list-alt me-2"></i>详细检查结果</h5>
+            </div>
+            <div class="card-body">
+                <h6>完整性检查结果:</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered">
+                        <tbody>
+                            {% for check in result.integrity_check %}
+                            <tr class="{% if check[0] == 'ok' %}table-success{% else %}table-danger{% endif %}">
+                                <td>{{ check[0] }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                {% if result.foreign_key_errors %}
+                <h6 class="mt-4">外键约束错误:</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered table-danger">
+                        <thead>
+                            <tr>
+                                <th>表名</th>
+                                <th>行ID</th>
+                                <th>父表</th>
+                                <th>外键索引</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for error in result.foreign_key_errors %}
+                            <tr>
+                                <td>{{ error[0] }}</td>
+                                <td>{{ error[1] }}</td>
+                                <td>{{ error[2] }}</td>
+                                <td>{{ error[3] }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle me-2"></i>
+                    外键约束检查正常，未发现错误。
+                </div>
+                {% endif %}
+
+                <h6 class="mt-4">数据库信息:</h6>
+                <div class="row">
+                    <div class="col-md-6">
+                        <ul class="list-group">
+                            <li class="list-group-item d-flex justify-content-between">
+                                <span>页面大小</span>
+                                <span class="fw-bold">{{ result.page_size }} 字节</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between">
+                                <span>总页数</span>
+                                <span class="fw-bold">{{ result.page_count }}</span>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <ul class="list-group">
+                            <li class="list-group-item d-flex justify-content-between">
+                                <span>数据库大小</span>
+                                <span class="fw-bold">{{ "%.2f"|format(result.database_size / 1024 / 1024) }} MB</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between">
+                                <span>检查时间</span>
+                                <span class="fw-bold">{{ "%.3f"|format(result.execution_time) }} 秒</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 建议操作 -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0"><i class="fas fa-lightbulb me-2"></i>建议操作</h5>
+            </div>
+            <div class="card-body">
+                {% if result.foreign_key_errors %}
+                <div class="alert alert-warning">
+                    <h6><i class="fas fa-exclamation-triangle me-2"></i>发现外键约束错误</h6>
+                    <p class="mb-0">建议检查相关表的数据完整性，修复外键约束冲突。</p>
+                </div>
+                {% endif %}
+
+                {% if result.integrity_check and result.integrity_check[0][0] != 'ok' %}
+                <div class="alert alert-danger">
+                    <h6><i class="fas fa-exclamation-circle me-2"></i>数据库完整性检查失败</h6>
+                    <p class="mb-0">建议立即备份数据并执行数据库修复操作。</p>
+                </div>
+                {% endif %}
+
+                <div class="alert alert-info">
+                    <h6><i class="fas fa-info-circle me-2"></i>常规维护建议</h6>
+                    <ul class="mb-0">
+                        <li>定期执行完整性检查（建议每周一次）</li>
+                        <li>在执行大量数据操作后执行完整性检查</li>
+                        <li>保持外键约束的完整性</li>
+                        <li>定期备份数据库</li>
+                    </ul>
+                </div>
+
+                <div class="text-center">
+                    <a href="{{ url_for('database_vacuum') }}" class="btn btn-warning me-2">
+                        <i class="fas fa-magic me-1"></i>执行数据库优化
+                    </a>
+                    <a href="{{ url_for('database_backup') }}" class="btn btn-success">
+                        <i class="fas fa-database me-1"></i>立即备份数据库
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+<!-- [file content end] -->

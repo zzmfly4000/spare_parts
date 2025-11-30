@@ -156,9 +156,9 @@
                         <i class="fas fa-shield-alt fa-2x text-success mb-3"></i>
                         <h6>数据完整性检查</h6>
                         <p class="text-muted small mb-3">检查数据库完整性并修复错误</p>
-                        <button class="btn btn-success btn-sm" onclick="checkIntegrity()">
+                        <a href="{{ url_for('database_integrity_check') }}" class="btn btn-success btn-sm">
                             <i class="fas fa-check-circle me-1"></i>立即检查
-                        </button>
+                        </a>
                     </div>
                 </div>
             </div>
@@ -168,9 +168,9 @@
                         <i class="fas fa-chart-bar fa-2x text-info mb-3"></i>
                         <h6>性能分析</h6>
                         <p class="text-muted small mb-3">分析数据库性能并生成报告</p>
-                        <button class="btn btn-info btn-sm" onclick="analyzePerformance()">
+                        <a href="{{ url_for('database_performance_analysis') }}" class="btn btn-info btn-sm">
                             <i class="fas fa-chart-line me-1"></i>开始分析
-                        </button>
+                        </a>
                     </div>
                 </div>
             </div>
@@ -179,8 +179,8 @@
                     <div class="card-body text-center py-4">
                         <i class="fas fa-history fa-2x text-warning mb-3"></i>
                         <h6>操作日志</h6>
-                        <p class="text-muted small mb-3">查看数据库操作历史记录</p>
-                        <a href="{{ url_for('view_table_data', table_name='operation_records') }}"
+                        <p class="text-muted small mb-3">查看数据库管理操作记录</p>
+                        <a href="{{ url_for('database_operation_logs') }}"
                            class="btn btn-warning btn-sm">
                             <i class="fas fa-list me-1"></i>查看日志
                         </a>

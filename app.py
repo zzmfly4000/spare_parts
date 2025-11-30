@@ -14,6 +14,7 @@ import logging
 from routes.database_routes import setup_database_routes
 
 
+
 def create_app(config_name='default'):
     """应用工厂函数，创建Flask应用实例"""
     app = Flask(__name__)

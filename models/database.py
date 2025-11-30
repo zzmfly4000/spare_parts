@@ -314,6 +314,21 @@ def init_db():
             )
         ''')
 
+        # 创建数据库操作日志表
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS database_operation_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                operation_type TEXT NOT NULL,
+                operation_details TEXT,
+                status TEXT NOT NULL,
+                execution_time REAL,
+                affected_rows INTEGER DEFAULT 0,
+                error_message TEXT,
+                operator TEXT DEFAULT 'system',
+                created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
         # 创建库位表
         conn.execute('''
             CREATE TABLE IF NOT EXISTS locations (
@@ -350,6 +365,9 @@ def init_db():
         conn.execute('CREATE INDEX IF NOT EXISTS idx_locations_rack ON locations(rack)')
         conn.execute('CREATE INDEX IF NOT EXISTS idx_locations_level ON locations(level)')
         conn.execute('CREATE INDEX IF NOT EXISTS idx_rack_layouts_rack ON rack_layouts(rack)')
+        conn.execute('CREATE INDEX IF NOT EXISTS idx_db_operation_logs_type ON database_operation_logs(operation_type)')
+        conn.execute('CREATE INDEX IF NOT EXISTS idx_db_operation_logs_date ON database_operation_logs(created_date)')
+        conn.execute('CREATE INDEX IF NOT EXISTS idx_db_operation_logs_status ON database_operation_logs(status)')
 
 
 def get_rack_layout(rack):
@@ -1311,6 +1329,286 @@ def safe_float(value, default=0.0):
         return float(str(value))
     except (ValueError, TypeError):
         return default
+
+
+def log_database_operation(operation_type, operation_details, status, execution_time=None, affected_rows=0,
+                           error_message=None, operator='system'):
+    """记录数据库操作日志"""
+    db_manager = DatabaseManager()
+    try:
+        with db_manager.get_connection() as conn:
+            cursor = conn.execute('''
+                INSERT INTO database_operation_logs 
+                (operation_type, operation_details, status, execution_time, affected_rows, error_message, operator)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                operation_type,
+                operation_details,
+                status,
+                execution_time,
+                affected_rows,
+                error_message,
+                operator
+            ))
+            return cursor.lastrowid
+    except Exception as e:
+        logging.error(f"记录数据库操作日志失败: {str(e)}")
+        return None
+
+
+def get_database_operation_logs(limit=50, operation_type=None):
+    """获取数据库操作日志"""
+    db_manager = DatabaseManager()
+    with db_manager.get_connection() as conn:
+        query = '''
+            SELECT * FROM database_operation_logs 
+            WHERE 1=1
+        '''
+        params = []
+
+        if operation_type:
+            query += ' AND operation_type = ?'
+            params.append(operation_type)
+
+        query += ' ORDER BY created_date DESC LIMIT ?'
+        params.append(limit)
+
+        cursor = conn.execute(query, params)
+        logs = []
+        for row in cursor.fetchall():
+            if hasattr(row, '_fields'):
+                log_dict = {}
+                for i, field in enumerate(row._fields):
+                    log_dict[field] = row[i]
+                logs.append(log_dict)
+            else:
+                logs.append({
+                    'id': row[0],
+                    'operation_type': row[1],
+                    'operation_details': row[2],
+                    'status': row[3],
+                    'execution_time': row[4],
+                    'affected_rows': row[5],
+                    'error_message': row[6],
+                    'operator': row[7],
+                    'created_date': row[8]
+                })
+        return logs
+
+
+def perform_integrity_check():
+    """执行数据库完整性检查"""
+    db_manager = DatabaseManager()
+    start_time = time.time()
+
+    try:
+        with db_manager.get_connection() as conn:
+            # 执行完整性检查
+            cursor = conn.execute('PRAGMA integrity_check')
+            result = cursor.fetchall()
+
+            # 检查外键约束
+            cursor = conn.execute('PRAGMA foreign_key_check')
+            foreign_key_errors = cursor.fetchall()
+
+            # 检查页大小和扇区大小
+            cursor = conn.execute('PRAGMA page_size')
+            page_size = cursor.fetchone()[0]
+
+            cursor = conn.execute('PRAGMA page_count')
+            page_count = cursor.fetchone()[0]
+
+            execution_time = time.time() - start_time
+
+            # 记录操作日志
+            log_database_operation(
+                operation_type='integrity_check',
+                operation_details='执行数据库完整性检查',
+                status='success',
+                execution_time=execution_time,
+                affected_rows=0
+            )
+
+            return {
+                'success': True,
+                'integrity_check': result,
+                'foreign_key_errors': foreign_key_errors,
+                'page_size': page_size,
+                'page_count': page_count,
+                'database_size': page_size * page_count,
+                'execution_time': execution_time
+            }
+
+    except Exception as e:
+        execution_time = time.time() - start_time
+        log_database_operation(
+            operation_type='integrity_check',
+            operation_details='执行数据库完整性检查',
+            status='error',
+            execution_time=execution_time,
+            error_message=str(e)
+        )
+        return {
+            'success': False,
+            'error': str(e),
+            'execution_time': execution_time
+        }
+
+
+def perform_performance_analysis():
+    """执行数据库性能分析"""
+    db_manager = DatabaseManager()
+    start_time = time.time()
+
+    try:
+        with db_manager.get_connection() as conn:
+            stats = {}
+
+            # 基础性能指标
+            cursor = conn.execute('PRAGMA optimize')
+            stats['optimize'] = cursor.fetchall()
+
+            # 缓存统计
+            cursor = conn.execute('PRAGMA cache_stats')
+            stats['cache_stats'] = cursor.fetchall()
+
+            # 编译选项
+            cursor = conn.execute('PRAGMA compile_options')
+            stats['compile_options'] = [row[0] for row in cursor.fetchall()]
+
+            # 表统计信息
+            cursor = conn.execute("""
+                SELECT name, 
+                       (SELECT COUNT(*) FROM sqlite_master WHERE type='table') as table_count,
+                       (SELECT COUNT(*) FROM sqlite_master WHERE type='index') as index_count,
+                       (SELECT COUNT(*) FROM sqlite_master WHERE type='trigger') as trigger_count
+                FROM sqlite_master 
+                WHERE type='table' AND name NOT LIKE 'sqlite_%'
+            """)
+            stats['schema_info'] = cursor.fetchall()
+
+            # 索引使用统计（需要SQLite 3.9.0+）
+            try:
+                cursor = conn.execute('PRAGMA index_list(sqlite_master)')
+                stats['index_list'] = cursor.fetchall()
+            except:
+                stats['index_list'] = []
+
+            # 数据库大小信息
+            cursor = conn.execute('PRAGMA page_size')
+            page_size = cursor.fetchone()[0]
+            cursor = conn.execute('PRAGMA page_count')
+            page_count = cursor.fetchone()[0]
+            cursor = conn.execute('PRAGMA freelist_count')
+            freelist_count = cursor.fetchone()[0]
+
+            stats['size_info'] = {
+                'page_size': page_size,
+                'page_count': page_count,
+                'freelist_count': freelist_count,
+                'total_size': page_size * page_count,
+                'used_size': page_size * (page_count - freelist_count),
+                'usage_percentage': ((page_count - freelist_count) / page_count * 100) if page_count > 0 else 0
+            }
+
+            # 性能建议
+            suggestions = []
+            if stats['size_info']['usage_percentage'] < 70:
+                suggestions.append("数据库空间利用率较低，建议执行VACUUM优化")
+            if freelist_count > page_count * 0.3:
+                suggestions.append("空闲页面较多，建议执行VACUUM回收空间")
+
+            stats['suggestions'] = suggestions
+            execution_time = time.time() - start_time
+
+            # 记录操作日志
+            log_database_operation(
+                operation_type='performance_analysis',
+                operation_details='执行数据库性能分析',
+                status='success',
+                execution_time=execution_time,
+                affected_rows=0
+            )
+
+            return {
+                'success': True,
+                'stats': stats,
+                'execution_time': execution_time
+            }
+
+    except Exception as e:
+        execution_time = time.time() - start_time
+        log_database_operation(
+            operation_type='performance_analysis',
+            operation_details='执行数据库性能分析',
+            status='error',
+            execution_time=execution_time,
+            error_message=str(e)
+        )
+        return {
+            'success': False,
+            'error': str(e),
+            'execution_time': execution_time
+        }
+
+
+def vacuum_database():
+    """执行数据库VACUUM操作"""
+    db_manager = DatabaseManager()
+    start_time = time.time()
+
+    try:
+        with db_manager.get_connection() as conn:
+            # 执行VACUUM前记录大小
+            cursor = conn.execute('PRAGMA page_size')
+            old_page_size = cursor.fetchone()[0]
+            cursor = conn.execute('PRAGMA page_count')
+            old_page_count = cursor.fetchone()[0]
+            old_size = old_page_size * old_page_count
+
+            # 执行VACUUM
+            conn.execute('VACUUM')
+
+            # 执行VACUUM后记录大小
+            cursor = conn.execute('PRAGMA page_size')
+            new_page_size = cursor.fetchone()[0]
+            cursor = conn.execute('PRAGMA page_count')
+            new_page_count = cursor.fetchone()[0]
+            new_size = new_page_size * new_page_count
+
+            execution_time = time.time() - start_time
+
+            # 记录操作日志
+            log_database_operation(
+                operation_type='vacuum',
+                operation_details=f'执行数据库VACUUM优化，大小从 {old_size} 字节优化到 {new_size} 字节',
+                status='success',
+                execution_time=execution_time,
+                affected_rows=0
+            )
+
+            return {
+                'success': True,
+                'old_size': old_size,
+                'new_size': new_size,
+                'reclaimed_space': old_size - new_size,
+                'execution_time': execution_time
+            }
+
+    except Exception as e:
+        execution_time = time.time() - start_time
+        log_database_operation(
+            operation_type='vacuum',
+            operation_details='执行数据库VACUUM优化',
+            status='error',
+            execution_time=execution_time,
+            error_message=str(e)
+        )
+        return {
+            'success': False,
+            'error': str(e),
+            'execution_time': execution_time
+        }
 
 
 # [file content end]

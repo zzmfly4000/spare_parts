@@ -1,0 +1,215 @@
+<!-- [file name]: performance_analysis_results.html -->
+<!-- [file content begin] -->
+{% extends "base.html" %}
+
+{% block title %}设备备件管理系统 - 性能分析结果{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-4 mb-4 border-bottom">
+    <div>
+        <h1 class="h3 mb-2">数据库性能分析结果</h1>
+        <p class="text-muted mb-0">数据库性能分析报告</p>
+    </div>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <a href="{{ url_for('database_management') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i>返回
+            </a>
+            <a href="{{ url_for('database_performance_analysis') }}" class="btn btn-outline-primary">
+                <i class="fas fa-redo me-1"></i>重新分析
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-12">
+        {% if result.success %}
+        {% set stats = result.stats %}
+        {% set size_info = stats.size_info %}
+
+        <!-- 性能概览 -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0"><i class="fas fa-tachometer-alt me-2"></i>性能概览</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-3">
+                        <div class="border rounded p-3">
+                            <div class="h4 {% if size_info.usage_percentage > 90 %}text-danger{% elif size_info.usage_percentage > 80 %}text-warning{% else %}text-success{% endif %}">
+                                {{ "%.1f"|format(size_info.usage_percentage) }}%
+                            </div>
+                            <small class="text-muted">空间使用率</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="border rounded p-3">
+                            <div class="h4 text-info">{{ "%.2f"|format(size_info.total_size / 1024 / 1024) }} MB</div>
+                            <small class="text-muted">数据库大小</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="border rounded p-3">
+                            <div class="h4 text-info">{{ stats.schema_info[0][2] if stats.schema_info else 0 }}</div>
+                            <small class="text-muted">索引数量</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="border rounded p-3">
+                            <div class="h4 text-info">{{ "%.3f"|format(result.execution_time) }}s</div>
+                            <small class="text-muted">分析时间</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 空间使用情况 -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0"><i class="fas fa-hdd me-2"></i>空间使用情况</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-4">
+                    <div class="col-md-8">
+                        <h6>空间使用进度</h6>
+                        <div class="progress" style="height: 25px;">
+                            <div class="progress-bar {% if size_info.usage_percentage > 90 %}bg-danger{% elif size_info.usage_percentage > 80 %}bg-warning{% else %}bg-success{% endif %}"
+                                 style="width: {{ size_info.usage_percentage }}%">
+                                {{ "%.1f"|format(size_info.usage_percentage) }}%
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <h6>空间统计</h6>
+                        <ul class="list-unstyled">
+                            <li>总大小: {{ "%.2f"|format(size_info.total_size / 1024 / 1024) }} MB</li>
+                            <li>已使用: {{ "%.2f"|format(size_info.used_size / 1024 / 1024) }} MB</li>
+                            <li>空闲: {{ "%.2f"|format((size_info.total_size - size_info.used_size) / 1024 / 1024) }} MB</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>页面信息</h6>
+                        <ul class="list-group">
+                            <li class="list-group-item d-flex justify-content-between">
+                                <span>页面大小</span>
+                                <span class="fw-bold">{{ size_info.page_size }} 字节</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between">
+                                <span>总页数</span>
+                                <span class="fw-bold">{{ size_info.page_count }}</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between">
+                                <span>空闲页数</span>
+                                <span class="fw-bold">{{ size_info.freelist_count }}</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 架构信息 -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0"><i class="fas fa-sitemap me-2"></i>数据库架构</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <div class="h2 text-primary">{{ stats.schema_info[0][1] if stats.schema_info else 0 }}</div>
+                                <small class="text-muted">数据表</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <div class="h2 text-info">{{ stats.schema_info[0][2] if stats.schema_info else 0 }}</div>
+                                <small class="text-muted">索引</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <div class="h2 text-warning">{{ stats.schema_info[0][3] if stats.schema_info else 0 }}</div>
+                                <small class="text-muted">触发器</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 性能建议 -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0"><i class="fas fa-lightbulb me-2"></i>性能建议</h5>
+            </div>
+            <div class="card-body">
+                {% if stats.suggestions %}
+                <div class="alert alert-warning">
+                    <h6><i class="fas fa-exclamation-triangle me-2"></i>优化建议</h6>
+                    <ul class="mb-0">
+                        {% for suggestion in stats.suggestions %}
+                        <li>{{ suggestion }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% else %}
+                <div class="alert alert-success">
+                    <h6><i class="fas fa-check-circle me-2"></i>数据库状态良好</h6>
+                    <p class="mb-0">当前数据库性能状态良好，无需立即优化。</p>
+                </div>
+                {% endif %}
+
+                <div class="alert alert-info">
+                    <h6><i class="fas fa-info-circle me-2"></i>常规维护建议</h6>
+                    <ul class="mb-0">
+                        <li>定期执行性能分析（建议每月一次）</li>
+                        <li>当空间使用率超过80%时执行VACUUM优化</li>
+                        <li>监控索引使用情况，删除不必要的索引</li>
+                        <li>定期备份数据库</li>
+                    </ul>
+                </div>
+
+                <div class="text-center">
+                    {% if stats.suggestions %}
+                    <a href="{{ url_for('database_vacuum') }}" class="btn btn-warning me-2">
+                        <i class="fas fa-magic me-1"></i>执行数据库优化
+                    </a>
+                    {% endif %}
+                    <a href="{{ url_for('database_integrity_check') }}" class="btn btn-primary me-2">
+                        <i class="fas fa-clipboard-check me-1"></i>执行完整性检查
+                    </a>
+                    <a href="{{ url_for('database_backup') }}" class="btn btn-success">
+                        <i class="fas fa-database me-1"></i>立即备份数据库
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        {% else %}
+        <!-- 错误状态 -->
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <i class="fas fa-exclamation-triangle fa-3x text-danger mb-3"></i>
+                <h5 class="text-danger">性能分析失败</h5>
+                <p class="text-muted">{{ result.error }}</p>
+                <a href="{{ url_for('database_performance_analysis') }}" class="btn btn-primary">
+                    <i class="fas fa-redo me-1"></i>重新尝试
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+<!-- [file content end] -->
