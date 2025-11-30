@@ -38,7 +38,7 @@
             <div class="col-md-4">
                 <div class="input-group">
                     <span class="input-group-text"><i class="fas fa-search"></i></span>
-                    <input type="text" class="form-control" name="search" placeholder="搜索备件名称或编号..."
+                    <input type="text" class="form-control" name="search" placeholder="搜索备件名称、编号或型号..."
                            value="{{ request.args.get('search', '') }}">
                 </div>
             </div>
@@ -108,7 +108,8 @@
                         </th>
                         <th>备件编号</th>
                         <th>备件名称</th>
-                        <th>类型</th>
+                        <th>产品型号</th>
+                        <th>备件类型</th>
                         <th>当前库存</th>
                         <th>最低库存</th>
                         <th>最高库存</th>
@@ -125,36 +126,43 @@
                         </td>
                         <td>
                             <strong>{{ part[1] }}</strong>
-                            {% if part[7] %}
+                            {% if part[8] %}
                             <span class="badge bg-warning ms-1" title="关键备件">关键</span>
                             {% endif %}
                         </td>
                         <td>{{ part[2] }}</td>
                         <td>
                             {% if part[3] %}
-                            <span class="badge bg-secondary">{{ part[3] }}</span>
+                            <span class="badge bg-primary">{{ part[3] }}</span>
                             {% else %}
                             <span class="text-muted">-</span>
                             {% endif %}
                         </td>
                         <td>
-                            <span class="fw-bold {% if part[4] <= part[5] %}text-danger{% elif part[4] <= part[5] * 1.2 %}text-warning{% else %}text-success{% endif %}">
-                                {{ part[4] }}
+                            {% if part[4] %}
+                            <span class="badge bg-secondary">{{ part[4] }}</span>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="fw-bold {% if part[5] <= part[6] %}text-danger{% elif part[5] <= part[6] * 1.2 %}text-warning{% else %}text-success{% endif %}">
+                                {{ part[5] }}
                             </span>
                         </td>
-                        <td>{{ part[5] }}</td>
                         <td>{{ part[6] }}</td>
+                        <td>{{ part[7] }}</td>
                         <td>
-                            {% if part[11] %}
-                            <span class="badge bg-info">{{ part[11] }}</span>
+                            {% if part[12] %}
+                            <span class="badge bg-info">{{ part[12] }}</span>
                             {% else %}
                             <span class="text-muted">-</span>
                             {% endif %}
                         </td>
                         <td>
-                            {% if part[4] == 0 %}
+                            {% if part[5] == 0 %}
                             <span class="badge bg-danger">缺货</span>
-                            {% elif part[4] <= part[5] %}
+                            {% elif part[5] <= part[6] %}
                             <span class="badge bg-warning">低库存</span>
                             {% else %}
                             <span class="badge bg-success">正常</span>

@@ -186,10 +186,11 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for part in low_stock_parts[:5] %}  <!-- 只显示前5条 -->
+                            <!-- 在 index.html 中找到低库存预警部分，更新字段索引 -->
+                            {% for part in low_stock_parts[:5] %}
                             <tr>
                                 <td>
-                                    {% set current_stock = part[4] or 0 %}
+                                    {% set current_stock = part[5] or 0 %}
                                     {% set min_stock = part[6] or 0 %}
                                     {% if current_stock == 0 %}
                                     <span class="badge bg-danger">缺货</span>
@@ -204,10 +205,14 @@
                                         </strong>
                                         <br>
                                         <small class="text-muted">{{ part[1] }}</small>
+                                        {% if part[3] %}
+                                        <br>
+                                        <small class="text-primary">{{ part[3] }}</small>
+                                        {% endif %}
                                     </div>
                                 </td>
                                 <td>
-                                    {% set current_stock = part[4] or 0 %}
+                                    {% set current_stock = part[5] or 0 %}
                                     {% set min_stock = part[6] or 0 %}
                                     <div class="d-flex align-items-center">
                                         <span class="fw-bold me-2 {% if current_stock == 0 %}text-danger{% else %}text-warning{% endif %}">

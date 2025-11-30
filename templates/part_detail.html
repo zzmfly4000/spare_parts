@@ -39,10 +39,10 @@
                                 <td>{{ part[2] }}</td>
                             </tr>
                             <tr>
-                                <th>类型:</th>
+                                <th>产品型号:</th>
                                 <td>
                                     {% if part[3] %}
-                                    <span class="badge bg-secondary">{{ part[3] }}</span>
+                                    <span class="badge bg-primary">{{ part[3] }}</span>
                                     {% else %}
                                     <span class="text-muted">未设置</span>
                                     {% endif %}
@@ -51,7 +51,7 @@
                             <tr>
                                 <th>关键备件:</th>
                                 <td>
-                                    {% if part[7] %}
+                                    {% if part[8] %}
                                     <span class="badge bg-warning">是</span>
                                     {% else %}
                                     <span class="badge bg-secondary">否</span>
@@ -65,22 +65,22 @@
                             <tr>
                                 <th width="120">当前库存:</th>
                                 <td>
-                                    <span class="fw-bold fs-5 {% if part[4] <= part[5] %}text-danger{% elif part[4] <= part[5] * 1.2 %}text-warning{% else %}text-success{% endif %}">
-                                        {{ part[4] }}
+                                    <span class="fw-bold fs-5 {% if part[5] <= part[6] %}text-danger{% elif part[5] <= part[6] * 1.2 %}text-warning{% else %}text-success{% endif %}">
+                                        {{ part[5] }}
                                     </span>
                                 </td>
                             </tr>
                             <tr>
                                 <th>最低库存:</th>
-                                <td>{{ part[5] }}</td>
-                            </tr>
-                            <tr>
-                                <th>最高库存:</th>
                                 <td>{{ part[6] }}</td>
                             </tr>
                             <tr>
+                                <th>最高库存:</th>
+                                <td>{{ part[7] }}</td>
+                            </tr>
+                            <tr>
                                 <th>交货周期:</th>
-                                <td>{{ part[8] }} 周</td>
+                                <td>{{ part[9] }} 周</td>
                             </tr>
                         </table>
                     </div>
@@ -88,7 +88,6 @@
             </div>
         </div>
 
-        <!-- 在备件详情页面添加产品型号显示 -->
         <div class="card mb-4">
             <div class="card-header">
                 <h5 class="card-title mb-0">型号信息</h5>
@@ -98,10 +97,10 @@
                     <div class="col-md-6">
                         <table class="table table-borderless">
                             <tr>
-                                <th width="120">备件型号:</th>
+                                <th width="120">产品型号:</th>
                                 <td>
-                                    {% if part_product_model %}
-                                    <span class="badge bg-primary">{{ part_product_model }}</span>
+                                    {% if part[3] %}
+                                    <span class="badge bg-primary">{{ part[3] }}</span>
                                     {% else %}
                                     <span class="text-muted">未设置</span>
                                     {% endif %}
@@ -110,8 +109,8 @@
                             <tr>
                                 <th>备件类型:</th>
                                 <td>
-                                    {% if part[3] %}
-                                    <span class="badge bg-secondary">{{ part[3] }}</span>
+                                    {% if part[4] %}
+                                    <span class="badge bg-secondary">{{ part[4] }}</span>
                                     {% else %}
                                     <span class="text-muted">未设置</span>
                                     {% endif %}
@@ -133,17 +132,17 @@
                         <table class="table table-borderless">
                             <tr>
                                 <th width="120">单价:</th>
-                                <td>¥ {{ "%.2f"|format(part[9]) }}</td>
+                                <td>¥ {{ "%.2f"|format(part[10]) }}</td>
                             </tr>
                             <tr>
                                 <th>单位:</th>
-                                <td>{{ part[10] or '未设置' }}</td>
+                                <td>{{ part[11] or '未设置' }}</td>
                             </tr>
                             <tr>
                                 <th>库位:</th>
                                 <td>
-                                    {% if part[11] %}
-                                    <span class="badge bg-info">{{ part[11] }}</span>
+                                    {% if part[12] %}
+                                    <span class="badge bg-info">{{ part[12] }}</span>
                                     {% else %}
                                     <span class="text-muted">未设置</span>
                                     {% endif %}
@@ -155,24 +154,24 @@
                         <table class="table table-borderless">
                             <tr>
                                 <th width="120">供应商:</th>
-                                <td>{{ part[12] or '未设置' }}</td>
+                                <td>{{ part[13] or '未设置' }}</td>
                             </tr>
                             <tr>
                                 <th>创建时间:</th>
-                                <td>{{ part[14] }}</td>
+                                <td>{{ part[15] }}</td>
                             </tr>
                             <tr>
                                 <th>更新时间:</th>
-                                <td>{{ part[15] }}</td>
+                                <td>{{ part[16] }}</td>
                             </tr>
                         </table>
                     </div>
                 </div>
-                
-                {% if part[13] %}
+
+                {% if part[14] %}
                 <div class="mt-3">
                     <strong>描述:</strong>
-                    <p class="text-muted mt-1">{{ part[13] }}</p>
+                    <p class="text-muted mt-1">{{ part[14] }}</p>
                 </div>
                 {% endif %}
             </div>
@@ -185,13 +184,13 @@
                 <h5 class="card-title mb-0">库存状态</h5>
             </div>
             <div class="card-body text-center">
-                {% if part[4] == 0 %}
+                {% if part[5] == 0 %}
                 <div class="alert alert-danger">
                     <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
                     <h5>缺货</h5>
                     <p class="mb-0">当前库存为 0</p>
                 </div>
-                {% elif part[4] <= part[5] %}
+                {% elif part[5] <= part[6] %}
                 <div class="alert alert-warning">
                     <i class="fas fa-exclamation-circle fa-2x mb-3"></i>
                     <h5>低库存</h5>
@@ -206,11 +205,11 @@
                 {% endif %}
 
                 <div class="progress mb-3" style="height: 20px;">
-                    {% set progress_percent = (part[4] / part[6] * 100) if part[6] > 0 else 0 %}
-                    <div class="progress-bar 
-                        {% if part[4] <= part[5] %}bg-danger
-                        {% elif part[4] <= part[5] * 1.2 %}bg-warning
-                        {% else %}bg-success{% endif %}" 
+                    {% set progress_percent = (part[5] / part[7] * 100) if part[7] > 0 else 0 %}
+                    <div class="progress-bar
+                        {% if part[5] <= part[6] %}bg-danger
+                        {% elif part[5] <= part[6] * 1.2 %}bg-warning
+                        {% else %}bg-success{% endif %}"
                          style="width: {{ progress_percent }}%">
                         {{ "%.1f"|format(progress_percent) }}%
                     </div>
@@ -219,19 +218,19 @@
                 <div class="row text-center">
                     <div class="col-4">
                         <div class="border rounded p-2">
-                            <div class="text-primary fw-bold">{{ part[4] }}</div>
+                            <div class="text-primary fw-bold">{{ part[5] }}</div>
                             <small class="text-muted">当前</small>
                         </div>
                     </div>
                     <div class="col-4">
                         <div class="border rounded p-2">
-                            <div class="text-warning fw-bold">{{ part[5] }}</div>
+                            <div class="text-warning fw-bold">{{ part[6] }}</div>
                             <small class="text-muted">最低</small>
                         </div>
                     </div>
                     <div class="col-4">
                         <div class="border rounded p-2">
-                            <div class="text-info fw-bold">{{ part[6] }}</div>
+                            <div class="text-info fw-bold">{{ part[7] }}</div>
                             <small class="text-muted">最高</small>
                         </div>
                     </div>
@@ -248,8 +247,8 @@
                     <a href="{{ url_for('smart_inbound') }}?part_no={{ part[1] }}" class="btn btn-success">
                         <i class="fas fa-arrow-down me-1"></i>入库操作
                     </a>
-                    <a href="{{ url_for('parts_list') }}?search={{ part[1] }}" class="btn btn-outline-primary">
-                        <i class="fas fa-exchange-alt me-1"></i>出库操作
+                    <a href="{{ url_for('smart_outbound') }}?part_no={{ part[1] }}" class="btn btn-outline-primary">
+                        <i class="fas fa-arrow-up me-1"></i>出库操作
                     </a>
                     <button type="button" class="btn btn-outline-danger" 
                             onclick="confirmDelete({{ part[0] }}, '{{ part[2] }}')">
