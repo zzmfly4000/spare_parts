@@ -1,3 +1,6 @@
+<!-- [file name]: smart_outbound.html -->
+<!-- [彻底修复的智能出库页面] -->
+
 {% extends "base.html" %}
 
 {% block title %}智能出库 - 设备备件管理系统{% endblock %}
@@ -129,7 +132,7 @@
                                 <select class="form-select" id="location" name="location">
                                     <option value="">选择库位...</option>
                                     {% for location in locations %}
-                                    <option value="{{ location[0] }}">{{ location[0] }} - {{ location[1] or '无描述' }}</option>
+                                    <option value="{{ location.location_code }}">{{ location.location_code }} - {{ location.description or '无描述' }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
@@ -285,6 +288,7 @@
     border: none;
     border-bottom: 1px solid #f8f9fa;
     cursor: pointer;
+    padding: 0.75rem 1rem;
 }
 
 .search-results-list .list-group-item:hover {
@@ -325,7 +329,7 @@
 
 {% block scripts %}
 <script>
-// 智能搜索功能 - 针对出库优化版本
+// 智能搜索功能 - 彻底修复版本
 document.addEventListener('DOMContentLoaded', function() {
     const partSearch = document.getElementById('partSearch');
     const selectedPartNo = document.getElementById('selectedPartNo');
@@ -351,6 +355,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const productModelInput = document.getElementById('product_model');
     const stockStats = document.getElementById('stockStats');
     const recentOutbound = document.getElementById('recentOutbound');
+    const recipientInput = document.getElementById('recipient');
+    const workCenterInput = document.getElementById('work_center');
 
     let searchTimeout;
     let currentSelection = -1;
@@ -393,7 +399,6 @@ document.addEventListener('DOMContentLoaded', function() {
             if (currentSelection >= 0 && items[currentSelection]) {
                 items[currentSelection].click();
             } else if (items.length === 1) {
-                // 如果只有一个结果，直接选择它
                 items[0].click();
             }
         } else if (e.key === 'Escape') {
@@ -403,7 +408,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 执行搜索
     function performSearch(keyword) {
-        // 显示加载状态
         showLoadingResults();
 
         fetch(`/api/search_parts?keyword=${encodeURIComponent(keyword)}`)
@@ -455,13 +459,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 statusText = '低库存';
             }
 
+            // 修正：产品型号对应part.type，备件类型对应part.product_model
             item.innerHTML = `
                 <div class="d-flex w-100 justify-content-between align-items-start">
                     <div class="flex-grow-1">
                         <h6 class="mb-1">${escapeHtml(part.part_no)} - ${escapeHtml(part.name)}</h6>
                         <p class="mb-1 small text-muted">
-                            ${part.type ? `<span class="badge bg-secondary me-1">${escapeHtml(part.type)}</span>` : ''}
-                            ${part.product_model ? `<span class="badge bg-primary me-1">型号: ${escapeHtml(part.product_model)}</span>` : ''}
+                            ${part.type ? `<span class="badge bg-primary me-1">型号: ${escapeHtml(part.type)}</span>` : ''}
+                            ${part.product_model ? `<span class="badge bg-secondary me-1">${escapeHtml(part.product_model)}</span>` : ''}
                             ${part.location ? `<span class="badge bg-info me-1">${escapeHtml(part.location)}</span>` : ''}
                             <span class="stock-indicator ${stockStatus}">${statusText}</span>
                         </p>
@@ -492,7 +497,7 @@ document.addEventListener('DOMContentLoaded', function() {
         showSearchResults();
     }
 
-    // 选择备件
+    // 选择备件 - 修复信息自动填充
     function selectPart(part) {
         partSearch.value = `${part.part_no} - ${part.name}`;
         selectedPartNo.value = part.part_no;
@@ -500,47 +505,59 @@ document.addEventListener('DOMContentLoaded', function() {
         currentSelection = -1;
         currentPartData = part;
 
-        // 更新备件信息显示
+        // 更新备件信息显示 - 修复字段映射
         updatePartInfo(part);
     }
 
-    // 更新备件信息显示
+    // 更新备件信息显示 - 彻底修复
     function updatePartInfo(part) {
         // 显示备件信息卡片
         partInfoCard.style.display = 'block';
         partName.textContent = part.name;
         currentStock.textContent = part.current_stock;
         stockInfo.textContent = `当前库存: ${part.current_stock}`;
-        partType.textContent = part.type || '-';
-        productModel.textContent = part.product_model || '-';
-        partLocation.textContent = part.location || '-';
 
-        // 设置库位、类型和产品型号
+        // 修复：产品型号对应part.type，备件类型对应part.product_model
+        partType.textContent = part.product_model || '-';
+        productModel.textContent = part.type || '-';
+        partLocation.textContent = part.location || '-';
+        minStock.textContent = part.min_stock || '-';
+
+        // 自动填充表单字段 - 修复字段映射
         if (part.location) {
             locationSelect.value = part.location;
         }
-        partTypeInput.value = part.type || '';
-        productModelInput.value = part.product_model || '';
+        partTypeInput.value = part.product_model || '';
+        productModelInput.value = part.type || '';
+        unitDisplay.textContent = part.unit || '个';
+
+        // 如果备件有供应商信息，可以填充到领用人字段
+        if (part.supplier) {
+            recipientInput.value = part.supplier;
+        }
 
         // 获取详细库存信息
         fetchPartDetails(part.part_no);
-
-        // 获取操作统计
-        fetchOperationStats(part.part_no);
 
         // 更新库存信息显示
         updateStockWarnings();
     }
 
-    // 获取备件详细信息
+    // 获取备件详细信息 - 修复字段获取
     function fetchPartDetails(partNo) {
         fetch(`/api/part_info/${partNo}`)
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
                     const part = data.part;
+                    // 修复：确保所有字段都有值
                     minStock.textContent = part.min_stock || '未设置';
                     unitDisplay.textContent = part.unit || '个';
+
+                    // 自动填充工作中心（如果有默认值）
+                    if (part.work_center) {
+                        workCenterInput.value = part.work_center;
+                    }
 
                     // 更新库存统计显示
                     updateStockStats(part);
@@ -548,6 +565,8 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch(error => {
                 console.error('获取备件信息失败:', error);
+                minStock.textContent = '未设置';
+                unitDisplay.textContent = '个';
             });
     }
 
@@ -607,10 +626,7 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch(error => {
                 console.error('获取操作统计失败:', error);
-                // 即使获取失败也显示默认信息
-                updateRecentOutbound({
-                    parts_out: 0
-                });
+                updateRecentOutbound({ parts_out: 0 });
             });
     }
 
@@ -638,7 +654,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // 更新库存警告
+    // 更新库存警告 - 修复库存检查逻辑
     function updateStockWarnings() {
         const selectedPartNoValue = selectedPartNo.value;
         const outboundQuantity = parseInt(quantityInput.value) || 0;
@@ -656,17 +672,22 @@ document.addEventListener('DOMContentLoaded', function() {
             // 更新剩余库存显示
             remainingStock.textContent = `出库后剩余: ${newStock}`;
 
-            if (newStock < 0) {
+            // 修复库存检查逻辑
+            if (outboundQuantity > currentStockValue) {
                 outOfStockWarning.style.display = 'block';
                 document.getElementById('submitBtn').disabled = true;
+                remainingStock.className = 'text-danger';
             } else {
                 stockUpdateInfo.style.display = 'block';
                 document.getElementById('submitBtn').disabled = false;
+                remainingStock.className = newStock <= minStockValue ? 'text-warning' : 'text-success';
 
                 if (newStock <= minStockValue) {
                     lowStockWarning.style.display = 'block';
                 }
             }
+        } else {
+            remainingStock.className = 'text-muted';
         }
     }
 
@@ -689,6 +710,7 @@ document.addEventListener('DOMContentLoaded', function() {
         productModelInput.value = '';
         currentPartData = null;
         resetWarnings();
+        unitDisplay.textContent = '个';
         stockStats.innerHTML = `
             <i class="fas fa-box-open fa-2x text-muted mb-3"></i>
             <p class="text-muted mb-0">请选择备件查看库存状态</p>
@@ -706,9 +728,10 @@ document.addEventListener('DOMContentLoaded', function() {
         partSearch.value = '';
         resetPartInfo();
         quantityInput.value = '';
-        document.getElementById('recipient').value = '';
-        document.getElementById('work_center').value = '';
+        recipientInput.value = '';
+        workCenterInput.value = '';
         document.getElementById('description').value = '';
+        document.getElementById('operation_type').selectedIndex = 0;
     }
 
     // 显示搜索结果
@@ -797,10 +820,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // 数量输入变化事件
     quantityInput.addEventListener('input', updateStockWarnings);
 
-    // 表单提交处理
+    // 表单提交处理 - 修复库存验证
     document.getElementById('outboundForm').addEventListener('submit', function(e) {
         const partNo = selectedPartNo.value;
-        const quantity = quantityInput.value;
+        const quantity = parseInt(quantityInput.value) || 0;
         const recipient = document.getElementById('recipient').value;
         const description = document.getElementById('description').value;
 
@@ -821,7 +844,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!recipient) {
             e.preventDefault();
             alert('请输入领用人/部门信息！');
-            document.getElementById('recipient').focus();
+            recipientInput.focus();
             return false;
         }
 
@@ -832,11 +855,11 @@ document.addEventListener('DOMContentLoaded', function() {
             return false;
         }
 
-        // 检查库存是否足够
+        // 修复库存检查 - 使用实际库存值
         const currentStockValue = parseInt(currentStock.textContent) || 0;
         if (quantity > currentStockValue) {
             e.preventDefault();
-            alert(`出库数量超过当前库存！当前库存: ${currentStockValue}`);
+            alert(`出库数量超过当前库存！当前库存: ${currentStockValue}，出库数量: ${quantity}`);
             quantityInput.focus();
             return false;
         }
@@ -845,20 +868,27 @@ document.addEventListener('DOMContentLoaded', function() {
         const submitBtn = document.getElementById('submitBtn');
         submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>处理中...';
         submitBtn.disabled = true;
+
+        return true;
     });
 
-    // 如果有预填备件，自动触发搜索
+    // 如果有预填备件，自动触发搜索 - 修复预填充
     {% if prefill_part %}
     setTimeout(() => {
         partSearch.value = '{{ prefill_part[1] }} - {{ prefill_part[2] }}';
         selectedPartNo.value = '{{ prefill_part[1] }}';
+        // 修复：索引3对应产品型号(type)，索引4对应备件类型(product_model)
         updatePartInfo({
             part_no: '{{ prefill_part[1] }}',
             name: '{{ prefill_part[2] }}',
-            current_stock: {{ prefill_part[4] }},
-            location: '{{ prefill_part[11] or "" }}',
-            type: '{{ prefill_part[3] or "" }}',
-            product_model: '{{ prefill_part.get("product_model", "") or "" }}'
+            current_stock: {{ prefill_part[5] }},
+            location: '{{ prefill_part[12] or "" }}',
+            product_model: '{{ prefill_part[4] or "" }}', // 备件类型
+            type: '{{ prefill_part[3] or "" }}', // 产品型号
+            unit: '{{ prefill_part[11] or "个" }}',
+            min_stock: {{ prefill_part[6] or 0 }},
+            max_stock: {{ prefill_part[7] or 0 }},
+            supplier: '{{ prefill_part[13] or "" }}'
         });
     }, 100);
     {% endif %}

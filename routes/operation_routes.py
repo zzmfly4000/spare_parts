@@ -41,7 +41,7 @@ def setup_operation_routes(app):
 
     @app.route('/operation_records')
     def operation_records():
-        """操作记录列表页面 - 实时数据库查询版本"""
+        """操作记录列表页面 - 彻底修复供应商字段显示版本"""
         try:
             # 获取筛选参数
             operation_type = request.args.get('operation_type', '')
@@ -51,16 +51,26 @@ def setup_operation_routes(app):
             page = safe_int(request.args.get('page', 1))
             per_page = safe_int(request.args.get('per_page', 20))
 
-            app.logger.info(
-                f"操作记录查询参数: operation_type={operation_type}, date_from={date_from}, date_to={date_to}, part_no={part_no}, page={page}, per_page={per_page}")
+            app.logger.info(f"操作记录查询参数: operation_type={operation_type}, part_no={part_no}")
 
             # 直接从数据库实时查询
             db_manager = DatabaseManager()
             with db_manager.get_connection() as conn:
-                # 构建查询
+                # 构建查询 - 确保字段顺序正确
                 query = '''
-                    SELECT id, operation_type, operation_date, supplier_recipient, location, 
-                           part_no, description, part_type, product_model, quantity, work_center, created_date
+                    SELECT 
+                        id, 
+                        operation_type, 
+                        operation_date, 
+                        supplier_recipient, 
+                        location, 
+                        part_no, 
+                        description, 
+                        part_type, 
+                        product_model, 
+                        quantity, 
+                        work_center, 
+                        created_date
                     FROM operation_records 
                     WHERE 1=1
                 '''
@@ -86,13 +96,9 @@ def setup_operation_routes(app):
                 # 排序 - 最新的在前面
                 query += ' ORDER BY operation_date DESC, id DESC'
 
-                app.logger.info(f"执行查询: {query}")
-                app.logger.info(f"查询参数: {params}")
-
                 # 获取总数
                 count_query = f'SELECT COUNT(*) FROM ({query})'
                 total_operations = conn.execute(count_query, params).fetchone()[0]
-                app.logger.info(f"总操作记录数: {total_operations}")
 
                 # 添加分页
                 query += ' LIMIT ? OFFSET ?'
@@ -101,48 +107,38 @@ def setup_operation_routes(app):
                 # 执行查询
                 cursor = conn.execute(query, params)
                 operations = cursor.fetchall()
-                app.logger.info(f"查询到 {len(operations)} 条记录")
 
-                # 如果查询结果为空，检查数据库表是否存在数据
-                if len(operations) == 0:
-                    # 检查表是否存在数据
-                    total_count = conn.execute('SELECT COUNT(*) FROM operation_records').fetchone()[0]
-                    app.logger.info(f"operation_records 表总记录数: {total_count}")
+                # 处理日期格式 - 确保日期正确显示
+                processed_operations = []
+                for op in operations:
+                    op_list = list(op)
 
-                    # 检查表结构
-                    table_info = conn.execute("PRAGMA table_info(operation_records)").fetchall()
-                    app.logger.info(f"operation_records 表结构: {table_info}")
+                    # 修复操作日期格式
+                    if op_list[2]:  # operation_date
+                        op_list[2] = format_datetime_for_display(op_list[2])
 
-            # 检查是否有导入成功的标记
-            import_success = None
-            if 'import_success' in session:
-                import_success = session.pop('import_success')
-                app.logger.info(f"检测到导入成功标记: {import_success} 条记录")
-                flash(f'导入成功！新增 {import_success} 条操作记录', 'success')
+                    # 修复创建时间格式
+                    if op_list[11]:  # created_date
+                        op_list[11] = format_datetime_for_display(op_list[11])
 
-            # 渲染模板
-            response = make_response(render_template('operation_records.html',
-                                                     operations=operations,
-                                                     total_operations=total_operations,
-                                                     page=page,
-                                                     per_page=per_page,
-                                                     operation_type=operation_type,
-                                                     date_from=date_from,
-                                                     date_to=date_to,
-                                                     part_no=part_no,
-                                                     now=datetime.datetime.now()))
+                    # 调试：打印每条记录的供应商信息
+                    app.logger.info(f"操作记录 {op_list[0]}: 供应商={op_list[3]}, 操作类型={op_list[1]}")
 
-            # 设置缓存控制头，确保实时显示
-            response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-            response.headers['Pragma'] = 'no-cache'
-            response.headers['Expires'] = '0'
+                    processed_operations.append(tuple(op_list))
 
-            return response
+            return render_template('operation_records.html',
+                                   operations=processed_operations,
+                                   total_operations=total_operations,
+                                   page=page,
+                                   per_page=per_page,
+                                   operation_type=operation_type,
+                                   date_from=date_from,
+                                   date_to=date_to,
+                                   part_no=part_no,
+                                   now=datetime.datetime.now())
 
         except Exception as e:
             app.logger.error(f"加载操作记录失败: {str(e)}")
-            import traceback
-            app.logger.error(traceback.format_exc())
             flash('加载操作记录失败', 'danger')
             return render_template('operation_records.html',
                                    operations=[],
@@ -155,17 +151,21 @@ def setup_operation_routes(app):
                                    part_no='',
                                    now=datetime.datetime.now())
 
+
     @app.route('/smart_inbound', methods=['GET', 'POST'])
     def smart_inbound():
-        """智能入库页面 - 修复版本"""
+        """智能入库页面 - 彻底修复供应商字段版本"""
         parts = get_all_spare_parts()
         locations = get_all_locations()
 
         if request.method == 'POST':
             try:
+                # 调试：打印所有表单数据
+                app.logger.info(f"入库表单数据: {dict(request.form)}")
+
                 operation_data = {
                     'operation_type': request.form.get('operation_type', 'Stock in'),
-                    'supplier_recipient': request.form.get('supplier', ''),
+                    'supplier_recipient': request.form.get('supplier_recipient', ''),  # 修复：使用正确的字段名
                     'location': request.form.get('location', ''),
                     'part_no': request.form.get('part_no', '').strip(),
                     'description': request.form.get('description', ''),
@@ -192,12 +192,18 @@ def setup_operation_routes(app):
                                            prefill_part=None,
                                            now=datetime.datetime.now())
 
+                # 调试：打印操作数据
+                app.logger.info(f"入库操作数据: {operation_data}")
+
                 # 创建操作记录
                 operation_id = create_operation_record(operation_data)
-                flash(f'入库操作成功！操作记录ID: {operation_id}', 'success')
 
-                # 重定向到操作记录页面第一页，显示最新记录
-                return redirect(url_for('operation_records', page=1))
+                if operation_id:
+                    flash(f'入库操作成功！操作记录ID: {operation_id}', 'success')
+                    # 重定向到操作记录页面第一页，显示最新记录
+                    return redirect(url_for('operation_records', page=1))
+                else:
+                    flash('入库操作失败', 'danger')
 
             except ValueError as e:
                 error_msg = str(e)
@@ -243,28 +249,22 @@ def setup_operation_routes(app):
                                    prefill_part=None,
                                    now=datetime.datetime.now())
 
+
     @app.route('/smart_outbound', methods=['GET', 'POST'])
     def smart_outbound():
-        """智能出库页面 - 修复版本"""
+        """智能出库页面 - 彻底修复版本"""
         parts = get_all_spare_parts()
         locations = get_all_locations()
 
         if request.method == 'POST':
             try:
-                operation_data = {
-                    'operation_type': 'Stock out',
-                    'supplier_recipient': request.form.get('recipient', ''),
-                    'location': request.form.get('location', ''),
-                    'part_no': request.form.get('part_no', '').strip(),
-                    'description': request.form.get('description', ''),
-                    'part_type': request.form.get('part_type', ''),
-                    'product_model': request.form.get('product_model', ''),
-                    'quantity': -abs(safe_int(request.form.get('quantity', 0))),
-                    'work_center': request.form.get('work_center', '')
-                }
+                # 获取表单数据
+                part_no = request.form.get('part_no', '').strip()
+                quantity = safe_int(request.form.get('quantity', 0))
+                operation_type = request.form.get('operation_type', 'Stock out')
 
                 # 验证数据
-                if not operation_data['part_no']:
+                if not part_no:
                     flash('备件编号不能为空', 'danger')
                     return render_template('smart_outbound.html',
                                            parts=parts,
@@ -272,7 +272,7 @@ def setup_operation_routes(app):
                                            prefill_part=None,
                                            now=datetime.datetime.now())
 
-                if operation_data['quantity'] >= 0:
+                if quantity <= 0:
                     flash('出库数量必须大于0', 'danger')
                     return render_template('smart_outbound.html',
                                            parts=parts,
@@ -280,36 +280,52 @@ def setup_operation_routes(app):
                                            prefill_part=None,
                                            now=datetime.datetime.now())
 
-                # 检查库存是否充足
-                part = get_spare_part_by_part_no(operation_data['part_no'])
-                if part:
-                    current_stock = safe_int(part[4])
-                    outbound_quantity = abs(operation_data['quantity'])
+                # 检查库存是否充足 - 使用直接查询方式
+                part = get_spare_part_by_part_no(part_no)
+                if not part:
+                    flash('备件不存在', 'danger')
+                    return render_template('smart_outbound.html',
+                                           parts=parts,
+                                           locations=locations,
+                                           prefill_part=None,
+                                           now=datetime.datetime.now())
 
-                    if current_stock < outbound_quantity:
-                        flash(f'库存不足！当前库存: {current_stock}，出库数量: {outbound_quantity}', 'danger')
-                        return render_template('smart_outbound.html',
-                                               parts=parts,
-                                               locations=locations,
-                                               prefill_part=part,
-                                               now=datetime.datetime.now())
+                current_stock = safe_int(part[5])  # 索引5对应current_stock
+                if current_stock < quantity:
+                    flash(f'库存不足！当前库存: {current_stock}，出库数量: {quantity}', 'danger')
+                    return render_template('smart_outbound.html',
+                                           parts=parts,
+                                           locations=locations,
+                                           prefill_part=part,
+                                           now=datetime.datetime.now())
+
+                # 准备操作数据 - 数量为负数表示出库
+                operation_data = {
+                    'operation_type': operation_type,
+                    'supplier_recipient': request.form.get('recipient', ''),
+                    'location': request.form.get('location', ''),
+                    'part_no': part_no,
+                    'description': request.form.get('description', ''),
+                    'part_type': request.form.get('part_type', ''),
+                    'product_model': request.form.get('product_model', ''),
+                    'quantity': -quantity,  # 出库为负数
+                    'work_center': request.form.get('work_center', '')
+                }
 
                 # 创建操作记录
                 operation_id = create_operation_record(operation_data)
-                flash(f'出库操作成功！操作记录ID: {operation_id}', 'success')
 
-                return redirect(url_for('operation_records', page=1))
+                if operation_id:
+                    flash(f'出库操作成功！操作记录ID: {operation_id}', 'success')
+                    return redirect(url_for('operation_records', page=1))
+                else:
+                    flash('出库操作失败', 'danger')
 
             except Exception as e:
                 app.logger.error(f"智能出库操作失败: {str(e)}")
                 flash(f'出库操作失败: {str(e)}', 'danger')
-                return render_template('smart_outbound.html',
-                                       parts=parts,
-                                       locations=locations,
-                                       prefill_part=None,
-                                       now=datetime.datetime.now())
 
-        # GET请求
+        # GET请求处理保持不变
         try:
             part_no = request.args.get('part_no', '')
             part_id = request.args.get('part_id', '')
@@ -435,4 +451,64 @@ def setup_operation_routes(app):
 
         except Exception as e:
             return jsonify({'success': False, 'message': str(e)})
+
+    def format_datetime_for_display(dt_value):
+        """格式化日期时间用于显示"""
+        if not dt_value:
+            return ""
+
+        if isinstance(dt_value, datetime.datetime):
+            return dt_value.strftime('%Y-%m-%d %H:%M:%S')
+
+        if isinstance(dt_value, str):
+            try:
+                # 尝试解析各种日期格式
+                for fmt in ['%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M', '%Y-%m-%d', '%H:%M:%S']:
+                    try:
+                        dt = datetime.datetime.strptime(dt_value, fmt)
+                        return dt.strftime('%Y-%m-%d %H:%M:%S')
+                    except ValueError:
+                        continue
+            except:
+                pass
+
+        return str(dt_value)
+
+    @app.route('/debug_operations')
+    def debug_operations():
+        """调试操作记录数据"""
+        try:
+            db_manager = DatabaseManager()
+            with db_manager.get_connection() as conn:
+                # 获取最新的10条操作记录
+                cursor = conn.execute('''
+                    SELECT id, operation_type, supplier_recipient, part_no, quantity, created_date
+                    FROM operation_records 
+                    ORDER BY created_date DESC 
+                    LIMIT 10
+                ''')
+                operations = cursor.fetchall()
+
+                result = []
+                for op in operations:
+                    result.append({
+                        'id': op[0],
+                        'operation_type': op[1],
+                        'supplier_recipient': op[2],
+                        'part_no': op[3],
+                        'quantity': op[4],
+                        'created_date': op[5]
+                    })
+
+                return jsonify({
+                    'success': True,
+                    'operations': result
+                })
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            })
+
+
 # [file content end]

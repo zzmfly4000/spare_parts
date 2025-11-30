@@ -94,81 +94,56 @@
         {% if operations %}
         <div class="table-responsive">
             <table class="table table-hover">
-                <thead>
-                    <tr>
-                        <th>操作类型</th>
-                        <th>操作日期</th>
-                        <th>供应商/接收方</th>
-                        <th>库位</th>
-                        <th>备件编号</th>
-                        <th>描述</th>
-                        <th>备件类型</th>
-                        <th>产品型号</th>
-                        <th>数量</th>
-                        <th>工作中心</th>
-                        <th>创建时间</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for record in operations %}
-                    <tr id="record-{{ record[0] }}" class="{% if loop.index <= 3 %}table-active{% endif %}">
-                        <td>
-                            {% if 'stock in' in record[1].lower() %}
-                            <span class="badge bg-success">{{ record[1] }}</span>
-                            {% else %}
-                            <span class="badge bg-danger">{{ record[1] }}</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if record[2] %}
-                                {{ record[2]|date('%Y-%m-%d %H:%M:%S') }}
-                            {% else %}
-                                <span class="text-muted">-</span>
-                            {% endif %}
-                        </td>
-                        <td>{{ record[3] or '-' }}</td>
-                        <td>
-                            {% if record[4] %}
-                            <span class="badge bg-info">{{ record[4] }}</span>
-                            {% else %}
-                            <span class="text-muted">-</span>
-                            {% endif %}
-                        </td>
-                        <td><strong>{{ record[5] }}</strong></td>
-                        <td>{{ record[6] or '-' }}</td>
-                        <td>
-                            {% if record[7] %}
-                            <span class="badge bg-secondary">{{ record[7] }}</span>
-                            {% else %}
-                            <span class="text-muted">-</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if record[8] %}
-                            <span class="badge bg-primary">{{ record[8] }}</span>
-                            {% else %}
-                            <span class="text-muted">-</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if record[9] > 0 %}
-                            <span class="text-success fw-bold">+{{ record[9] }}</span>
-                            {% else %}
-                            <span class="text-danger fw-bold">{{ record[9] }}</span>
-                            {% endif %}
-                        </td>
-                        <td>{{ record[10] or '-' }}</td>
-                        <td>
-                            {% if record[11] %}
-                                {{ record[11]|date('%Y-%m-%d %H:%M:%S') }}
-                            {% else %}
-                                <span class="text-muted">-</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+    <thead>
+        <tr>
+            <th>操作类型</th>
+            <th>操作日期</th>
+            <th>供应商/接收方</th>
+            <th>库位</th>
+            <th>备件编号</th>
+            <th>描述</th>
+            <th>产品型号</th>
+            <th>备件类型</th>
+            <th>数量</th>
+            <th>工作中心</th>
+            <th>创建时间</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for record in operations %}
+        <tr>
+            <td>
+                {% if 'out' in record[1].lower() %}
+                <span class="badge bg-danger">{{ record[1] }}</span>
+                {% else %}
+                <span class="badge bg-success">{{ record[1] }}</span>
+                {% endif %}
+            </td>
+            <td>{{ record[2] }}</td>
+            <td>{{ record[3] or '-' }}</td>
+            <td>{{ record[4] or '-' }}</td>
+            <td><strong>{{ record[5] }}</strong></td>
+            <td>{{ record[6] or '-' }}</td>
+            <td>{{ record[7] or '-' }}</td>
+            <td>{{ record[8] or '-' }}</td>
+            <td>
+                <span class="fw-bold {% if record[9] < 0 %}text-danger{% else %}text-success{% endif %}">
+                    {{ record[9] }}
+                </span>
+            </td>
+            <td>{{ record[10] or '-' }}</td>
+            <td>{{ record[11] }}</td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan="12" class="text-center text-muted py-4">
+                <i class="fas fa-inbox fa-2x mb-3"></i>
+                <p>暂无操作记录</p>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
         </div>
 
         <!-- 分页 -->

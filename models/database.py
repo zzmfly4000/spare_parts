@@ -126,29 +126,33 @@ def calculate_stock_from_operations(part_no):
 
 
 def calculate_stock_from_operations_with_connection(part_no, conn):
-    """使用现有连接计算库存 - 修正版本"""
-    # 计算所有入库操作的总和（正数）
-    cursor = conn.execute('''
-        SELECT COALESCE(SUM(quantity), 0) 
-        FROM operation_records 
-        WHERE part_no = ? AND quantity > 0
-    ''', (part_no,))
-    total_in = cursor.fetchone()[0] or 0
+    """使用现有连接计算库存 - 彻底修复版本"""
+    try:
+        # 计算所有入库操作的总和（正数）
+        cursor = conn.execute('''
+            SELECT COALESCE(SUM(quantity), 0) 
+            FROM operation_records 
+            WHERE part_no = ? AND quantity > 0
+        ''', (part_no,))
+        total_in = cursor.fetchone()[0] or 0
 
-    # 计算出库操作的总和（负数，但取绝对值）
-    cursor = conn.execute('''
-        SELECT COALESCE(SUM(ABS(quantity)), 0) 
-        FROM operation_records 
+        # 计算出库操作的总和（负数，但取绝对值）
+        cursor = conn.execute('''
+            SELECT COALESCE(SUM(ABS(quantity)), 0) 
+            FROM operation_records 
             WHERE part_no = ? AND quantity < 0
-    ''', (part_no,))
-    total_out = cursor.fetchone()[0] or 0
+        ''', (part_no,))
+        total_out = cursor.fetchone()[0] or 0
 
-    # 计算总库存：所有入库 - 所有出库
-    total_stock = total_in - total_out
-    final_stock = max(0, total_stock)
+        # 计算总库存：所有入库 - 所有出库
+        total_stock = total_in - total_out
+        final_stock = max(0, total_stock)  # 库存不能为负数
 
-    logging.info(f"库存计算(连接): {part_no} = {total_in}(入库) - {total_out}(出库) = {final_stock}")
-    return final_stock
+        logging.info(f"库存计算(连接): {part_no} = {total_in}(入库) - {total_out}(出库) = {final_stock}")
+        return final_stock
+    except Exception as e:
+        logging.error(f"库存计算失败: {str(e)}")
+        return 0
 
 
 def update_stock_for_part(part_id, new_stock):
@@ -161,6 +165,17 @@ def update_stock_for_part(part_id, new_stock):
             WHERE id = ?
         ''', (new_stock, part_id))
         return cursor.rowcount
+
+
+def get_current_stock_for_part(part_no):
+    """直接获取备件的当前库存 - 新增函数"""
+    db_manager = DatabaseManager()
+    with db_manager.get_connection() as conn:
+        cursor = conn.execute('''
+            SELECT current_stock FROM spare_parts WHERE part_no = ?
+        ''', (part_no,))
+        result = cursor.fetchone()
+        return result[0] if result else 0
 
 
 def recalculate_all_stock():
@@ -601,7 +616,7 @@ def get_all_spare_parts():
 
 
 def create_operation_record(operation_data):
-    """创建操作记录 - 修复版本"""
+    """创建操作记录 - 彻底修复字段保存版本"""
     db_manager = DatabaseManager()
     max_retries = 5
     retry_delay = 0.5
@@ -619,29 +634,46 @@ def create_operation_record(operation_data):
                 if quantity == 0:
                     raise ValueError("操作数量不能为0")
 
-                # 插入操作记录
+                # 确保所有字段都有值 - 彻底修复
+                operation_type = operation_data.get('operation_type', 'Stock in')
+                supplier_recipient = operation_data.get('supplier_recipient', '')
+                location = operation_data.get('location', '')
+                part_no = operation_data.get('part_no', '')
+                description = operation_data.get('description', '')
+                part_type = operation_data.get('part_type', '')
+                product_model = operation_data.get('product_model', '')
+                work_center = operation_data.get('work_center', '')
+
+                # 使用当前时间作为操作日期
+                operation_date = operation_data.get('operation_date', datetime.now())
+
+                # 调试：打印要插入的数据
+                logging.info(f"插入操作记录数据: operation_type={operation_type}, "
+                             f"supplier_recipient={supplier_recipient}, location={location}, "
+                             f"part_no={part_no}, quantity={quantity}")
+
+                # 插入操作记录 - 确保所有字段都正确插入
                 cursor = conn.execute('''
                     INSERT INTO operation_records 
                     (operation_type, operation_date, supplier_recipient, location, part_no, 
-                     description, part_type, product_model, quantity, work_center)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     description, part_type, product_model, quantity, work_center, created_date)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
                 ''', (
-                    operation_data['operation_type'],
-                    operation_data.get('operation_date', datetime.now()),
-                    operation_data.get('supplier_recipient', ''),
-                    operation_data.get('location', ''),
-                    operation_data['part_no'],
-                    operation_data.get('description', ''),
-                    operation_data.get('part_type', ''),
-                    operation_data.get('product_model', ''),
+                    operation_type,
+                    operation_date,
+                    supplier_recipient,
+                    location,
+                    part_no,
+                    description,
+                    part_type,
+                    product_model,
                     quantity,
-                    operation_data.get('work_center', '')
+                    work_center
                 ))
 
                 record_id = cursor.lastrowid
 
                 # 重新计算并更新备件库存
-                part_no = operation_data['part_no']
                 new_stock = calculate_stock_from_operations_with_connection(part_no, conn)
 
                 # 更新备件库存
@@ -651,7 +683,8 @@ def create_operation_record(operation_data):
                     WHERE part_no = ?
                 ''', (new_stock, part_no))
 
-                logging.info(f"操作记录创建后更新备件 {part_no} 库存为: {new_stock}")
+                logging.info(f"操作记录创建成功: ID={record_id}, 备件={part_no}, "
+                             f"供应商={supplier_recipient}, 数量={quantity}, 新库存={new_stock}")
 
                 return record_id
 

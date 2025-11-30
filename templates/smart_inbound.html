@@ -1,3 +1,6 @@
+<!-- [file name]: smart_inbound.html -->
+<!-- [修复供应商字段] -->
+
 {% extends "base.html" %}
 
 {% block title %}智能入库 - 设备备件管理系统{% endblock %}
@@ -112,14 +115,15 @@
                             </div>
                         </div>
 
+                        <!-- 修复：将name="supplier"改为name="supplier_recipient" -->
                         <div class="col-md-6">
-                            <label for="supplier" class="form-label">供应商</label>
-                            <div class="input-group">
-                                <span class="input-group-text"><i class="fas fa-truck"></i></span>
-                                <input type="text" class="form-control" id="supplier" name="supplier_recipient"
-                                       placeholder="供应商名称">
-                            </div>
-                        </div>
+    <label for="supplier" class="form-label">供应商</label>
+    <div class="input-group">
+        <span class="input-group-text"><i class="fas fa-truck"></i></span>
+        <input type="text" class="form-control" id="supplier" name="supplier_recipient"
+               placeholder="供应商名称">
+    </div>
+</div>
 
                         <div class="col-md-6">
                             <label for="location" class="form-label">目标库位</label>
@@ -273,13 +277,15 @@
                             <label class="form-label">备件名称 *</label>
                             <input type="text" class="form-control" name="name" required>
                         </div>
+                        <!-- 修正：产品型号对应索引3，字段名为type -->
                         <div class="col-md-6">
                             <label class="form-label">产品型号</label>
-                            <input type="text" class="form-control" name="product_model" placeholder="产品具体型号">
+                            <input type="text" class="form-control" name="type" placeholder="产品具体型号">
                         </div>
+                        <!-- 修正：备件类型对应索引4，字段名为product_model -->
                         <div class="col-md-6">
                             <label class="form-label">备件类型</label>
-                            <select class="form-select" name="type">
+                            <select class="form-select" name="product_model">
                                 <option value="">选择类型</option>
                                 <option value="机械">机械</option>
                                 <option value="电子">电子</option>
@@ -391,7 +397,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const partTypeInput = document.getElementById('part_type');
     const productModelInput = document.getElementById('product_model');
     const stockStats = document.getElementById('stockStats');
-    const supplierInput = document.getElementById('supplier');
+    const supplierInput = document.getElementById('supplier'); // 供应商输入框
 
     let searchTimeout;
     let currentSelection = -1;
@@ -486,6 +492,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 return text.replace(regex, '<mark class="part-highlight">$1</mark>');
             };
 
+            // 修正：产品型号对应part.type，备件类型对应part.product_model
             item.innerHTML = `
                 <div class="d-flex w-100 justify-content-between align-items-start">
                     <div class="flex-grow-1">
@@ -493,8 +500,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             ${highlightText(part.part_no)} - ${highlightText(part.name)}
                         </h6>
                         <p class="mb-1 small text-muted">
-                            ${part.product_model ? `<span class="badge bg-primary me-1">型号: ${highlightText(part.product_model)}</span>` : ''}
-                            ${part.type ? `<span class="badge bg-secondary me-1">${part.type}</span>` : ''}
+                            ${part.type ? `<span class="badge bg-primary me-1">型号: ${highlightText(part.type)}</span>` : ''}
+                            ${part.product_model ? `<span class="badge bg-secondary me-1">${highlightText(part.product_model)}</span>` : ''}
                             ${part.location ? `<span class="badge bg-info me-1">${part.location}</span>` : ''}
                         </p>
                         <small class="text-muted">${part.description || '无描述'}</small>
@@ -540,17 +547,24 @@ document.addEventListener('DOMContentLoaded', function() {
         partName.textContent = part.name;
         currentStock.textContent = part.current_stock;
         stockInfo.textContent = `当前库存: ${part.current_stock}`;
-        partType.textContent = part.type || '-';
-        productModel.textContent = part.product_model || '-';
+        
+        // 修正：产品型号对应part.type，备件类型对应part.product_model
+        partType.textContent = part.product_model || '-';
+        productModel.textContent = part.type || '-';
         partLocation.textContent = part.location || '-';
 
         // 自动填充表单字段
         if (part.location) {
             locationInput.value = part.location;
         }
-        partTypeInput.value = part.type || '';
-        productModelInput.value = part.product_model || '';
+        partTypeInput.value = part.product_model || '';
+        productModelInput.value = part.type || '';
         unitDisplay.textContent = part.unit || '个';
+
+        // 自动填充供应商信息
+        if (part.supplier) {
+            supplierInput.value = part.supplier;
+        }
 
         // 获取详细库存信息
         fetchPartDetails(part.part_no);
@@ -566,10 +580,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     const part = data.part;
                     maxStock.textContent = part.max_stock || '未设置';
                     unitDisplay.textContent = part.unit || '个';
-
-                    if (part.supplier) {
-                        supplierInput.value = part.supplier;
-                    }
 
                     updateStockStats(part);
                 }
@@ -656,6 +666,7 @@ document.addEventListener('DOMContentLoaded', function() {
         locationInput.value = '';
         partTypeInput.value = '';
         productModelInput.value = '';
+        supplierInput.value = ''; // 清空供应商
         stockUpdateInfo.style.display = 'none';
         overStockWarning.style.display = 'none';
         unitDisplay.textContent = '个';
@@ -670,7 +681,6 @@ document.addEventListener('DOMContentLoaded', function() {
         partSearch.value = '';
         resetPartInfo();
         quantityInput.value = '';
-        supplierInput.value = '';
         document.getElementById('work_center').value = '';
         document.getElementById('description').value = '';
     }
@@ -690,10 +700,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 part_no: 'BJT-001',
                 name: '轴承',
                 current_stock: 15,
-                type: '机械',
-                product_model: '6201-2Z',
+                product_model: '机械', // 备件类型
+                type: '6201-2Z', // 产品型号
                 location: 'A-01-01',
-                unit: '个'
+                unit: '个',
+                supplier: '上海机械配件有限公司' // 示例供应商
             });
         }
         quantityInput.value = '5';
@@ -784,6 +795,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
+        // 修正：产品型号对应type，备件类型对应product_model
         fetch('/api/create_part', {
             method: 'POST',
             headers: {
@@ -792,8 +804,8 @@ document.addEventListener('DOMContentLoaded', function() {
             body: JSON.stringify({
                 part_no: partNo,
                 name: name,
-                type: formData.get('type'),
-                product_model: formData.get('product_model'),
+                type: formData.get('type'), // 产品型号
+                product_model: formData.get('product_model'), // 备件类型
                 current_stock: parseInt(formData.get('current_stock')) || 0,
                 unit: formData.get('unit'),
                 location: formData.get('location'),
@@ -809,8 +821,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     name: name,
                     current_stock: parseInt(formData.get('current_stock')) || 0,
                     location: formData.get('location') || '',
-                    type: formData.get('type') || '',
-                    product_model: formData.get('product_model') || '',
+                    product_model: formData.get('product_model') || '', // 备件类型
+                    type: formData.get('type') || '', // 产品型号
                     supplier: formData.get('supplier') || '',
                     description: formData.get('description') || '',
                     unit: formData.get('unit') || '个'
@@ -871,14 +883,16 @@ document.addEventListener('DOMContentLoaded', function() {
     setTimeout(() => {
         partSearch.value = '{{ prefill_part[1] }} - {{ prefill_part[2] }}';
         selectedPartNo.value = '{{ prefill_part[1] }}';
+        // 修正：索引3对应产品型号(type)，索引4对应备件类型(product_model)
         updatePartInfo({
             part_no: '{{ prefill_part[1] }}',
             name: '{{ prefill_part[2] }}',
             current_stock: {{ prefill_part[5] }},
             location: '{{ prefill_part[12] or "" }}',
-            type: '{{ prefill_part[3] or "" }}',
-            product_model: '{{ prefill_part[4] or "" }}',
-            unit: '{{ prefill_part[11] or "个" }}'
+            product_model: '{{ prefill_part[4] or "" }}', // 备件类型
+            type: '{{ prefill_part[3] or "" }}', // 产品型号
+            unit: '{{ prefill_part[11] or "个" }}',
+            supplier: '{{ prefill_part[13] or "" }}' // 供应商
         });
     }, 100);
     {% endif %}
