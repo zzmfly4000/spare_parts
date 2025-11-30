@@ -73,11 +73,21 @@ def setup_location_routes(app):
         # 获取准确的库位统计信息
         stats = get_accurate_location_stats()
 
+        # 获取货架列表用于筛选
+        locations = get_all_locations()
+        rack_set = set()
+        for location in locations:
+            loc_dict = location_to_dict(location)
+            rack = loc_dict.get('rack')
+            if rack:
+                rack_set.add(rack)
+
         return render_template('location_management.html',
                                locations=filtered_locations,
                                search=search,
                                status_filter=status_filter,
-                               stats=stats)
+                               stats=stats,
+                               rack_list=sorted(list(rack_set)))  # 添加货架列表
 
     def get_accurate_location_stats():
         """获取准确的库位统计信息 - 优化版本"""
@@ -417,4 +427,192 @@ def setup_location_routes(app):
             flash(f'库位删除失败: {str(e)}', 'error')
 
         return redirect(url_for('location_management'))
+
+    # 在现有路由基础上添加以下专业功能路由
+
+    @app.route('/api/locations/filter', methods=['POST'])
+    def filter_locations():
+        """高级筛选库位"""
+        try:
+            filters = request.get_json()
+            locations = get_all_locations()
+            filtered_locations = []
+
+            for location in locations:
+                loc_dict = location_to_dict(location)
+                match = True
+
+                # 状态筛选
+                if filters.get('status') and filters['status'] != 'all':
+                    if filters['status'] == 'in_use':
+                        if loc_dict.get('part_count', 0) == 0:
+                            match = False
+                    elif filters['status'] == 'not_use':
+                        if loc_dict.get('part_count', 0) > 0:
+                            match = False
+                    elif loc_dict.get('status') != filters['status']:
+                        match = False
+
+                # 货架筛选
+                if filters.get('rack') and loc_dict.get('rack') != filters['rack']:
+                    match = False
+
+                # 容量范围筛选
+                capacity = loc_dict.get('capacity', 0)
+                if filters.get('min_capacity') and capacity < filters['min_capacity']:
+                    match = False
+                if filters.get('max_capacity') and capacity > filters['max_capacity']:
+                    match = False
+
+                # 搜索文本
+                search_text = filters.get('search', '').lower()
+                if search_text:
+                    location_code = loc_dict.get('location_code', '').lower()
+                    description = loc_dict.get('description', '').lower()
+                    if search_text not in location_code and search_text not in description:
+                        match = False
+
+                if match:
+                    filtered_locations.append(loc_dict)
+
+            return jsonify({
+                'success': True,
+                'locations': filtered_locations,
+                'total': len(filtered_locations)
+            })
+
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+
+    @app.route('/api/locations/batch_update', methods=['POST'])
+    def batch_update_locations_api():
+        """批量更新库位"""
+        try:
+            updates = request.get_json()
+            updated_count = 0
+
+            for update in updates.get('locations', []):
+                location_code = update['location_code']
+                update_data = update['update_data']
+
+                try:
+                    update_location(location_code, update_data)
+                    updated_count += 1
+                except Exception:
+                    continue
+
+            return jsonify({
+                'success': True,
+                'updated_count': updated_count,
+                'message': f'成功更新 {updated_count} 个库位'
+            })
+
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+
+    @app.route('/api/locations/export', methods=['POST'])
+    def export_locations_api():
+        """导出库位数据"""
+        try:
+            filters = request.get_json()
+            locations = get_all_locations()
+
+            # 应用筛选条件
+            filtered_locations = []
+            for location in locations:
+                loc_dict = location_to_dict(location)
+
+                # 这里可以添加筛选逻辑
+                if filters.get('selected_locations'):
+                    if loc_dict['location_code'] not in filters['selected_locations']:
+                        continue
+
+                filtered_locations.append(loc_dict)
+
+            return jsonify({
+                'success': True,
+                'data': filtered_locations,
+                'export_time': datetime.now().isoformat()
+            })
+
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+
+    @app.route('/api/locations/statistics')
+    def get_locations_statistics():
+        """获取库位统计详情"""
+        try:
+            locations = get_all_locations()
+
+            stats = {
+                'total': len(locations),
+                'by_status': {},
+                'by_rack': {},
+                'capacity_stats': {
+                    'total_capacity': 0,
+                    'used_capacity': 0,
+                    'average_utilization': 0
+                }
+            }
+
+            total_utilization = 0
+            utilization_count = 0
+
+            for location in locations:
+                loc_dict = location_to_dict(location)
+                status = loc_dict.get('status', 'not_use')
+                rack = loc_dict.get('rack', '未分类')
+                capacity = loc_dict.get('capacity', 0)
+                part_count = loc_dict.get('part_count', 0)
+
+                # 按状态统计
+                stats['by_status'][status] = stats['by_status'].get(status, 0) + 1
+
+                # 按货架统计
+                if rack not in stats['by_rack']:
+                    stats['by_rack'][rack] = {
+                        'total': 0,
+                        'in_use': 0,
+                        'not_use': 0
+                    }
+                stats['by_rack'][rack]['total'] += 1
+                if part_count > 0:
+                    stats['by_rack'][rack]['in_use'] += 1
+                else:
+                    stats['by_rack'][rack]['not_use'] += 1
+
+                # 容量统计
+                stats['capacity_stats']['total_capacity'] += capacity
+                stats['capacity_stats']['used_capacity'] += part_count
+
+                # 利用率计算
+                if capacity > 0:
+                    utilization = (part_count / capacity) * 100
+                    total_utilization += utilization
+                    utilization_count += 1
+
+            if utilization_count > 0:
+                stats['capacity_stats']['average_utilization'] = round(total_utilization / utilization_count, 2)
+
+            return jsonify({
+                'success': True,
+                'statistics': stats
+            })
+
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+
+
 # [file content end]
