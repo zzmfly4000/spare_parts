@@ -12,10 +12,12 @@ from models.database import (
     get_all_rack_layouts,
     get_spare_parts_count,
     get_accurate_location_stats,
+    DatabaseManager,
     get_rack_statistics
 )
 from utils.stock_utils import calculate_location_status
 import json
+from datetime import datetime
 
 
 def setup_location_routes(app):
@@ -90,45 +92,73 @@ def setup_location_routes(app):
                                rack_list=sorted(list(rack_set)))  # 添加货架列表
 
     def get_accurate_location_stats():
-        """获取准确的库位统计信息 - 优化版本"""
-        locations = get_all_locations()
+        """获取准确的库位统计信息 - 专业版本"""
+        db_manager = DatabaseManager()
+        with db_manager.get_connection() as conn:
+            cursor = conn.execute('''
+                SELECT 
+                    COUNT(*) as total_locations,
+                    SUM(CASE WHEN status_category = 'empty' THEN 1 ELSE 0 END) as empty_locations,
+                    SUM(CASE WHEN status_category = 'all_out_of_stock' THEN 1 ELSE 0 END) as all_out_of_stock_locations,
+                    SUM(CASE WHEN status_category = 'partial_out_of_stock' THEN 1 ELSE 0 END) as partial_out_of_stock_locations,
+                    SUM(CASE WHEN status_category = 'all_low_stock' THEN 1 ELSE 0 END) as all_low_stock_locations,
+                    SUM(CASE WHEN status_category = 'partial_low_stock' THEN 1 ELSE 0 END) as partial_low_stock_locations,
+                    SUM(CASE WHEN status_category = 'full' THEN 1 ELSE 0 END) as full_locations,
+                    SUM(CASE WHEN status_category = 'high_utilization' THEN 1 ELSE 0 END) as high_utilization_locations,
+                    SUM(CASE WHEN status_category = 'normal' THEN 1 ELSE 0 END) as normal_locations,
+                    AVG(utilization_rate) as avg_utilization_rate,
+                    SUM(total_value) as total_inventory_value
+                FROM locations
+            ''')
 
-        total_locations = len(locations)
-        free_locations = 0
-        in_use_locations = 0
-        low_stock_locations = 0
-        out_of_stock_locations = 0
-        high_stock_locations = 0
-        not_use_locations = 0
+            result = cursor.fetchone()
+            return {
+                'total_locations': result['total_locations'] or 0,
+                'empty_locations': result['empty_locations'] or 0,
+                'all_out_of_stock_locations': result['all_out_of_stock_locations'] or 0,
+                'partial_out_of_stock_locations': result['partial_out_of_stock_locations'] or 0,
+                'all_low_stock_locations': result['all_low_stock_locations'] or 0,
+                'partial_low_stock_locations': result['partial_low_stock_locations'] or 0,
+                'full_locations': result['full_locations'] or 0,
+                'high_utilization_locations': result['high_utilization_locations'] or 0,
+                'normal_locations': result['normal_locations'] or 0,
+                'avg_utilization_rate': round(result['avg_utilization_rate'] or 0, 2),
+                'total_inventory_value': result['total_inventory_value'] or 0
+            }
 
-        for location in locations:
-            loc_dict = location_to_dict(location)
-            part_count = loc_dict.get('part_count', 0)
-            status = loc_dict.get('status', 'not_use')
+    # 添加手动刷新统计的路由
+    @app.route('/api/locations/refresh_metrics', methods=['POST'])
+    def refresh_location_metrics():
+        """手动刷新库位统计指标"""
+        try:
+            from models.database import update_all_location_metrics
+            updated_count = update_all_location_metrics()
+            return jsonify({
+                'success': True,
+                'updated_count': updated_count,
+                'message': f'成功更新 {updated_count} 个库位的统计指标'
+            })
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
 
-            # 优化统计逻辑
-            if part_count == 0:
-                not_use_locations += 1
-            else:
-                in_use_locations += 1
-                if status == 'free':
-                    free_locations += 1
-                elif status == 'low_stock':
-                    low_stock_locations += 1
-                elif status == 'out_of_stock':
-                    out_of_stock_locations += 1
-                elif status == 'high_stock':
-                    high_stock_locations += 1
-
-        return {
-            'total_locations': total_locations,
-            'in_use_locations': in_use_locations,
-            'not_use_locations': not_use_locations,
-            'free_locations': free_locations,
-            'low_stock_locations': low_stock_locations,
-            'out_of_stock_locations': out_of_stock_locations,
-            'high_stock_locations': high_stock_locations
-        }
+    @app.route('/api/locations/<location_code>/refresh_metrics', methods=['POST'])
+    def refresh_single_location_metrics(location_code):
+        """手动刷新单个库位统计指标"""
+        try:
+            from models.database import update_single_location_metrics
+            success = update_single_location_metrics(location_code)
+            return jsonify({
+                'success': success,
+                'message': f'库位 {location_code} 统计指标刷新{"成功" if success else "失败"}'
+            })
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
 
     def location_to_dict(location):
         """将位置数据转换为字典格式 - 修复 sqlite3.Row 问题"""
@@ -159,26 +189,17 @@ def setup_location_routes(app):
 
     @app.route('/api/locations/rack_layout', methods=['GET'])
     def get_rack_layout_api():
-        """获取货架布局数据 - API接口 - 优化版本"""
+        """获取货架布局数据 - API接口 - 修复版本"""
         try:
+            # 使用简单的查询避免复杂统计
             locations = get_all_locations()
             rack_layouts = get_all_rack_layouts()
-            rack_stats = get_rack_statistics()
 
-            # 按货架分组
+            # 按货架分组 - 简化版本
             rack_groups = {}
             for location in locations:
-                # 统一转换为字典格式
                 loc_dict = location_to_dict(location)
-
                 rack = loc_dict.get('rack', '')
-                location_code = loc_dict.get('location_code', '')
-                capacity = loc_dict.get('capacity', 0)
-                part_count = loc_dict.get('part_count', 0)
-                description = loc_dict.get('description', '')
-                level = loc_dict.get('level', '')
-                position = loc_dict.get('position', '')
-                side = loc_dict.get('side', '')
 
                 if not rack:
                     rack = '未分类'
@@ -193,24 +214,20 @@ def setup_location_routes(app):
                         'rotation': 0
                     })
 
-                    # 获取货架统计
-                    stats = rack_stats.get(rack, {
-                        'total_locations': 0,
-                        'in_use_locations': 0,
-                        'not_use_locations': 0,
-                        'total_parts': 0,
-                        'total_capacity': 0,
-                        'utilization': 0
-                    })
+                    # 简化统计 - 不依赖复杂的统计函数
+                    rack_locations = [loc for loc in locations if location_to_dict(loc).get('rack') == rack]
+                    total_locations = len(rack_locations)
+                    in_use_locations = sum(
+                        1 for loc in rack_locations if location_to_dict(loc).get('variety_count', 0) > 0)
 
                     rack_groups[rack] = {
                         'rack': rack,
                         'locations': [],
                         'stats': {
-                            'total': stats['total_locations'],
-                            'in_use': stats['in_use_locations'],
-                            'not_use': stats['not_use_locations'],
-                            'utilization': stats['utilization']
+                            'total': total_locations,
+                            'in_use': in_use_locations,
+                            'not_use': total_locations - in_use_locations,
+                            'utilization': 0  # 暂时设为0
                         },
                         'levels': set(),
                         'positions': set(),
@@ -218,29 +235,28 @@ def setup_location_routes(app):
                         'layout': layout
                     }
 
-                # 计算库位状态 - 根据 part_count 判断
-                location_status = 'in_use' if part_count > 0 else 'not_use'
-
+                # 添加库位信息
                 location_data = {
-                    'location_code': location_code,
-                    'status': location_status,
-                    'capacity': capacity,
-                    'part_count': part_count,
-                    'description': description,
-                    'level': level,
-                    'position': position,
-                    'side': side
+                    'location_code': loc_dict.get('location_code', ''),
+                    'status': loc_dict.get('status_category', 'empty'),
+                    'capacity': loc_dict.get('capacity', 0),
+                    'variety_count': loc_dict.get('variety_count', 0),
+                    'total_quantity': loc_dict.get('total_quantity', 0),
+                    'description': loc_dict.get('description', ''),
+                    'level': loc_dict.get('level', ''),
+                    'position': loc_dict.get('position', ''),
+                    'side': loc_dict.get('side', '')
                 }
 
                 rack_groups[rack]['locations'].append(location_data)
 
                 # 收集结构信息
-                if level:
-                    rack_groups[rack]['levels'].add(level)
-                if position:
-                    rack_groups[rack]['positions'].add(position)
-                if side:
-                    rack_groups[rack]['sides'].add(side)
+                if location_data['level']:
+                    rack_groups[rack]['levels'].add(location_data['level'])
+                if location_data['position']:
+                    rack_groups[rack]['positions'].add(location_data['position'])
+                if location_data['side']:
+                    rack_groups[rack]['sides'].add(location_data['side'])
 
             # 转换集合为排序列表
             for rack in rack_groups.values():
@@ -259,7 +275,8 @@ def setup_location_routes(app):
             app.logger.error(traceback.format_exc())
             return jsonify({
                 'success': False,
-                'error': str(e)
+                'error': str(e),
+                'message': '获取货架布局数据失败，请检查数据库连接'
             }), 500
 
     @app.route('/api/locations/update_layout', methods=['POST'])
@@ -612,6 +629,26 @@ def setup_location_routes(app):
             return jsonify({
                 'success': False,
                 'error': str(e)
+            }), 500
+
+    @app.route('/api/locations/test', methods=['GET'])
+    def test_locations_api():
+        """测试库位API是否正常工作"""
+        try:
+            # 简单的测试查询
+            from models.database import get_all_locations
+            locations = get_all_locations()
+
+            return jsonify({
+                'success': True,
+                'message': f'API测试成功，找到 {len(locations)} 个库位',
+                'sample_data': locations[:2] if locations else []  # 返回前2个作为样本
+            })
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': str(e),
+                'message': 'API测试失败'
             }), 500
 
 

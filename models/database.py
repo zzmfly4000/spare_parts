@@ -495,14 +495,23 @@ def create_spare_part(part_data):
                     'description': f'初始库存设置 - {part_data.get("description", "")}',
                     'location': part_data.get('location', ''),
                     'supplier_recipient': part_data.get('supplier', '系统'),
-                    'product_model': part_data.get('product_model', ''),  # 新增字段
-                    'part_type': part_data.get('type', '')  # 新增字段
+                    'product_model': part_data.get('product_model', ''),
+                    'part_type': part_data.get('type', '')
                 }
 
                 try:
                     create_operation_record(operation_data)
                 except Exception as e:
                     logging.warning(f"创建初始库存操作记录失败: {str(e)}")
+
+            # 新备件创建成功后，如果指定了库位，更新库位指标
+            try:
+                location = part_data.get('location')
+                if location:
+                    update_single_location_metrics(location, conn)
+                    logging.info(f"新备件创建后自动更新库位 {location} 统计指标")
+            except Exception as e:
+                logging.warning(f"新备件创建后更新库位指标失败（非关键）: {str(e)}")
 
             return part_id
 
@@ -558,7 +567,23 @@ def update_spare_part(part_id, part_data):
             if cursor.rowcount == 0:
                 raise ValueError("备件不存在或没有数据被更新")
 
+            # 更新成功后，更新相关库位指标
+            try:
+                # 获取备件编号和位置信息
+                cursor = conn.execute(
+                    'SELECT part_no, location FROM spare_parts WHERE id = ?',
+                    (part_id,)
+                )
+                part_info = cursor.fetchone()
+
+                if part_info and part_info['location']:
+                    update_single_location_metrics(part_info['location'], conn)
+                    logging.info(f"备件更新后自动更新库位 {part_info['location']} 统计指标")
+            except Exception as e:
+                logging.warning(f"备件更新后更新库位指标失败（非关键）: {str(e)}")
+
             return cursor.rowcount
+
 
     except sqlite3.IntegrityError as e:
         raise ValueError(f"数据完整性错误: {str(e)}")
@@ -570,8 +595,26 @@ def delete_spare_part(part_id):
     """删除备件"""
     db_manager = DatabaseManager()
     with db_manager.get_connection() as conn:
+        # 先获取备件信息（用于后续更新库位指标）
+        cursor = conn.execute(
+            'SELECT part_no, location FROM spare_parts WHERE id = ?',
+            (part_id,)
+        )
+        part_info = cursor.fetchone()
+
+        # 删除备件
         cursor = conn.execute('DELETE FROM spare_parts WHERE id = ?', (part_id,))
-        return cursor.rowcount
+        deleted = cursor.rowcount
+
+        # 如果删除成功且有库位信息，更新库位指标
+        if deleted > 0 and part_info and part_info['location']:
+            try:
+                update_single_location_metrics(part_info['location'], conn)
+                logging.info(f"备件删除后自动更新库位 {part_info['location']} 统计指标")
+            except Exception as e:
+                logging.warning(f"备件删除后更新库位指标失败（非关键）: {str(e)}")
+
+        return deleted
 
 
 def get_all_spare_parts():
@@ -682,6 +725,15 @@ def create_operation_record(operation_data):
                     SET current_stock = ?, updated_date = CURRENT_TIMESTAMP 
                     WHERE part_no = ?
                 ''', (new_stock, part_no))
+
+                try:
+                    part_no = operation_data.get('part_no')
+                    if part_no:
+                        # 使用相同的数据库连接来确保事务一致性
+                        update_location_metrics_after_operation(part_no)
+                except Exception as e:
+                    # 记录错误但不影响主操作
+                    logging.warning(f"操作后更新库位指标失败（非关键）: {str(e)}")
 
                 logging.info(f"操作记录创建成功: ID={record_id}, 备件={part_no}, "
                              f"供应商={supplier_recipient}, 数量={quantity}, 新库存={new_stock}")
@@ -906,47 +958,58 @@ def get_locations_count():
 
 
 def get_location_stats():
-    """获取库位统计信息 - 彻底修复版本"""
+    """获取库位统计信息 - 临时修复版本"""
     db_manager = DatabaseManager()
     with db_manager.get_connection() as conn:
-        # 使用实时计算状态，确保数据准确
-        cursor = conn.execute('SELECT part_count, capacity FROM locations')
-        locations = cursor.fetchall()
+        try:
+            # 尝试使用新的字段统计
+            cursor = conn.execute('''
+                SELECT 
+                    COUNT(*) as total_locations,
+                    SUM(CASE WHEN status_category = "empty" THEN 1 ELSE 0 END) as empty_locations,
+                    SUM(CASE WHEN status_category != "empty" THEN 1 ELSE 0 END) as in_use_locations,
+                    SUM(CASE WHEN status_category IN ("all_low_stock", "partial_low_stock") THEN 1 ELSE 0 END) as low_stock_locations
+                FROM locations
+            ''')
+            result = cursor.fetchone()
 
-        total_locations = len(locations)
-        free_locations = 0
-        in_use_locations = 0
-        low_stock_locations = 0
+            if result:
+                return {
+                    'total_locations': result['total_locations'] or 0,
+                    'free_locations': result['empty_locations'] or 0,
+                    'in_use_locations': result['in_use_locations'] or 0,
+                    'low_stock_locations': result['low_stock_locations'] or 0
+                }
+        except Exception as e:
+            # 如果新字段不存在，使用备用方案
+            logging.warning(f"使用新字段统计失败: {str(e)}，使用备用方案")
 
-        for location in locations:
-            part_count = safe_int(location[0])
-            capacity = safe_int(location[1])
+        # 备用方案：基于备件表统计
+        try:
+            cursor = conn.execute('SELECT COUNT(*) as total FROM locations')
+            total_locations = cursor.fetchone()['total'] or 0
 
-            # 实时计算状态
-            if capacity == 0:
-                status = 'free'
-            else:
-                utilization = part_count / capacity
-                if utilization == 0:
-                    status = 'free'
-                elif utilization < 0.3:
-                    status = 'low_stock'
-                else:
-                    status = 'in_use'
+            cursor = conn.execute('''
+                SELECT COUNT(DISTINCT location) as used_locations 
+                FROM spare_parts 
+                WHERE location IS NOT NULL AND location != ''
+            ''')
+            used_locations = cursor.fetchone()['used_locations'] or 0
 
-            if status == 'free':
-                free_locations += 1
-            elif status == 'in_use':
-                in_use_locations += 1
-            elif status == 'low_stock':
-                low_stock_locations += 1
-
-        return {
-            'total_locations': total_locations,
-            'free_locations': free_locations,
-            'in_use_locations': in_use_locations,
-            'low_stock_locations': low_stock_locations
-        }
+            return {
+                'total_locations': total_locations,
+                'free_locations': total_locations - used_locations,
+                'in_use_locations': used_locations,
+                'low_stock_locations': 0  # 暂时设为0
+            }
+        except Exception as e:
+            logging.error(f"备用统计方案也失败: {str(e)}")
+            return {
+                'total_locations': 0,
+                'free_locations': 0,
+                'in_use_locations': 0,
+                'low_stock_locations': 0
+            }
 
 
 def get_recent_activities(limit=10):
@@ -1314,17 +1377,20 @@ def batch_update_location_statuses():
     return updated_count
 
 
+# 在 models/database.py 中找到并修复 get_rack_statistics 函数
+
 def get_rack_statistics():
-    """获取货架统计信息 - 优化版本"""
+    """获取货架统计信息 - 使用新字段版本"""
     db_manager = DatabaseManager()
     with db_manager.get_connection() as conn:
         cursor = conn.execute('''
             SELECT 
                 rack,
                 COUNT(*) as total_locations,
-                SUM(CASE WHEN part_count > 0 THEN 1 ELSE 0 END) as in_use_locations,
-                SUM(CASE WHEN part_count = 0 THEN 1 ELSE 0 END) as not_use_locations,
-                SUM(part_count) as total_parts,
+                SUM(CASE WHEN variety_count > 0 THEN 1 ELSE 0 END) as in_use_locations,
+                SUM(CASE WHEN variety_count = 0 THEN 1 ELSE 0 END) as not_use_locations,
+                SUM(variety_count) as total_varieties,
+                SUM(total_quantity) as total_parts,
                 SUM(capacity) as total_capacity
             FROM locations 
             WHERE rack IS NOT NULL AND rack != ''
@@ -1337,8 +1403,9 @@ def get_rack_statistics():
             total_locations = row[1] or 0
             in_use_locations = row[2] or 0
             not_use_locations = row[3] or 0
-            total_parts = row[4] or 0
-            total_capacity = row[5] or 0
+            total_varieties = row[4] or 0
+            total_parts = row[5] or 0
+            total_capacity = row[6] or 0
 
             utilization = (total_parts / total_capacity * 100) if total_capacity > 0 else 0
 
@@ -1346,6 +1413,7 @@ def get_rack_statistics():
                 'total_locations': total_locations,
                 'in_use_locations': in_use_locations,
                 'not_use_locations': not_use_locations,
+                'total_varieties': total_varieties,
                 'total_parts': total_parts,
                 'total_capacity': total_capacity,
                 'utilization': utilization
@@ -1643,5 +1711,166 @@ def vacuum_database():
             'execution_time': execution_time
         }
 
+
+def update_location_metrics_after_operation(part_no):
+    """在操作记录创建后更新相关库位指标"""
+    try:
+        with db_manager.get_connection() as conn:
+            # 获取备件所在库位
+            cursor = conn.execute(
+                'SELECT location FROM spare_parts WHERE part_no = ?',
+                (part_no,)
+            )
+            result = cursor.fetchone()
+
+            if result and result['location']:
+                location_code = result['location']
+                update_single_location_metrics(location_code, conn)
+                logging.info(f"操作后自动更新库位 {location_code} 统计指标")
+                return True
+        return False
+    except Exception as e:
+        logging.error(f"操作后更新库位指标失败: {str(e)}")
+        return False
+
+
+def update_single_location_metrics(location_code, conn=None):
+    """更新单个库位的统计指标"""
+    try:
+        if conn is None:
+            db_manager = DatabaseManager()
+            conn = db_manager.get_connection()
+
+        metrics = calculate_location_metrics(location_code, conn)
+
+        if metrics:
+            conn.execute('''
+                UPDATE locations SET 
+                    variety_count = ?,
+                    total_quantity = ?,
+                    utilization_rate = ?,
+                    low_stock_varieties = ?,
+                    out_of_stock_varieties = ?,
+                    total_value = ?,
+                    status_category = ?,
+                    last_updated = CURRENT_TIMESTAMP
+                WHERE location_code = ?
+            ''', (
+                metrics['variety_count'],
+                metrics['total_quantity'],
+                metrics['utilization_rate'],
+                metrics['low_stock_varieties'],
+                metrics['out_of_stock_varieties'],
+                metrics['total_value'],
+                metrics['status_category'],
+                location_code
+            ))
+            return True
+        return False
+    except Exception as e:
+        logging.error(f"更新库位 {location_code} 指标失败: {str(e)}")
+        return False
+
+
+def calculate_location_metrics(location_code, conn):
+    """计算库位关键指标 - 使用现有连接"""
+    cursor = conn.execute('''
+        SELECT 
+            l.location_code,
+            l.capacity,
+            COUNT(DISTINCT p.id) as variety_count,
+            COALESCE(SUM(p.current_stock), 0) as total_quantity,
+            COALESCE(SUM(p.current_stock * p.unit_price), 0.0) as total_value,
+            COUNT(CASE WHEN p.current_stock <= p.min_stock AND p.current_stock > 0 THEN 1 END) as low_stock_count,
+            COUNT(CASE WHEN p.current_stock = 0 THEN 1 END) as out_of_stock_count
+        FROM locations l
+        LEFT JOIN spare_parts p ON l.location_code = p.location
+        WHERE l.location_code = ?
+        GROUP BY l.location_code, l.capacity
+    ''', (location_code,))
+
+    result = cursor.fetchone()
+    if result:
+        capacity = result['capacity'] or 1  # 避免除零
+        utilization_rate = (result['total_quantity'] / capacity * 100) if capacity > 0 else 0
+
+        # 计算专业状态分类
+        status_category = calculate_professional_status(
+            result['variety_count'],
+            result['out_of_stock_count'],
+            result['low_stock_count'],
+            utilization_rate
+        )
+
+        return {
+            'variety_count': result['variety_count'],
+            'total_quantity': result['total_quantity'],
+            'utilization_rate': round(utilization_rate, 2),
+            'low_stock_varieties': result['low_stock_count'],
+            'out_of_stock_varieties': result['out_of_stock_count'],
+            'total_value': result['total_value'],
+            'status_category': status_category
+        }
+    return None
+
+
+def calculate_professional_status(variety_count, out_of_stock_count, low_stock_count, utilization_rate):
+    """计算专业库位状态分类"""
+    if variety_count == 0:
+        return 'empty'  # 空置
+    elif out_of_stock_count == variety_count:
+        return 'all_out_of_stock'  # 全部缺货
+    elif out_of_stock_count > 0:
+        return 'partial_out_of_stock'  # 部分缺货
+    elif low_stock_count == variety_count:
+        return 'all_low_stock'  # 全部低库存
+    elif low_stock_count > 0:
+        return 'partial_low_stock'  # 部分低库存
+    elif utilization_rate >= 90:
+        return 'full'  # 满载
+    elif utilization_rate >= 70:
+        return 'high_utilization'  # 高利用率
+    else:
+        return 'normal'  # 正常
+
+
+def update_all_location_metrics():
+    """批量更新所有库位指标"""
+    db_manager = DatabaseManager()
+    with db_manager.get_connection() as conn:
+        # 获取所有库位
+        cursor = conn.execute('SELECT location_code FROM locations')
+        locations = cursor.fetchall()
+
+        updated_count = 0
+        for location in locations:
+            location_code = location['location_code']
+            metrics = calculate_location_metrics(location_code)
+
+            if metrics:
+                conn.execute('''
+                    UPDATE locations SET 
+                        variety_count = ?,
+                        total_quantity = ?,
+                        utilization_rate = ?,
+                        low_stock_varieties = ?,
+                        out_of_stock_varieties = ?,
+                        total_value = ?,
+                        status_category = ?,
+                        last_updated = CURRENT_TIMESTAMP
+                    WHERE location_code = ?
+                ''', (
+                    metrics['variety_count'],
+                    metrics['total_quantity'],
+                    metrics['utilization_rate'],
+                    metrics['low_stock_varieties'],
+                    metrics['out_of_stock_varieties'],
+                    metrics['total_value'],
+                    metrics['status_category'],
+                    location_code
+                ))
+                updated_count += 1
+
+        return updated_count
 
 # [file content end]

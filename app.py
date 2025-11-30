@@ -261,5 +261,29 @@ def create_app(config_name='default'):
         except (ValueError, TypeError):
             return 0
 
+    if not app.config.get('DEBUG'):
+        start_background_tasks(app)
+
     return app
+
+
+def start_background_tasks(app):
+    """启动后台定时任务"""
+
+    def background_metrics_updater():
+        """后台定时更新库位指标"""
+        with app.app_context():
+            from models.database import update_all_location_metrics
+            while True:
+                try:
+                    # 每30分钟自动更新一次所有库位指标
+                    time.sleep(1800)  # 30分钟
+                    updated_count = update_all_location_metrics()
+                    app.logger.info(f"定时任务: 自动更新了 {updated_count} 个库位指标")
+                except Exception as e:
+                    app.logger.error(f"定时更新库位指标失败: {str(e)}")
+
+    # 启动后台线程
+    thread = threading.Thread(target=background_metrics_updater, daemon=True)
+    thread.start()
 # [file content end]
