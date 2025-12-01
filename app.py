@@ -1,8 +1,8 @@
 # [file name]: app.py
 # [file content begin]
-from flask import Flask, render_template, redirect, url_for, request, flash, session
+from flask import Flask, render_template, redirect, url_for, request, flash, session, jsonify
 from models.database import init_db, get_spare_parts_count, get_locations_count, get_all_locations, get_location_stats, \
-    DatabaseManager, safe_int
+    DatabaseManager, safe_int, update_all_location_metrics
 from routes.parts_routes import setup_parts_routes
 from routes.location_routes import setup_location_routes
 from routes.operation_routes import setup_operation_routes
@@ -11,8 +11,9 @@ from routes.import_export_routes import setup_import_export_routes
 from utils.stock_utils import get_low_stock_parts, get_recent_activities
 import datetime
 import logging
+import threading
+import time
 from routes.database_routes import setup_database_routes
-
 
 
 def create_app(config_name='default'):
@@ -47,7 +48,12 @@ def create_app(config_name='default'):
     )
 
     # 初始化数据库
-    init_db()
+    try:
+        init_db()
+        app.logger.info("数据库初始化成功")
+    except Exception as e:
+        app.logger.error(f"数据库初始化失败: {str(e)}")
+        # 不退出，让应用继续运行，但记录错误
 
     # 注册自定义模板过滤器
     @app.template_filter('date')
@@ -114,7 +120,8 @@ def create_app(config_name='default'):
             recent_activities = get_recent_activities(limit=15)
 
             # 调试日志
-            app.logger.info(f"首页数据统计 - 总备件: {total_parts}, 低库存: {low_stock_count}, 缺货: {out_of_stock_count}")
+            app.logger.info(
+                f"首页数据统计 - 总备件: {total_parts}, 低库存: {low_stock_count}, 缺货: {out_of_stock_count}")
 
             return render_template('index.html',
                                    total_parts=total_parts,
@@ -182,21 +189,94 @@ def create_app(config_name='default'):
             flash('加载低库存信息失败', 'danger')
             return redirect(url_for('index'))
 
+    # 数据库健康检查API - 使用不同的端点名称避免冲突
+    @app.route('/api/app_health', methods=['GET'])
+    def app_health_check():
+        """应用健康检查"""
+        try:
+            from models.database import DatabaseManager
+            db_manager = DatabaseManager()
+            with db_manager.get_connection() as conn:
+                # 检查关键表是否存在
+                tables = ['locations', 'rack_layouts', 'spare_parts', 'operation_records']
+                table_status = {}
+
+                for table in tables:
+                    try:
+                        conn.execute(f'SELECT 1 FROM {table} LIMIT 1')
+                        table_status[table] = 'OK'
+                    except Exception as e:
+                        table_status[table] = f'Error: {str(e)}'
+
+                return jsonify({
+                    'success': True,
+                    'database': 'Connected',
+                    'tables': table_status,
+                    'timestamp': datetime.datetime.now().isoformat()
+                })
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': str(e),
+                'database': 'Disconnected'
+            }), 500
+
+    # 系统状态API - 使用不同的端点名称
+    @app.route('/api/app_status', methods=['GET'])
+    def app_status():
+        """系统状态检查"""
+        try:
+            # 获取基本统计
+            total_parts = get_spare_parts_count()
+            total_locations = get_locations_count()
+            low_stock_parts = get_low_stock_parts()
+            low_stock_count = len(low_stock_parts) if low_stock_parts else 0
+
+            # 检查数据库连接
+            db_manager = DatabaseManager()
+            with db_manager.get_connection() as conn:
+                conn.execute('SELECT 1')
+                db_status = 'healthy'
+
+            return jsonify({
+                'success': True,
+                'status': 'operational',
+                'database': db_status,
+                'statistics': {
+                    'total_parts': total_parts,
+                    'total_locations': total_locations,
+                    'low_stock_count': low_stock_count
+                },
+                'timestamp': datetime.datetime.now().isoformat()
+            })
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'status': 'degraded',
+                'error': str(e)
+            }), 500
+
+    # 手动更新库位指标
+    @app.route('/api/locations/update_all_metrics', methods=['POST'])
+    def update_all_location_metrics_api():
+        """手动更新所有库位指标"""
+        try:
+            updated_count = update_all_location_metrics()
+            return jsonify({
+                'success': True,
+                'updated_count': updated_count,
+                'message': f'成功更新 {updated_count} 个库位的统计指标'
+            })
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+
     # 添加上下文处理器，使now在所有模板中可用
     @app.context_processor
     def inject_now():
         return {'now': datetime.datetime.now()}
-
-    # 在 app.py 的 create_app 函数中添加以下代码（在注册模板过滤器的地方）
-
-    # 注册自定义模板过滤器
-    @app.template_filter('date')
-    def date_filter(value, format='%Y-%m-%d %H:%M:%S'):
-        """自定义日期格式化过滤器"""
-        # 保持原有的 date_filter 代码不变
-        # ...
-
-    # 在 app.py 的 create_app 函数中添加以下模板过滤器
 
     # 添加安全的比较过滤器
     @app.template_filter('safe_compare')
@@ -255,12 +335,39 @@ def create_app(config_name='default'):
                 value_str = value.strip()
                 if value_str == '':
                     return 0
-                return abs(float(value_str))
+                return abs(float(value_str))  # 先转浮点再转整数
             else:
                 return 0
         except (ValueError, TypeError):
             return 0
 
+    # 添加安全的除法过滤器
+    @app.template_filter('safe_divide')
+    def safe_divide_filter(value, divisor, default=0):
+        """安全的除法过滤器，避免除零错误"""
+        try:
+            if divisor == 0:
+                return default
+            return value / divisor
+        except (ValueError, TypeError, ZeroDivisionError):
+            return default
+
+    # 添加数字格式化过滤器
+    @app.template_filter('format_number')
+    def format_number_filter(value, precision=2):
+        """数字格式化过滤器"""
+        try:
+            if value is None:
+                return "0"
+            num = float(value)
+            if num == int(num):
+                return str(int(num))
+            else:
+                return f"{num:.{precision}f}"
+        except (ValueError, TypeError):
+            return str(value)
+
+    # 启动后台任务（如果不在调试模式）
     if not app.config.get('DEBUG'):
         start_background_tasks(app)
 
@@ -283,7 +390,57 @@ def start_background_tasks(app):
                 except Exception as e:
                     app.logger.error(f"定时更新库位指标失败: {str(e)}")
 
+    def background_health_check():
+        """后台健康检查"""
+        with app.app_context():
+            while True:
+                try:
+                    # 每5分钟执行一次健康检查
+                    time.sleep(300)  # 5分钟
+
+                    # 检查数据库连接
+                    from models.database import DatabaseManager
+                    db_manager = DatabaseManager()
+                    with db_manager.get_connection() as conn:
+                        conn.execute('SELECT 1')
+
+                    # 检查关键表
+                    tables = ['locations', 'spare_parts', 'operation_records']
+                    for table in tables:
+                        try:
+                            with db_manager.get_connection() as conn:
+                                conn.execute(f'SELECT COUNT(*) FROM {table}')
+                        except Exception as e:
+                            app.logger.warning(f"健康检查: 表 {table} 访问异常: {str(e)}")
+
+                    app.logger.info("健康检查: 系统运行正常")
+
+                except Exception as e:
+                    app.logger.error(f"健康检查失败: {str(e)}")
+
     # 启动后台线程
-    thread = threading.Thread(target=background_metrics_updater, daemon=True)
-    thread.start()
+    try:
+        metrics_thread = threading.Thread(target=background_metrics_updater, daemon=True)
+        metrics_thread.start()
+
+        health_thread = threading.Thread(target=background_health_check, daemon=True)
+        health_thread.start()
+
+        app.logger.info("后台任务已启动")
+    except Exception as e:
+        app.logger.error(f"启动后台任务失败: {str(e)}")
+
+
+# 应用启动入口
+if __name__ == '__main__':
+    # 创建应用实例
+    app = create_app('development')
+
+    # 启动Flask开发服务器
+    app.run(
+        host='0.0.0.0',  # 允许外部访问
+        port=5000,
+        debug=True,
+        threaded=True  # 启用多线程处理请求
+    )
 # [file content end]

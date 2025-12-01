@@ -109,6 +109,17 @@
     line-height: 1.2;
 }
 
+.rack-title a {
+    color: white;
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+.rack-title a:hover {
+    color: #ffd700;
+    text-decoration: underline;
+}
+
 .rack-utilization {
     background: rgba(0,0,0,0.6);
     padding: 2px 8px;
@@ -139,6 +150,23 @@
 
 .stat-dot.in-use { background: #007bff; }
 .stat-dot.not-use { background: #28a745; }
+
+/* 货架操作按钮 */
+.rack-actions {
+    margin-top: auto;
+}
+
+.rack-actions .btn {
+    font-size: 10px;
+    padding: 4px 8px;
+    margin-bottom: 4px;
+    border: 1px solid rgba(255,255,255,0.3);
+}
+
+.rack-actions .btn:hover {
+    background: rgba(255,255,255,0.2);
+    border-color: rgba(255,255,255,0.5);
+}
 
 /* 调整大小手柄 */
 .resize-handle {
@@ -389,6 +417,31 @@
     opacity: 0.5;
 }
 
+/* 加载状态和错误状态 */
+.loading-indicator {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    z-index: 1000;
+}
+
+.error-indicator {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    z-index: 1000;
+    background: rgba(255,255,255,0.95);
+    padding: 2rem;
+    border-radius: 1rem;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    max-width: 500px;
+    width: 90%;
+}
+
 /* 测量工具 */
 .measurement-line {
     position: absolute;
@@ -506,7 +559,7 @@
     .property-inputs {
         grid-template-columns: 1fr;
     }
-    
+
     .mode-switcher {
         flex-direction: column;
         align-items: flex-start;
@@ -643,38 +696,26 @@
     transition: width 0.3s ease;
 }
 
-/* 3D 货架效果增强 */
-.rack-element-3d {
-    transform-style: preserve-3d;
-    perspective: 1000px;
+/* 统计卡片增强 */
+.stat-card {
+    transition: all 0.3s ease;
+    cursor: pointer;
 }
 
-.rack-side {
-    position: absolute;
-    background: linear-gradient(45deg, #8B4513, #A0522D);
-    border: 1px solid #654321;
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
 }
 
-.rack-front {
-    width: 100%;
-    height: 100%;
-    transform: translateZ(10px);
+/* 简易视图样式 */
+.simple-view .control-panel,
+.simple-view .properties-panel,
+.simple-view .warehouse-container {
+    display: none;
 }
 
-.rack-top {
-    width: 100%;
-    height: 10px;
-    top: -10px;
-    transform: rotateX(-90deg);
-    transform-origin: bottom;
-}
-
-.rack-right {
-    width: 10px;
-    height: 100%;
-    right: -10px;
-    transform: rotateY(90deg);
-    transform-origin: left;
+.simple-view .filter-section {
+    margin-bottom: 1rem;
 }
 </style>
 {% endblock %}
@@ -690,11 +731,41 @@
         <a href="{{ url_for('add_location') }}" class="btn btn-primary">
             <i class="fas fa-plus me-1"></i>添加库位
         </a>
+        <a href="{{ url_for('rack_list') }}" class="btn btn-outline-info ms-2">
+            <i class="fas fa-pallet me-1"></i>货架列表
+        </a>
+    </div>
+</div>
+
+<!-- 加载状态指示器 -->
+<div id="loadingIndicator" class="loading-indicator">
+    <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;" role="status">
+        <span class="visually-hidden">加载中...</span>
+    </div>
+    <h5 class="text-primary">正在加载仓库数据</h5>
+    <p class="text-muted" id="loadingMessage">请稍候...</p>
+</div>
+
+<!-- 错误状态指示器 -->
+<div id="errorIndicator" class="error-indicator d-none">
+    <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+    <h5 class="text-warning">数据加载失败</h5>
+    <p class="text-muted mb-3" id="errorDetail">无法连接到服务器</p>
+    <div class="mt-3">
+        <button class="btn btn-primary me-2" onclick="loadRackData()">
+            <i class="fas fa-redo me-1"></i>重新加载
+        </button>
+        <button class="btn btn-outline-secondary" onclick="testConnection()">
+            <i class="fas fa-network-wired me-1"></i>诊断连接
+        </button>
+        <button class="btn btn-outline-info" onclick="showSimpleView()">
+            <i class="fas fa-list me-1"></i>使用简易视图
+        </button>
     </div>
 </div>
 
 <!-- 统计概览 - 优化显示 -->
-<div class="row mb-4">
+<div class="row mb-4" id="statsOverview">
     <div class="col-xl-2 col-md-4 col-6">
         <div class="card stat-card">
             <div class="card-body">
@@ -743,14 +814,14 @@
         </div>
     </div>
     <div class="col-xl-2 col-md-4 col-6">
-    <div class="card stat-card" style="cursor: pointer;" onclick="refreshAllMetrics()">
-        <div class="card-body text-center">
-            <i class="fas fa-sync-alt text-primary"></i>
-            <div class="number"><i class="fas fa-refresh"></i></div>
-            <div class="text-muted">刷新统计</div>
+        <div class="card stat-card" style="cursor: pointer;" onclick="refreshAllMetrics()">
+            <div class="card-body text-center">
+                <i class="fas fa-sync-alt text-primary"></i>
+                <div class="number"><i class="fas fa-refresh"></i></div>
+                <div class="text-muted">刷新统计</div>
+            </div>
         </div>
     </div>
-</div>
 </div>
 
 <!-- 筛选和批量操作区域 -->
@@ -945,11 +1016,11 @@
     <div class="status-indicators">
         <div class="status-item">
             <div class="status-color" style="background: #007bff;"></div>
-            <span>使用中 (part_count > 0)</span>
+            <span>使用中 (variety_count > 0)</span>
         </div>
         <div class="status-item">
             <div class="status-color" style="background: #28a745;"></div>
-            <span>未使用 (part_count = 0)</span>
+            <span>未使用 (variety_count = 0)</span>
         </div>
     </div>
 </div>
@@ -1038,7 +1109,7 @@ let currentFilters = {
     search: ''
 };
 
-// 初始化页面
+// 页面加载完成后初始化
 document.addEventListener('DOMContentLoaded', function() {
     loadRackData();
     initEventListeners();
@@ -1049,12 +1120,139 @@ document.addEventListener('DOMContentLoaded', function() {
     loadLocationsData();
 
     // 设置筛选控件的初始值
-    document.getElementById('rackFilter').addEventListener('change', applyFilters);
-    document.getElementById('minCapacity').addEventListener('change', applyFilters);
-    document.getElementById('maxCapacity').addEventListener('change', applyFilters);
-    document.getElementById('locationSearch').addEventListener('input',
-        debounce(applyFilters, 500));
+    const rackFilter = document.getElementById('rackFilter');
+    const minCapacity = document.getElementById('minCapacity');
+    const maxCapacity = document.getElementById('maxCapacity');
+    const locationSearch = document.getElementById('locationSearch');
+
+    if (rackFilter) {
+        rackFilter.addEventListener('change', applyFilters);
+    }
+    if (minCapacity) {
+        minCapacity.addEventListener('change', applyFilters);
+    }
+    if (maxCapacity) {
+        maxCapacity.addEventListener('change', applyFilters);
+    }
+    if (locationSearch) {
+        locationSearch.addEventListener('input', debounce(applyFilters, 500));
+    }
+
+    // 快速筛选按钮事件
+    document.querySelectorAll('.quick-filter-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.quick-filter-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            applyFilters();
+        });
+    });
+
+    console.log('页面初始化完成');
 });
+
+// 增强的加载函数
+async function loadRackData() {
+    try {
+        showLoading('正在加载货架数据...');
+
+        // 先检查健康状态
+        const healthResponse = await fetch('/api/health');
+        if (!healthResponse.ok) {
+            throw new Error('服务器健康检查失败');
+        }
+
+        const healthData = await healthResponse.json();
+        if (!healthData.success) {
+            throw new Error('数据库连接异常: ' + (healthData.error || '未知错误'));
+        }
+
+        // 加载货架数据
+        const response = await fetch('/api/locations/simple_rack_layout');
+
+        if (!response.ok) {
+            throw new Error(`HTTP错误: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (data.success) {
+            racks = data.racks || [];
+            renderRackLayout();
+            updateStatistics();
+            hideLoading();
+
+            if (racks.length === 0) {
+                showInfo('暂无货架数据，请先添加库位');
+            } else {
+                showSuccess(`成功加载 ${racks.length} 个货架`);
+            }
+        } else {
+            throw new Error(data.error || data.message || '未知错误');
+        }
+    } catch (error) {
+        console.error('加载货架数据失败:', error);
+        hideLoading();
+
+        let errorMsg = '网络错误，请稍后重试';
+        if (error.name === 'TypeError') {
+            errorMsg = '网络连接失败，请检查服务器状态';
+        } else if (error.message.includes('HTTP')) {
+            errorMsg = `服务器错误: ${error.message}`;
+        } else if (error.message.includes('数据库')) {
+            errorMsg = error.message;
+        }
+
+        showError(errorMsg);
+        showErrorIndicator(errorMsg);
+    }
+}
+
+// 显示加载指示器
+function showLoading(message = '正在加载...') {
+    const loadingIndicator = document.getElementById('loadingIndicator');
+    const loadingMessage = document.getElementById('loadingMessage');
+    const statsOverview = document.getElementById('statsOverview');
+    const controlPanel = document.querySelector('.control-panel');
+    const warehouseLayout = document.getElementById('warehouseLayout');
+    const errorIndicator = document.getElementById('errorIndicator');
+
+    if (loadingMessage) loadingMessage.textContent = message;
+    if (loadingIndicator) loadingIndicator.style.display = 'block';
+    if (statsOverview) statsOverview.style.opacity = '0.5';
+    if (controlPanel) controlPanel.style.opacity = '0.5';
+    if (warehouseLayout) warehouseLayout.style.opacity = '0.5';
+    if (errorIndicator) errorIndicator.classList.add('d-none');
+}
+
+// 隐藏加载指示器
+function hideLoading() {
+    const loadingIndicator = document.getElementById('loadingIndicator');
+    const statsOverview = document.getElementById('statsOverview');
+    const controlPanel = document.querySelector('.control-panel');
+    const warehouseLayout = document.getElementById('warehouseLayout');
+
+    if (loadingIndicator) loadingIndicator.style.display = 'none';
+    if (statsOverview) statsOverview.style.opacity = '1';
+    if (controlPanel) controlPanel.style.opacity = '1';
+    if (warehouseLayout) warehouseLayout.style.opacity = '1';
+}
+
+// 显示错误指示器
+function showErrorIndicator(errorMessage) {
+    const errorIndicator = document.getElementById('errorIndicator');
+    const errorDetail = document.getElementById('errorDetail');
+    const loadingIndicator = document.getElementById('loadingIndicator');
+
+    if (errorDetail) errorDetail.textContent = errorMessage;
+    if (errorIndicator) errorIndicator.classList.remove('d-none');
+    if (loadingIndicator) loadingIndicator.style.display = 'none';
+}
+
+// 隐藏错误指示器
+function hideErrorIndicator() {
+    const errorIndicator = document.getElementById('errorIndicator');
+    if (errorIndicator) errorIndicator.classList.add('d-none');
+}
 
 // 设置模式
 function setMode(mode) {
@@ -1066,8 +1264,10 @@ function setMode(mode) {
 
     // 更新容器类
     const warehouse = document.getElementById('warehouseLayout');
-    warehouse.classList.toggle('view-mode', mode === 'view');
-    warehouse.classList.toggle('edit-mode', mode === 'edit');
+    if (warehouse) {
+        warehouse.classList.toggle('view-mode', mode === 'view');
+        warehouse.classList.toggle('edit-mode', mode === 'edit');
+    }
 
     // 清除选择
     clearSelection();
@@ -1075,113 +1275,14 @@ function setMode(mode) {
     // 更新工具状态
     if (mode === 'view') {
         setTool('select');
-        document.getElementById('warehouseLayout').style.cursor = 'default';
+        if (warehouse) {
+            warehouse.style.cursor = 'default';
+        }
     } else {
-        document.getElementById('warehouseLayout').style.cursor = 'default';
-    }
-}
-
-// 加载货架数据
-async function loadRackData() {
-    try {
-        showLoading('正在加载货架数据...');
-        const response = await fetch('/api/locations/rack_layout');
-
-        if (!response.ok) {
-            throw new Error(`HTTP错误: ${response.status}`);
+        if (warehouse) {
+            warehouse.style.cursor = 'default';
         }
-
-        const data = await response.json();
-
-        if (data.success) {
-            racks = data.racks;
-            renderRackLayout();
-            updateStatistics();
-            hideLoading();
-            showSuccess('货架数据加载成功');
-        } else {
-            hideLoading();
-            showError('加载货架数据失败: ' + (data.error || data.message || '未知错误'));
-        }
-    } catch (error) {
-        console.error('加载货架数据失败:', error);
-        hideLoading();
-
-        // 更详细的错误信息
-        let errorMsg = '网络错误，请稍后重试';
-        if (error.name === 'TypeError') {
-            errorMsg = '网络连接失败，请检查服务器状态';
-        } else if (error.message.includes('HTTP')) {
-            errorMsg = `服务器错误: ${error.message}`;
-        }
-
-        showError(errorMsg);
-
-        // 显示重试按钮
-        showRetryButton();
     }
-}
-
-// 显示重试按钮
-function showRetryButton() {
-    const emptyLayout = document.getElementById('emptyLayout');
-    if (emptyLayout) {
-        emptyLayout.innerHTML = `
-            <i class="fas fa-exclamation-triangle fa-2x text-warning mb-3"></i>
-            <h5 class="text-warning">数据加载失败</h5>
-            <p class="text-muted">无法连接到服务器，请检查网络连接</p>
-            <div class="mt-3">
-                <button class="btn btn-primary me-2" onclick="loadRackData()">
-                    <i class="fas fa-redo me-1"></i>重新加载
-                </button>
-                <button class="btn btn-outline-secondary" onclick="testConnection()">
-                    <i class="fas fa-network-wired me-1"></i>测试连接
-                </button>
-            </div>
-        `;
-        emptyLayout.style.display = 'block';
-    }
-}
-
-// 测试连接
-async function testConnection() {
-    try {
-        showLoading('正在测试连接...');
-        const response = await fetch('/api/locations/test');
-        const data = await response.json();
-        hideLoading();
-
-        if (data.success) {
-            showSuccess('连接测试成功: ' + data.message);
-        } else {
-            showError('连接测试失败: ' + (data.error || data.message));
-        }
-    } catch (error) {
-        hideLoading();
-        showError('连接测试失败: ' + error.message);
-    }
-}
-
-// 初始化事件监听
-function initEventListeners() {
-    const warehouse = document.getElementById('warehouseLayout');
-
-    // 鼠标事件
-    warehouse.addEventListener('mousedown', handleMouseDown);
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-
-    // 触摸事件
-    warehouse.addEventListener('touchstart', handleTouchStart);
-    document.addEventListener('touchmove', handleTouchMove);
-    document.addEventListener('touchend', handleTouchEnd);
-
-    // 键盘事件
-    document.addEventListener('keydown', handleKeyDown);
-
-    // 网格控制
-    document.getElementById('gridSize').addEventListener('change', updateGrid);
-    document.getElementById('snapToGrid').addEventListener('change', updateGrid);
 }
 
 // 渲染货架布局
@@ -1189,13 +1290,26 @@ function renderRackLayout() {
     const container = document.getElementById('rackContainer');
     const emptyLayout = document.getElementById('emptyLayout');
 
-    if (racks.length === 0) {
-        container.innerHTML = '';
-        emptyLayout.style.display = 'block';
+    console.log('开始渲染货架布局，货架数量:', racks.length);
+
+    // 确保容器存在
+    if (!container) {
+        console.error('rackContainer 元素未找到');
         return;
     }
 
-    emptyLayout.style.display = 'none';
+    if (racks.length === 0) {
+        container.innerHTML = '';
+        if (emptyLayout) {
+            emptyLayout.style.display = 'block';
+        }
+        console.log('没有货架数据，显示空状态');
+        return;
+    }
+
+    if (emptyLayout) {
+        emptyLayout.style.display = 'none';
+    }
 
     let html = '';
 
@@ -1215,7 +1329,11 @@ function renderRackLayout() {
 
                 <div class="rack-content">
                     <div class="rack-header">
-                        <div class="rack-title">${rack.rack || '未命名货架'}</div>
+                        <div class="rack-title">
+                            <a href="/rack_detail/${rack.rack}" title="查看货架详情">
+                                ${rack.rack || '未命名货架'}
+                            </a>
+                        </div>
                         <div class="rack-utilization">${utilization}%</div>
                     </div>
 
@@ -1238,6 +1356,15 @@ function renderRackLayout() {
                         </div>
                     </div>
 
+                    <div class="rack-actions">
+                        <a href="/rack_detail/${rack.rack}" class="btn btn-sm btn-outline-light w-100 mb-1">
+                            <i class="fas fa-info-circle me-1"></i>查看详情
+                        </a>
+                        <button class="btn btn-sm btn-outline-light w-100" onclick="editRack('${rack.rack}')">
+                            <i class="fas fa-edit me-1"></i>编辑货架
+                        </button>
+                    </div>
+
                     <div style="font-size: 10px; margin-top: auto;">
                         ${Math.round(layout.width)} × ${Math.round(layout.height)} px
                     </div>
@@ -1256,8 +1383,15 @@ function renderRackLayout() {
 
     container.innerHTML = html;
 
-    // 更新货架数量显示
-    document.getElementById('totalRacks').textContent = racks.length;
+    // 安全地更新货架数量显示
+    const totalRacksElement = document.getElementById('totalRacks');
+    if (totalRacksElement) {
+        totalRacksElement.textContent = racks.length;
+    } else {
+        console.warn('totalRacks 元素未找到');
+    }
+
+    console.log('货架布局渲染完成');
 }
 
 // 工具设置
@@ -1269,6 +1403,8 @@ function setTool(tool) {
 
     // 更新光标样式
     const warehouse = document.getElementById('warehouseLayout');
+    if (!warehouse) return;
+
     switch(tool) {
         case 'select':
             warehouse.style.cursor = 'default';
@@ -1287,24 +1423,58 @@ function setTool(tool) {
 
 // 更新工具按钮状态
 function updateToolButtons() {
-    document.querySelectorAll('.tool-btn').forEach(btn => {
-        btn.classList.remove('active');
+    const tools = ['selectTool', 'dragTool', 'resizeTool', 'rotateTool'];
+
+    tools.forEach(toolId => {
+        const btn = document.getElementById(toolId);
+        if (btn) {
+            btn.classList.remove('active');
+        }
     });
 
     switch(currentTool) {
         case 'select':
-            document.getElementById('selectTool').classList.add('active');
+            const selectBtn = document.getElementById('selectTool');
+            if (selectBtn) selectBtn.classList.add('active');
             break;
         case 'drag':
-            document.getElementById('dragTool').classList.add('active');
+            const dragBtn = document.getElementById('dragTool');
+            if (dragBtn) dragBtn.classList.add('active');
             break;
         case 'resize':
-            document.getElementById('resizeTool').classList.add('active');
+            const resizeBtn = document.getElementById('resizeTool');
+            if (resizeBtn) resizeBtn.classList.add('active');
             break;
         case 'rotate':
-            document.getElementById('rotateTool').classList.add('active');
+            const rotateBtn = document.getElementById('rotateTool');
+            if (rotateBtn) rotateBtn.classList.add('active');
             break;
     }
+}
+
+// 初始化事件监听
+function initEventListeners() {
+    const warehouse = document.getElementById('warehouseLayout');
+    if (!warehouse) return;
+
+    // 鼠标事件
+    warehouse.addEventListener('mousedown', handleMouseDown);
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    // 触摸事件
+    warehouse.addEventListener('touchstart', handleTouchStart);
+    document.addEventListener('touchmove', handleTouchMove);
+    document.addEventListener('touchend', handleTouchEnd);
+
+    // 键盘事件
+    document.addEventListener('keydown', handleKeyDown);
+
+    // 网格控制
+    const gridSize = document.getElementById('gridSize');
+    const snapToGrid = document.getElementById('snapToGrid');
+    if (gridSize) gridSize.addEventListener('change', updateGrid);
+    if (snapToGrid) snapToGrid.addEventListener('change', updateGrid);
 }
 
 // 鼠标事件处理
@@ -1338,8 +1508,8 @@ function handleMouseMove(e) {
         const dx = e.clientX - dragStartX;
         const dy = e.clientY - dragStartY;
 
-        const gridSize = parseInt(document.getElementById('gridSize').value);
-        const snapToGrid = document.getElementById('snapToGrid').checked;
+        const gridSize = parseInt(document.getElementById('gridSize').value) || 20;
+        const snapToGrid = document.getElementById('snapToGrid') ? document.getElementById('snapToGrid').checked : true;
 
         let newX = originalX + dx;
         let newY = originalY + dy;
@@ -1365,67 +1535,6 @@ function handleMouseUp() {
     isDragging = false;
     currentResizeHandle = null;
     currentRotateAngle = null;
-}
-
-// 触摸事件处理（移动端支持）
-function handleTouchStart(e) {
-    if (currentMode !== 'edit') return;
-
-    if (e.touches.length === 1) {
-        const touch = e.touches[0];
-        handleMouseDown({
-            clientX: touch.clientX,
-            clientY: touch.clientY,
-            target: document.elementFromPoint(touch.clientX, touch.clientY)
-        });
-    }
-}
-
-function handleTouchMove(e) {
-    if (currentMode !== 'edit') return;
-
-    if (e.touches.length === 1) {
-        const touch = e.touches[0];
-        handleMouseMove({
-            clientX: touch.clientX,
-            clientY: touch.clientY
-        });
-    }
-}
-
-function handleTouchEnd() {
-    handleMouseUp();
-}
-
-// 键盘事件处理
-function handleKeyDown(e) {
-    if (currentMode !== 'edit' || !selectedRack) return;
-
-    const step = parseInt(document.getElementById('gridSize').value) || 20;
-
-    switch(e.key) {
-        case 'ArrowUp':
-            e.preventDefault();
-            moveSelectedRack(0, -step);
-            break;
-        case 'ArrowDown':
-            e.preventDefault();
-            moveSelectedRack(0, step);
-            break;
-        case 'ArrowLeft':
-            e.preventDefault();
-            moveSelectedRack(-step, 0);
-            break;
-        case 'ArrowRight':
-            e.preventDefault();
-            moveSelectedRack(step, 0);
-            break;
-        case 'Delete':
-        case 'Backspace':
-            e.preventDefault();
-            deleteSelectedRack();
-            break;
-    }
 }
 
 // 选择货架
@@ -1517,8 +1626,8 @@ function handleResizing(clientX, clientY) {
 
     const dx = clientX - currentResizeHandle.startX;
     const dy = clientY - currentResizeHandle.startY;
-    const gridSize = parseInt(document.getElementById('gridSize').value);
-    const snapToGrid = document.getElementById('snapToGrid').checked;
+    const gridSize = parseInt(document.getElementById('gridSize').value) || 20;
+    const snapToGrid = document.getElementById('snapToGrid') ? document.getElementById('snapToGrid').checked : true;
 
     let newWidth = currentResizeHandle.startWidth;
     let newHeight = currentResizeHandle.startHeight;
@@ -1610,12 +1719,30 @@ function moveSelectedRack(dx, dy) {
 
 // 更新属性面板
 function updatePropertyPanel(x, y, width, height, rotation, name) {
-    if (x !== null) document.getElementById('propX').value = x;
-    if (y !== null) document.getElementById('propY').value = y;
-    if (width !== null) document.getElementById('propWidth').value = width;
-    if (height !== null) document.getElementById('propHeight').value = height;
-    if (rotation !== null) document.getElementById('propRotation').value = rotation;
-    if (name !== undefined) document.getElementById('propName').value = name;
+    if (x !== null) {
+        const propX = document.getElementById('propX');
+        if (propX) propX.value = x;
+    }
+    if (y !== null) {
+        const propY = document.getElementById('propY');
+        if (propY) propY.value = y;
+    }
+    if (width !== null) {
+        const propWidth = document.getElementById('propWidth');
+        if (propWidth) propWidth.value = width;
+    }
+    if (height !== null) {
+        const propHeight = document.getElementById('propHeight');
+        if (propHeight) propHeight.value = height;
+    }
+    if (rotation !== null) {
+        const propRotation = document.getElementById('propRotation');
+        if (propRotation) propRotation.value = rotation;
+    }
+    if (name !== undefined) {
+        const propName = document.getElementById('propName');
+        if (propName) propName.value = name;
+    }
 }
 
 // 更新选中的货架属性
@@ -1777,6 +1904,8 @@ function resetLayout() {
 // 自动排列
 function autoArrange() {
     const container = document.getElementById('warehouseLayout');
+    if (!container) return;
+
     const containerWidth = container.clientWidth;
     const containerHeight = container.clientHeight;
 
@@ -1805,10 +1934,12 @@ function autoArrange() {
 
 // 更新网格
 function updateGrid() {
-    const gridSize = parseInt(document.getElementById('gridSize').value);
+    const gridSize = parseInt(document.getElementById('gridSize').value) || 20;
     const warehouse = document.getElementById('warehouseLayout');
 
-    warehouse.style.backgroundSize = `${gridSize}px ${gridSize}px`;
+    if (warehouse) {
+        warehouse.style.backgroundSize = `${gridSize}px ${gridSize}px`;
+    }
 }
 
 // 更新统计信息
@@ -1821,9 +1952,21 @@ function updateStatistics() {
         totalNotUse += rack.stats.not_use || 0;
     });
 
-    // 更新前端统计显示
-    document.getElementById('inUseLocationsCount').textContent = totalInUse;
-    document.getElementById('notUseLocationsCount').textContent = totalNotUse;
+    // 安全地更新前端统计显示
+    const inUseElement = document.getElementById('inUseLocationsCount');
+    const notUseElement = document.getElementById('notUseLocationsCount');
+
+    if (inUseElement) {
+        inUseElement.textContent = totalInUse;
+    } else {
+        console.warn('inUseLocationsCount 元素未找到');
+    }
+
+    if (notUseElement) {
+        notUseElement.textContent = totalNotUse;
+    } else {
+        console.warn('notUseLocationsCount 元素未找到');
+    }
 }
 
 // ==================== 库位管理功能 ====================
@@ -1834,12 +1977,21 @@ function setViewMode(mode) {
 
     // 更新按钮状态
     document.querySelectorAll('[data-view]').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.view === mode);
+        if (btn) {
+            btn.classList.toggle('active', btn.dataset.view === mode);
+        }
     });
 
     // 显示对应视图
-    document.getElementById('gridView').style.display = mode === 'grid' ? 'block' : 'none';
-    document.getElementById('tableView').style.display = mode === 'table' ? 'block' : 'none';
+    const gridView = document.getElementById('gridView');
+    const tableView = document.getElementById('tableView');
+
+    if (gridView) {
+        gridView.style.display = mode === 'grid' ? 'block' : 'none';
+    }
+    if (tableView) {
+        tableView.style.display = mode === 'table' ? 'block' : 'none';
+    }
 
     // 刷新数据
     loadLocationsData();
@@ -1886,6 +2038,7 @@ function renderLocations(locations) {
 // 渲染网格视图
 function renderGridView(locations) {
     const container = document.getElementById('gridView');
+    if (!container) return;
 
     if (locations.length === 0) {
         container.innerHTML = `
@@ -1902,7 +2055,7 @@ function renderGridView(locations) {
 
     locations.forEach(location => {
         const utilization = location.capacity > 0 ?
-            Math.round((location.part_count / location.capacity) * 100) : 0;
+            Math.round((location.total_quantity / location.capacity) * 100) : 0;
         const isSelected = selectedLocations.has(location.location_code);
 
         html += `
@@ -1914,7 +2067,12 @@ function renderGridView(locations) {
                 <h6 class="mb-2">${location.location_code}</h6>
 
                 <div class="small text-muted mb-2">
-                    <div>货架: ${location.rack || '未分配'}</div>
+                    <div>
+                        <i class="fas fa-pallet me-1"></i>
+                        <a href="/rack_detail/${location.rack}" class="text-decoration-none">
+                            货架: ${location.rack || '未分配'}
+                        </a>
+                    </div>
                     <div>层级: ${location.level || '-'} | 位置: ${location.position || '-'}</div>
                 </div>
 
@@ -1922,7 +2080,7 @@ function renderGridView(locations) {
                     <span class="badge bg-${getStatusColor(location.status)}">
                         ${getStatusText(location.status)}
                     </span>
-                    <small class="text-muted">${location.part_count}/${location.capacity}</small>
+                    <small class="text-muted">${location.total_quantity}/${location.capacity}</small>
                 </div>
 
                 <div class="capacity-indicator">
@@ -1942,6 +2100,7 @@ function renderGridView(locations) {
 // 渲染表格视图
 function renderTableView(locations) {
     const tbody = document.getElementById('locationsTableBody');
+    if (!tbody) return;
 
     if (locations.length === 0) {
         tbody.innerHTML = `
@@ -1959,7 +2118,7 @@ function renderTableView(locations) {
 
     locations.forEach(location => {
         const utilization = location.capacity > 0 ?
-            Math.round((location.part_count / location.capacity) * 100) : 0;
+            Math.round((location.total_quantity / location.capacity) * 100) : 0;
         const isSelected = selectedLocations.has(location.location_code);
 
         html += `
@@ -1972,7 +2131,11 @@ function renderTableView(locations) {
                     <strong>${location.location_code}</strong>
                     ${location.description ? `<br><small class="text-muted">${location.description}</small>` : ''}
                 </td>
-                <td>${location.rack || '-'}</td>
+                <td>
+                    <a href="/rack_detail/${location.rack}" class="text-primary text-decoration-none">
+                        <i class="fas fa-pallet me-1"></i>${location.rack || '-'}
+                    </a>
+                </td>
                 <td>${location.level || '-'}</td>
                 <td>${location.position || '-'}</td>
                 <td>
@@ -1989,7 +2152,7 @@ function renderTableView(locations) {
                         <small>${utilization}%</small>
                     </div>
                 </td>
-                <td>${location.part_count}</td>
+                <td>${location.total_quantity}</td>
                 <td>
                     <div class="btn-group btn-group-sm">
                         <a href="/location_detail/${location.location_code}"
@@ -2028,6 +2191,7 @@ function getStatusColor(status) {
     };
     return colors[status] || 'secondary';
 }
+
 function refreshAllMetrics() {
     showLoading('正在刷新库位统计指标...');
 
@@ -2104,47 +2268,45 @@ function clearSelection() {
 }
 
 function updateSelectionUI() {
-    document.getElementById('selectedCount').textContent = `已选择 ${selectedLocations.size} 个库位`;
+    const selectedCountElement = document.getElementById('selectedCount');
+    if (selectedCountElement) {
+        selectedCountElement.textContent = `已选择 ${selectedLocations.size} 个库位`;
+    }
 
     // 显示/隐藏批量操作面板
     const batchPanel = document.getElementById('batchActionsPanel');
-    if (selectedLocations.size > 0) {
-        batchPanel.classList.add('show');
-    } else {
-        batchPanel.classList.remove('show');
+    if (batchPanel) {
+        if (selectedLocations.size > 0) {
+            batchPanel.classList.add('show');
+        } else {
+            batchPanel.classList.remove('show');
+        }
     }
 }
 
 // 筛选功能
 function applyFilters() {
-    currentFilters.status = document.querySelector('.quick-filter-btn.active')?.dataset.filter || 'all';
-    currentFilters.rack = document.getElementById('rackFilter').value;
-    currentFilters.min_capacity = document.getElementById('minCapacity').value || null;
-    currentFilters.max_capacity = document.getElementById('maxCapacity').value || null;
-    currentFilters.search = document.getElementById('locationSearch').value;
+    const activeFilter = document.querySelector('.quick-filter-btn.active');
+    currentFilters.status = activeFilter ? activeFilter.dataset.filter || 'all' : 'all';
+    currentFilters.rack = document.getElementById('rackFilter') ? document.getElementById('rackFilter').value : '';
+    currentFilters.min_capacity = document.getElementById('minCapacity') ? document.getElementById('minCapacity').value || null : null;
+    currentFilters.max_capacity = document.getElementById('maxCapacity') ? document.getElementById('maxCapacity').value || null : null;
+    currentFilters.search = document.getElementById('locationSearch') ? document.getElementById('locationSearch').value : '';
 
     loadLocationsData();
 }
 
-// 快速筛选按钮事件
-document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('.quick-filter-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            document.querySelectorAll('.quick-filter-btn').forEach(b => b.classList.remove('active'));
-            this.classList.add('active');
-            applyFilters();
-        });
-    });
-});
-
 // 批量操作
 function toggleBatchActions() {
     const panel = document.getElementById('batchActionsPanel');
-    panel.classList.toggle('show');
+    if (panel) {
+        panel.classList.toggle('show');
+    }
 }
 
 async function executeBatchAction() {
-    const action = document.getElementById('batchAction').value;
+    const batchAction = document.getElementById('batchAction');
+    const action = batchAction ? batchAction.value : '';
 
     if (!action) {
         showError('请选择要执行的操作');
@@ -2265,7 +2427,12 @@ function debounce(func, wait) {
 
 // 更新库位数量显示
 function updateLocationsCount(count) {
-    document.getElementById('locationsCount').textContent = count;
+    const locationsCountElement = document.getElementById('locationsCount');
+    if (locationsCountElement) {
+        locationsCountElement.textContent = count;
+    } else {
+        console.warn('locationsCount 元素未找到');
+    }
 }
 
 // 删除库位
@@ -2324,7 +2491,147 @@ async function exportLocations() {
     }
 }
 
-// 工具函数
+// 连接测试
+async function testConnection() {
+    try {
+        showLoading('正在测试连接...');
+
+        const tests = [
+            { name: '应用健康检查', url: '/api/health' },
+            { name: '货架布局API', url: '/api/locations/simple_rack_layout' },
+            { name: '库位筛选API', url: '/api/locations/filter' }
+        ];
+
+        let results = '';
+
+        for (const test of tests) {
+            try {
+                const response = await fetch(test.url);
+                const data = await response.json();
+                results += `<div class="mb-2">
+                    <span class="badge bg-${data.success ? 'success' : 'danger'} me-2">${data.success ? '✓' : '✗'}</span>
+                    ${test.name}: ${data.success ? '正常' : data.error || '失败'}
+                </div>`;
+            } catch (e) {
+                results += `<div class="mb-2">
+                    <span class="badge bg-danger me-2">✗</span>
+                    ${test.name}: 连接失败 - ${e.message}
+                </div>`;
+            }
+        }
+
+        hideLoading();
+
+        // 显示测试结果
+        const errorDetail = document.getElementById('errorDetail');
+        if (errorDetail) {
+            errorDetail.innerHTML = `<div class="text-start">${results}</div>`;
+        }
+
+    } catch (error) {
+        hideLoading();
+        showError('连接测试失败: ' + error.message);
+    }
+}
+
+// 简易视图模式
+function showSimpleView() {
+    // 添加简易视图类
+    document.body.classList.add('simple-view');
+
+    // 隐藏复杂的货架布局，显示简单的库位列表
+    const controlPanel = document.querySelector('.control-panel');
+    const propertiesPanel = document.querySelector('.properties-panel');
+    const warehouseLayout = document.getElementById('warehouseLayout');
+
+    if (controlPanel) controlPanel.style.display = 'none';
+    if (propertiesPanel) propertiesPanel.style.display = 'none';
+    if (warehouseLayout) warehouseLayout.style.display = 'none';
+
+    // 确保库位列表可见
+    const locationCard = document.querySelector('.card');
+    if (locationCard) locationCard.style.display = 'block';
+
+    // 隐藏错误指示器
+    hideErrorIndicator();
+
+    showInfo('已切换到简易视图模式');
+    loadLocationsData(); // 加载库位列表数据
+}
+
+// 编辑货架功能
+function editRack(rackCode) {
+    if (currentMode !== 'edit') {
+        showError('请在编辑模式下编辑货架');
+        return;
+    }
+
+    // 这里可以实现货架编辑逻辑
+    showInfo(`编辑货架功能开发中: ${rackCode}`);
+}
+
+// 触摸事件处理（移动端支持）
+function handleTouchStart(e) {
+    if (currentMode !== 'edit') return;
+
+    if (e.touches.length === 1) {
+        const touch = e.touches[0];
+        handleMouseDown({
+            clientX: touch.clientX,
+            clientY: touch.clientY,
+            target: document.elementFromPoint(touch.clientX, touch.clientY)
+        });
+    }
+}
+
+function handleTouchMove(e) {
+    if (currentMode !== 'edit') return;
+
+    if (e.touches.length === 1) {
+        const touch = e.touches[0];
+        handleMouseMove({
+            clientX: touch.clientX,
+            clientY: touch.clientY
+        });
+    }
+}
+
+function handleTouchEnd() {
+    handleMouseUp();
+}
+
+// 键盘事件处理
+function handleKeyDown(e) {
+    if (currentMode !== 'edit' || !selectedRack) return;
+
+    const step = parseInt(document.getElementById('gridSize').value) || 20;
+
+    switch(e.key) {
+        case 'ArrowUp':
+            e.preventDefault();
+            moveSelectedRack(0, -step);
+            break;
+        case 'ArrowDown':
+            e.preventDefault();
+            moveSelectedRack(0, step);
+            break;
+        case 'ArrowLeft':
+            e.preventDefault();
+            moveSelectedRack(-step, 0);
+            break;
+        case 'ArrowRight':
+            e.preventDefault();
+            moveSelectedRack(step, 0);
+            break;
+        case 'Delete':
+        case 'Backspace':
+            e.preventDefault();
+            deleteSelectedRack();
+            break;
+    }
+}
+
+// 消息提示函数
 function showSuccess(message) {
     flashMessage(message, 'success');
 }
@@ -2333,16 +2640,15 @@ function showError(message) {
     flashMessage(message, 'danger');
 }
 
-function showLoading(message) {
-    // 可以在这里实现加载指示器
-    console.log('Loading:', message);
-}
-
-function hideLoading() {
-    // 隐藏加载指示器
+function showInfo(message) {
+    flashMessage(message, 'info');
 }
 
 function flashMessage(message, type) {
+    // 移除现有的消息
+    const existingAlerts = document.querySelectorAll('.alert.position-fixed');
+    existingAlerts.forEach(alert => alert.remove());
+
     const alert = document.createElement('div');
     alert.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
     alert.style.cssText = 'top: 20px; right: 20px; z-index: 1060; min-width: 300px;';

@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block title %}货架列表 - 设备备件管理系统{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-4 mb-4 border-bottom">
+    <div>
+        <h1 class="h3 mb-2">
+            <i class="fas fa-pallet me-2"></i>货架列表
+        </h1>
+        <p class="text-muted mb-0">查看所有货架及其统计信息</p>
+    </div>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('location_management') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i>返回库位管理
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    {% for rack in racks %}
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card rack-card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <h5 class="card-title">
+                        <i class="fas fa-pallet text-primary me-2"></i>
+                        {{ rack.rack_code }}
+                    </h5>
+                    <span class="badge bg-primary">{{ rack.utilization }}%</span>
+                </div>
+                
+                <div class="rack-stats mb-3">
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <div class="stat-number text-primary">{{ rack.total_locations }}</div>
+                            <small class="text-muted">总库位</small>
+                        </div>
+                        <div class="col-4">
+                            <div class="stat-number text-success">{{ rack.in_use_locations }}</div>
+                            <small class="text-muted">使用中</small>
+                        </div>
+                        <div class="col-4">
+                            <div class="stat-number text-secondary">{{ rack.free_locations }}</div>
+                            <small class="text-muted">空闲</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="progress mb-3" style="height: 8px;">
+                    <div class="progress-bar bg-success" style="width: {{ rack.utilization }}%"></div>
+                </div>
+                
+                <div class="rack-actions">
+                    <a href="{{ url_for('rack_detail', rack_code=rack.rack_code) }}" 
+                       class="btn btn-primary btn-sm w-100 mb-2">
+                        <i class="fas fa-info-circle me-1"></i>查看详情
+                    </a>
+                    <a href="{{ url_for('location_management') }}?rack_filter={{ rack.rack_code }}" 
+                       class="btn btn-outline-secondary btn-sm w-100">
+                        <i class="fas fa-warehouse me-1"></i>查看库位
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-12">
+        <div class="text-center py-5">
+            <i class="fas fa-pallet fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">暂无货架数据</h5>
+            <p class="text-muted">请先在库位管理中分配货架信息</p>
+            <a href="{{ url_for('location_management') }}" class="btn btn-primary">
+                <i class="fas fa-warehouse me-1"></i>前往库位管理
+            </a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% if racks %}
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">货架统计概览</h6>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-3">
+                        <div class="stat-card">
+                            <div class="number text-primary">{{ total_racks }}</div>
+                            <div class="text-muted">总货架数</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card">
+                            <div class="number text-success">
+                                {{ racks|selectattr('in_use_locations', 'gt', 0)|list|length }}
+                            </div>
+                            <div class="text-muted">使用中货架</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card">
+                            <div class="number text-info">
+                                {{ "%.1f"|format(racks|map(attribute='utilization')|sum / total_racks) }}%
+                            </div>
+                            <div class="text-muted">平均利用率</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card">
+                            <div class="number text-warning">
+                                {{ racks|map(attribute='total_locations')|sum }}
+                            </div>
+                            <div class="text-muted">总库位数</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block styles %}
+<style>
+.rack-card {
+    transition: all 0.3s ease;
+    border: 1px solid #e9ecef;
+}
+
+.rack-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+
+.stat-number {
+    font-size: 1.5rem;
+    font-weight: bold;
+    line-height: 1;
+}
+
+.rack-stats {
+    border-bottom: 1px solid #f8f9fa;
+    padding-bottom: 1rem;
+}
+</style>
+{% endblock %}

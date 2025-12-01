@@ -287,64 +287,7 @@ def init_db():
             )
         ''')
 
-        # 创建备件表 - 修复版本：添加 product_model 字段
-        conn.execute('''
-            CREATE TABLE IF NOT EXISTS spare_parts (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                part_no TEXT NOT NULL,
-                name TEXT NOT NULL,
-                type TEXT,
-                product_model TEXT,  -- 新增字段
-                current_stock INTEGER DEFAULT 0,
-                min_stock INTEGER DEFAULT 0,
-                max_stock INTEGER DEFAULT 0,
-                key_part BOOLEAN DEFAULT FALSE,
-                lt_weeks INTEGER DEFAULT 0,
-                unit_price REAL DEFAULT 0.0,
-                unit TEXT,
-                location TEXT,
-                supplier TEXT,
-                description TEXT,
-                created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE(part_no, name)
-            )
-        ''')
-
-        # 创建操作记录表
-        conn.execute('''
-            CREATE TABLE IF NOT EXISTS operation_records (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                operation_type TEXT NOT NULL,
-                operation_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                supplier_recipient TEXT,
-                location TEXT,
-                part_no TEXT,
-                description TEXT,
-                part_type TEXT,
-                product_model TEXT,
-                quantity INTEGER,
-                work_center TEXT,
-                created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
-
-        # 创建数据库操作日志表
-        conn.execute('''
-            CREATE TABLE IF NOT EXISTS database_operation_logs (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                operation_type TEXT NOT NULL,
-                operation_details TEXT,
-                status TEXT NOT NULL,
-                execution_time REAL,
-                affected_rows INTEGER DEFAULT 0,
-                error_message TEXT,
-                operator TEXT DEFAULT 'system',
-                created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
-
-        # 创建库位表
+        # 创建库位表 - 移除 part_count
         conn.execute('''
             CREATE TABLE IF NOT EXISTS locations (
                 location_code TEXT PRIMARY KEY,
@@ -356,19 +299,42 @@ def init_db():
                 capacity INTEGER DEFAULT 0,
                 size_type TEXT,
                 description TEXT,
-                part_count INTEGER DEFAULT 0,
-                last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                -- 专业统计字段
+                variety_count INTEGER DEFAULT 0,
+                total_quantity INTEGER DEFAULT 0,
+                utilization_rate REAL DEFAULT 0.0,
+                low_stock_varieties INTEGER DEFAULT 0,
+                out_of_stock_varieties INTEGER DEFAULT 0,
+                total_value REAL DEFAULT 0.0,
+                status_category TEXT DEFAULT 'empty'
             )
         ''')
 
-        # 为现有表添加缺失的列（如果不存在）
-        try:
-            conn.execute('ALTER TABLE spare_parts ADD COLUMN product_model TEXT')
-        except sqlite3.OperationalError:
-            # 列已存在，忽略错误
-            pass
+        # 为现有表添加缺失的列（如果不存在） - 移除 part_count
+        columns_to_add = [
+            ('locations', 'variety_count', 'INTEGER DEFAULT 0'),
+            ('locations', 'total_quantity', 'INTEGER DEFAULT 0'),
+            ('locations', 'utilization_rate', 'REAL DEFAULT 0.0'),
+            ('locations', 'low_stock_varieties', 'INTEGER DEFAULT 0'),
+            ('locations', 'out_of_stock_varieties', 'INTEGER DEFAULT 0'),
+            ('locations', 'total_value', 'REAL DEFAULT 0.0'),
+            ('locations', 'status_category', 'TEXT DEFAULT "empty"')
+        ]
+
+        for table, column, definition in columns_to_add:
+            try:
+                conn.execute(f'ALTER TABLE {table} ADD COLUMN {column} {definition}')
+                print(f"成功添加列 {table}.{column}")
+            except sqlite3.OperationalError as e:
+                if "duplicate column name" in str(e).lower():
+                    # 列已存在，忽略错误
+                    pass
+                else:
+                    print(f"添加列 {table}.{column} 时出错: {str(e)}")
 
         # 创建索引
+        conn.execute('CREATE INDEX IF NOT EXISTS idx_locations_status_category ON locations(status_category)')
         conn.execute('CREATE INDEX IF NOT EXISTS idx_spare_parts_location ON spare_parts(location)')
         conn.execute('CREATE INDEX IF NOT EXISTS idx_spare_parts_type ON spare_parts(type)')
         conn.execute('CREATE INDEX IF NOT EXISTS idx_spare_parts_stock ON spare_parts(current_stock, min_stock)')
@@ -754,7 +720,7 @@ def create_operation_record(operation_data):
 
 
 def create_location_fast(location_data, conn=None):
-    """创建新库位"""
+    """创建新库位 - 移除 part_count"""
     try:
         if conn is None:
             db_manager = DatabaseManager()
@@ -774,8 +740,8 @@ def create_location_fast(location_data, conn=None):
 
         cursor = conn.execute('''
             INSERT INTO locations 
-            (location_code, rack, level, position, side, status, capacity, size_type, description, part_count)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (location_code, rack, level, position, side, status, capacity, size_type, description)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             location_data['location_code'],
             location_data.get('rack', ''),
@@ -785,8 +751,7 @@ def create_location_fast(location_data, conn=None):
             status,
             capacity,
             location_data.get('size_type', ''),
-            location_data.get('description', ''),
-            location_data.get('part_count', 0)
+            location_data.get('description', '')
         ))
         return True
 
@@ -1377,7 +1342,39 @@ def batch_update_location_statuses():
     return updated_count
 
 
-# 在 models/database.py 中找到并修复 get_rack_statistics 函数
+def location_to_dict(location):
+    """将位置数据转换为字典格式 - 移除 part_count"""
+    if isinstance(location, dict):
+        return location
+
+    # 处理 sqlite3.Row 对象
+    if hasattr(location, '_fields'):
+        return {field: location[i] for i, field in enumerate(location._fields)}
+
+    # 处理元组格式 - 移除 part_count
+    if isinstance(location, tuple):
+        return {
+            'location_code': location[0] if len(location) > 0 else '',
+            'rack': location[1] if len(location) > 1 else '',
+            'level': location[2] if len(location) > 2 else '',
+            'position': location[3] if len(location) > 3 else '',
+            'side': location[4] if len(location) > 4 else '',
+            'status': location[5] if len(location) > 5 else 'free',
+            'capacity': location[6] if len(location) > 6 else 0,
+            'size_type': location[7] if len(location) > 7 else '',
+            'description': location[8] if len(location) > 8 else '',
+            'last_updated': location[9] if len(location) > 9 else None,
+            # 新增字段
+            'variety_count': location[10] if len(location) > 10 else 0,
+            'total_quantity': location[11] if len(location) > 11 else 0,
+            'utilization_rate': location[12] if len(location) > 12 else 0.0,
+            'low_stock_varieties': location[13] if len(location) > 13 else 0,
+            'out_of_stock_varieties': location[14] if len(location) > 14 else 0,
+            'total_value': location[15] if len(location) > 15 else 0.0,
+            'status_category': location[16] if len(location) > 16 else 'empty'
+        }
+
+    return {}
 
 def get_rack_statistics():
     """获取货架统计信息 - 使用新字段版本"""

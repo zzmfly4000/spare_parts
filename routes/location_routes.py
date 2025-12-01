@@ -189,7 +189,7 @@ def setup_location_routes(app):
 
     @app.route('/api/locations/rack_layout', methods=['GET'])
     def get_rack_layout_api():
-        """获取货架布局数据 - API接口 - 修复版本"""
+        """获取货架布局数据 - 移除 part_count 版本"""
         try:
             # 使用简单的查询避免复杂统计
             locations = get_all_locations()
@@ -214,11 +214,15 @@ def setup_location_routes(app):
                         'rotation': 0
                     })
 
-                    # 简化统计 - 不依赖复杂的统计函数
+                    # 简化统计 - 使用 variety_count 替代 part_count
                     rack_locations = [loc for loc in locations if location_to_dict(loc).get('rack') == rack]
                     total_locations = len(rack_locations)
+
+                    # 使用 variety_count 判断是否使用中
                     in_use_locations = sum(
-                        1 for loc in rack_locations if location_to_dict(loc).get('variety_count', 0) > 0)
+                        1 for loc in rack_locations
+                        if location_to_dict(loc).get('variety_count', 0) > 0
+                    )
 
                     rack_groups[rack] = {
                         'rack': rack,
@@ -227,7 +231,7 @@ def setup_location_routes(app):
                             'total': total_locations,
                             'in_use': in_use_locations,
                             'not_use': total_locations - in_use_locations,
-                            'utilization': 0  # 暂时设为0
+                            'utilization': 0
                         },
                         'levels': set(),
                         'positions': set(),
@@ -235,10 +239,10 @@ def setup_location_routes(app):
                         'layout': layout
                     }
 
-                # 添加库位信息
+                # 添加库位信息 - 使用 variety_count 替代 part_count
                 location_data = {
                     'location_code': loc_dict.get('location_code', ''),
-                    'status': loc_dict.get('status_category', 'empty'),
+                    'status': loc_dict.get('status', 'free'),
                     'capacity': loc_dict.get('capacity', 0),
                     'variety_count': loc_dict.get('variety_count', 0),
                     'total_quantity': loc_dict.get('total_quantity', 0),
@@ -270,13 +274,43 @@ def setup_location_routes(app):
             })
 
         except Exception as e:
-            app.logger.error(f"获取货架布局失败: {str(e)}")
+            logging.error(f"获取货架布局失败: {str(e)}")
             import traceback
-            app.logger.error(traceback.format_exc())
+            logging.error(traceback.format_exc())
             return jsonify({
                 'success': False,
                 'error': str(e),
                 'message': '获取货架布局数据失败，请检查数据库连接'
+            }), 500
+
+    @app.route('/api/health', methods=['GET'])
+    def health_check():
+        """数据库健康检查"""
+        try:
+            db_manager = DatabaseManager()
+            with db_manager.get_connection() as conn:
+                # 检查关键表是否存在
+                tables = ['locations', 'rack_layouts', 'spare_parts']
+                table_status = {}
+
+                for table in tables:
+                    try:
+                        conn.execute(f'SELECT 1 FROM {table} LIMIT 1')
+                        table_status[table] = 'OK'
+                    except Exception as e:
+                        table_status[table] = f'Error: {str(e)}'
+
+                return jsonify({
+                    'success': True,
+                    'database': 'Connected',
+                    'tables': table_status,
+                    'timestamp': datetime.now().isoformat()
+                })
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': str(e),
+                'database': 'Disconnected'
             }), 500
 
     @app.route('/api/locations/update_layout', methods=['POST'])
@@ -307,7 +341,7 @@ def setup_location_routes(app):
 
     @app.route('/rack_detail/<string:rack_code>')
     def rack_detail(rack_code):
-        """货架详情页面 - 显示内部结构"""
+        """货架详情页面 - 显示内部结构，移除 part_count"""
         locations = get_all_locations()
         rack_locations = []
 
@@ -327,10 +361,14 @@ def setup_location_routes(app):
 
         rack_locations.sort(key=sort_key)
 
-        # 计算货架统计
+        # 计算货架统计 - 使用 variety_count 替代 part_count
         total_locations = len(rack_locations)
-        free_count = sum(1 for loc in rack_locations if loc.get('status') == 'free')
-        in_use_count = sum(1 for loc in rack_locations if loc.get('status') == 'in_use')
+
+        # 使用 variety_count 判断状态
+        free_count = sum(1 for loc in rack_locations if loc.get('variety_count', 0) == 0)
+        in_use_count = sum(1 for loc in rack_locations if loc.get('variety_count', 0) > 0)
+
+        # 低库存统计需要根据实际业务逻辑调整
         low_stock_count = sum(1 for loc in rack_locations if loc.get('status') == 'low_stock')
 
         # 获取层级、侧面、位置信息
@@ -650,6 +688,215 @@ def setup_location_routes(app):
                 'error': str(e),
                 'message': 'API测试失败'
             }), 500
+
+    # 在 location_routes.py 中添加一个简化版本的API
+
+    @app.route('/api/locations/simple_rack_layout', methods=['GET'])
+    def get_simple_rack_layout():
+        """简化版货架布局API - 确保能工作"""
+        try:
+            db_manager = DatabaseManager()
+            with db_manager.get_connection() as conn:
+                # 简单查询，只获取必要字段
+                cursor = conn.execute('''
+                    SELECT location_code, rack, level, position, side, 
+                           status, capacity, description
+                    FROM locations 
+                    WHERE rack IS NOT NULL AND rack != ''
+                    ORDER BY rack, level, position
+                ''')
+                locations = cursor.fetchall()
+
+                # 获取货架布局
+                cursor = conn.execute('SELECT rack, x, y, width, height, rotation FROM rack_layouts')
+                rack_layouts = {}
+                for row in cursor.fetchall():
+                    rack_layouts[row[0]] = {
+                        'x': row[1], 'y': row[2], 'width': row[3],
+                        'height': row[4], 'rotation': row[5]
+                    }
+
+                # 按货架分组
+                rack_groups = {}
+                for loc in locations:
+                    rack = loc[1]  # rack字段
+                    if not rack:
+                        continue
+
+                    if rack not in rack_groups:
+                        layout = rack_layouts.get(rack, {
+                            'x': 100 + len(rack_groups) * 60,
+                            'y': 100 + len(rack_groups) * 40,
+                            'width': 300,
+                            'height': 200,
+                            'rotation': 0
+                        })
+
+                        rack_groups[rack] = {
+                            'rack': rack,
+                            'locations': [],
+                            'stats': {
+                                'total': 0,
+                                'in_use': 0,
+                                'not_use': 0,
+                                'utilization': 0
+                            },
+                            'levels': set(),
+                            'positions': set(),
+                            'sides': set(),
+                            'layout': layout
+                        }
+
+                    # 更新统计
+                    rack_groups[rack]['stats']['total'] += 1
+
+                    # 简单的使用状态判断（可以根据实际情况调整）
+                    if loc[5] == 'in_use':  # status字段
+                        rack_groups[rack]['stats']['in_use'] += 1
+                    else:
+                        rack_groups[rack]['stats']['not_use'] += 1
+
+                    # 添加库位信息
+                    location_data = {
+                        'location_code': loc[0],
+                        'status': loc[5],
+                        'capacity': loc[6],
+                        'description': loc[7],
+                        'level': loc[2],
+                        'position': loc[3],
+                        'side': loc[4]
+                    }
+
+                    rack_groups[rack]['locations'].append(location_data)
+
+                    # 收集结构信息
+                    if loc[2]:  # level
+                        rack_groups[rack]['levels'].add(loc[2])
+                    if loc[3]:  # position
+                        rack_groups[rack]['positions'].add(loc[3])
+                    if loc[4]:  # side
+                        rack_groups[rack]['sides'].add(loc[4])
+
+                # 转换集合为排序列表
+                for rack in rack_groups.values():
+                    rack['levels'] = sorted(list(rack['levels']))
+                    rack['positions'] = sorted(list(rack['positions']))
+                    rack['sides'] = sorted(list(rack['sides']))
+
+                return jsonify({
+                    'success': True,
+                    'racks': list(rack_groups.values()),
+                    'message': f'成功加载 {len(rack_groups)} 个货架'
+                })
+
+        except Exception as e:
+            logging.error(f"获取简化货架布局失败: {str(e)}")
+            return jsonify({
+                'success': False,
+                'error': str(e),
+                'message': '获取货架布局数据失败'
+            }), 500
+
+    # 在 location_routes.py 中添加以下路由
+
+    @app.route('/api/racks/<string:rack_code>/detail')
+    def get_rack_detail_api(rack_code):
+        """获取货架详情数据的API端点"""
+        try:
+            locations = get_all_locations()
+            rack_locations = []
+
+            for location in locations:
+                loc_dict = location_to_dict(location)
+                current_rack = loc_dict.get('rack', '')
+
+                if current_rack == rack_code:
+                    rack_locations.append(loc_dict)
+
+            # 按层级、侧面和位置排序
+            def sort_key(loc):
+                level = loc.get('level', '')
+                side = loc.get('side', '')
+                position = loc.get('position', '')
+                return (level, side, position)
+
+            rack_locations.sort(key=sort_key)
+
+            # 计算货架统计
+            total_locations = len(rack_locations)
+            free_count = sum(1 for loc in rack_locations if loc.get('variety_count', 0) == 0)
+            in_use_count = sum(1 for loc in rack_locations if loc.get('variety_count', 0) > 0)
+            low_stock_count = sum(1 for loc in rack_locations if loc.get('status') == 'low_stock')
+
+            # 获取层级、侧面、位置信息
+            levels = sorted(set(loc.get('level', '') for loc in rack_locations if loc.get('level')))
+            sides = sorted(set(loc.get('side', '') for loc in rack_locations if loc.get('side')))
+            positions = sorted(set(loc.get('position', '') for loc in rack_locations if loc.get('position')))
+
+            rack_data = {
+                'rack_code': rack_code,
+                'locations': rack_locations,
+                'stats': {
+                    'total_locations': total_locations,
+                    'free_count': free_count,
+                    'in_use_count': in_use_count,
+                    'low_stock_count': low_stock_count
+                },
+                'levels': levels,
+                'sides': sides,
+                'positions': positions
+            }
+
+            return jsonify({
+                'success': True,
+                'rack': rack_data,
+                'message': f'成功获取货架 {rack_code} 的详细信息'
+            })
+
+        except Exception as e:
+            logging.error(f"获取货架详情失败: {str(e)}")
+            return jsonify({
+                'success': False,
+                'error': str(e),
+                'message': '获取货架详情数据失败'
+            }), 500
+
+    @app.route('/rack_list')
+    def rack_list():
+        """货架列表页面"""
+        try:
+            # 获取所有货架
+            locations = get_all_locations()
+            rack_set = set()
+
+            for location in locations:
+                loc_dict = location_to_dict(location)
+                rack = loc_dict.get('rack')
+                if rack:
+                    rack_set.add(rack)
+
+            # 获取每个货架的统计信息
+            racks_with_stats = []
+            for rack in sorted(rack_set):
+                rack_locations = [loc for loc in locations if location_to_dict(loc).get('rack') == rack]
+                total_locations = len(rack_locations)
+                in_use_locations = sum(1 for loc in rack_locations if location_to_dict(loc).get('variety_count', 0) > 0)
+
+                racks_with_stats.append({
+                    'rack_code': rack,
+                    'total_locations': total_locations,
+                    'in_use_locations': in_use_locations,
+                    'free_locations': total_locations - in_use_locations,
+                    'utilization': round((in_use_locations / total_locations * 100) if total_locations > 0 else 0, 1)
+                })
+
+            return render_template('rack_list.html',
+                                   racks=racks_with_stats,
+                                   total_racks=len(racks_with_stats))
+
+        except Exception as e:
+            flash(f'加载货架列表失败: {str(e)}', 'error')
+            return redirect(url_for('location_management'))
 
 
 # [file content end]
