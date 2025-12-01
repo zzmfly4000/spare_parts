@@ -1,0 +1,741 @@
+{% extends "base.html" %}
+
+{% block title %}库位详情 - {{ location.location_code }} - 设备备件管理系统{% endblock %}
+
+{% block styles %}
+<style>
+/* 页面标题和操作区域 */
+.page-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 1rem;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
+
+.page-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.page-subtitle {
+    opacity: 0.9;
+    font-size: 0.9rem;
+}
+
+/* 卡片样式 */
+.detail-card {
+    border: none;
+    border-radius: 1rem;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+    margin-bottom: 1.5rem;
+    overflow: hidden;
+}
+
+.detail-card:hover {
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+
+.card-header-custom {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+    padding: 1rem 1.5rem;
+}
+
+.card-header-custom .card-title {
+    font-weight: 600;
+    color: var(--primary);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* 统计卡片 */
+.stat-card {
+    text-align: center;
+    padding: 1.5rem;
+    border-radius: 1rem;
+    background: white;
+    border: 1px solid #e9ecef;
+    transition: all 0.3s ease;
+    height: 100%;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+}
+
+.stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem;
+    font-size: 1.5rem;
+}
+
+.stat-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin: 0.5rem 0;
+    line-height: 1;
+}
+
+.stat-label {
+    font-size: 0.85rem;
+    color: #6c757d;
+    margin: 0;
+}
+
+/* 容量指示器 */
+.capacity-container {
+    padding: 1.5rem;
+}
+
+.capacity-info {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.capacity-label {
+    color: #6c757d;
+}
+
+.capacity-value {
+    font-weight: 600;
+    color: var(--primary);
+}
+
+.capacity-progress {
+    height: 10px;
+    background: #e9ecef;
+    border-radius: 5px;
+    overflow: hidden;
+    margin-bottom: 0.5rem;
+}
+
+.capacity-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #28a745, #20c997);
+    transition: width 0.6s ease;
+}
+
+.utilization-text {
+    text-align: center;
+    font-size: 0.9rem;
+    color: #6c757d;
+}
+
+/* 健康状态指示器 */
+.health-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.health-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+.health-status-healthy { background: #28a745; }
+.health-status-all_out_of_stock { background: #dc3545; }
+.health-status-partial_out_of_stock { background: #fd7e14; }
+.health-status-all_low_stock { background: #ffc107; }
+.health-status-partial_low_stock { background: #17a2b8; }
+.health-status-empty { background: #6c757d; }
+
+/* 备件表格 */
+.parts-table th {
+    font-weight: 600;
+    color: var(--primary);
+    background: #f8f9fa;
+    border-top: none;
+    padding: 1rem 0.75rem;
+}
+
+.parts-table td {
+    padding: 0.75rem;
+    vertical-align: middle;
+}
+
+.stock-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.stock-progress {
+    width: 80px;
+    height: 6px;
+    background: #e9ecef;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.stock-bar {
+    height: 100%;
+}
+
+/* 空状态 */
+.empty-state {
+    text-align: center;
+    padding: 3rem;
+    color: #6c757d;
+}
+
+.empty-state i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+/* 操作按钮组 */
+.action-buttons {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.action-btn {
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .page-header {
+        padding: 1rem;
+    }
+
+    .page-title {
+        font-size: 1.25rem;
+    }
+
+    .stat-card {
+        padding: 1rem;
+    }
+
+    .stat-value {
+        font-size: 1.5rem;
+    }
+
+    .action-buttons {
+        flex-direction: column;
+    }
+
+    .action-btn {
+        width: 100%;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- 页面标题和操作 -->
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="page-title">
+                <i class="fas fa-map-marker-alt me-2"></i>
+                库位详情: {{ location.location_code }}
+            </h1>
+            <p class="page-subtitle mb-0">
+                查看库位详细信息、库存状态和相关备件
+            </p>
+        </div>
+        <div class="action-buttons">
+            <a href="{{ return_url }}" class="btn btn-light action-btn">
+                <i class="fas fa-arrow-left me-1"></i>返回上一级
+            </a>
+            <a href="{{ url_for('edit_location', location_code=location.location_code) }}"
+               class="btn btn-primary action-btn">
+                <i class="fas fa-edit me-1"></i>编辑库位
+            </a>
+            <a href="{{ url_for('location_management') }}" class="btn btn-outline-light action-btn">
+                <i class="fas fa-warehouse me-1"></i>库位管理
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- 左侧：基本信息和统计 -->
+    <div class="col-lg-4">
+        <!-- 基本信息卡片 -->
+        <div class="card detail-card">
+            <div class="card-header-custom">
+                <h5 class="card-title">
+                    <i class="fas fa-info-circle"></i>
+                    基本信息
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <div class="text-muted small">库位代码</div>
+                        <div class="fw-bold">{{ location.location_code }}</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-muted small">货架</div>
+                        <div class="fw-bold">
+                            {% if location.rack %}
+                            <a href="{{ url_for('rack_detail', rack_code=location.rack) }}"
+                               class="text-primary text-decoration-none">
+                                <i class="fas fa-pallet me-1"></i>{{ location.rack }}
+                            </a>
+                            {% else %}
+                            未分配
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <div class="text-muted small">层级</div>
+                        <div class="fw-bold">{{ location.level or '-' }}</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-muted small">位置</div>
+                        <div class="fw-bold">{{ location.position or '-' }}</div>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <div class="text-muted small">侧面</div>
+                        <div class="fw-bold">{{ location.side or '-' }}</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-muted small">容量</div>
+                        <div class="fw-bold">{{ location.capacity or 0 }}</div>
+                    </div>
+                </div>
+
+                {% if location.description %}
+                <div class="mb-3">
+                    <div class="text-muted small">描述</div>
+                    <div class="fw-bold">{{ location.description }}</div>
+                </div>
+                {% endif %}
+
+                <div class="mb-3">
+                    <div class="text-muted small">最后更新</div>
+                    <div class="fw-bold">{{ location.last_updated|date if location.last_updated else '未知' }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 健康状态卡片 -->
+        <div class="card detail-card">
+            <div class="card-header-custom">
+                <h5 class="card-title">
+                    <i class="fas fa-heartbeat"></i>
+                    库存健康状态
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="health-indicator bg-light">
+                    <div class="health-dot health-status-{{ health_status }}"></div>
+                    <span class="fw-bold">
+                        {% if health_status == 'healthy' %}
+                        健康状态良好
+                        {% elif health_status == 'empty' %}
+                        空置库位
+                        {% elif health_status == 'all_out_of_stock' %}
+                        全部缺货
+                        {% elif health_status == 'partial_out_of_stock' %}
+                        部分缺货
+                        {% elif health_status == 'all_low_stock' %}
+                        全部低库存
+                        {% elif health_status == 'partial_low_stock' %}
+                        部分低库存
+                        {% else %}
+                        正常
+                        {% endif %}
+                    </span>
+                </div>
+
+                <div class="row">
+                    <div class="col-6">
+                        <div class="text-center p-2">
+                            <div class="text-muted small">低库存备件</div>
+                            <div class="h4 text-warning">{{ exact_stats.low_stock_count }}</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-center p-2">
+                            <div class="text-muted small">缺货备件</div>
+                            <div class="h4 text-danger">{{ exact_stats.out_of_stock_count }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 右侧：详细统计 -->
+    <div class="col-lg-8">
+        <!-- 统计概览 -->
+        <div class="row mb-4">
+            <div class="col-md-3 col-6">
+                <div class="stat-card">
+                    <div class="stat-icon bg-primary bg-opacity-10 text-primary">
+                        <i class="fas fa-boxes"></i>
+                    </div>
+                    <div class="stat-value text-primary">{{ exact_stats.part_count }}</div>
+                    <div class="stat-label">备件种类</div>
+                </div>
+            </div>
+
+            <div class="col-md-3 col-6">
+                <div class="stat-card">
+                    <div class="stat-icon bg-success bg-opacity-10 text-success">
+                        <i class="fas fa-layer-group"></i>
+                    </div>
+                    <div class="stat-value text-success">{{ exact_stats.total_stock }}</div>
+                    <div class="stat-label">库存总量</div>
+                </div>
+            </div>
+
+            <div class="col-md-3 col-6">
+                <div class="stat-card">
+                    <div class="stat-icon bg-info bg-opacity-10 text-info">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <div class="stat-value text-info">{{ utilization_rate }}%</div>
+                    <div class="stat-label">库位利用率</div>
+                </div>
+            </div>
+
+            <div class="col-md-3 col-6">
+                <div class="stat-card">
+                    <div class="stat-icon bg-warning bg-opacity-10 text-warning">
+                        <i class="fas fa-money-bill-wave"></i>
+                    </div>
+                    <div class="stat-value text-warning">¥{{ "%.2f"|format(exact_stats.total_value) }}</div>
+                    <div class="stat-label">库存价值</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 容量使用情况 -->
+        <div class="card detail-card mb-4">
+            <div class="card-header-custom">
+                <h5 class="card-title">
+                    <i class="fas fa-tachometer-alt"></i>
+                    容量使用情况
+                </h5>
+            </div>
+            <div class="capacity-container">
+                <div class="capacity-info">
+                    <span class="capacity-label">当前使用 / 总容量</span>
+                    <span class="capacity-value">{{ exact_stats.total_stock }} / {{ location.capacity or 0 }}</span>
+                </div>
+                <div class="capacity-progress">
+                    <div class="capacity-bar" style="width: {{ utilization_rate }}%"></div>
+                </div>
+                <div class="utilization-text">
+                    库位利用率: {{ utilization_rate }}%
+                    {% if utilization_rate >= 90 %}
+                    <span class="text-danger">(接近满载)</span>
+                    {% elif utilization_rate >= 70 %}
+                    <span class="text-warning">(较高使用率)</span>
+                    {% elif utilization_rate == 0 and exact_stats.part_count > 0 %}
+                    <span class="text-info">(有库存但容量未设置)</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- 备件列表 -->
+        <div class="card detail-card">
+            <div class="card-header-custom d-flex justify-content-between align-items-center">
+                <h5 class="card-title">
+                    <i class="fas fa-box"></i>
+                    存放备件列表
+                    <span class="badge bg-primary ms-2">{{ exact_stats.part_count }}</span>
+                </h5>
+                {% if available_routes.has_add_part %}
+                <a href="{{ url_for('add_part') }}?location={{ location.location_code }}"
+                   class="btn btn-sm btn-primary">
+                    <i class="fas fa-plus me-1"></i>添加备件
+                </a>
+                {% endif %}
+            </div>
+
+            <div class="card-body">
+                {% if parts %}
+                <div class="table-responsive">
+                    <table class="table table-hover parts-table">
+                        <thead>
+                            <tr>
+                                <th>备件编号</th>
+                                <th>名称</th>
+                                <th>类型</th>
+                                <th>库存状态</th>
+                                <th>库存量</th>
+                                <th>单价</th>
+                                {% if available_routes.has_edit_part or available_routes.has_part_detail %}
+                                <th>操作</th>
+                                {% endif %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for part in parts %}
+                            <tr>
+                                <td>
+                                    <strong>{{ part.part_no }}</strong>
+                                    {% if part.product_model %}
+                                    <br><small class="text-muted">{{ part.product_model }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>{{ part.name }}</td>
+                                <td>
+                                    <span class="badge bg-secondary">{{ part.type or '未分类' }}</span>
+                                </td>
+                                <td>
+                                    {% set current_stock = part.current_stock|int %}
+                                    {% set min_stock = part.min_stock|int %}
+
+                                    {% if current_stock == 0 %}
+                                    <span class="badge bg-danger">缺货</span>
+                                    {% elif current_stock <= min_stock %}
+                                    <span class="badge bg-warning">低库存</span>
+                                    {% else %}
+                                    <span class="badge bg-success">充足</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="stock-indicator">
+                                        <span>{{ current_stock }}</span>
+                                        {% if part.max_stock and part.max_stock|int > 0 %}
+                                        <div class="stock-progress">
+                                            <div class="stock-bar bg-{{ 'warning' if current_stock <= min_stock else 'success' }}"
+                                                 style="width: {{ (current_stock / part.max_stock|int * 100) if part.max_stock|int > 0 else 0 }}%"></div>
+                                        </div>
+                                        <small class="text-muted">/ {{ part.max_stock }}</small>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td>
+                                    {% if part.unit_price and part.unit_price > 0 %}
+                                    ¥{{ "%.2f"|format(part.unit_price) }}
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                {% if available_routes.has_edit_part or available_routes.has_part_detail %}
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        {% if available_routes.has_part_detail and part.id %}
+                                        <a href="{{ url_for('part_detail', part_id=part.id) }}"
+                                           class="btn btn-outline-primary" title="查看详情">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        {% endif %}
+
+                                        {% if available_routes.has_edit_part and part.id %}
+                                        <a href="{{ url_for('edit_part', part_id=part.id) }}"
+                                           class="btn btn-outline-secondary" title="编辑">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                {% endif %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-inbox"></i>
+                    <h5 class="text-muted">此库位暂无备件</h5>
+                    <p class="text-muted">
+                        {% if available_routes.has_add_part %}
+                        点击按钮添加备件到此库位
+                        {% else %}
+                        请到备件管理页面添加备件
+                        {% endif %}
+                    </p>
+                    {% if available_routes.has_add_part %}
+                    <a href="{{ url_for('add_part') }}?location={{ location.location_code }}"
+                       class="btn btn-primary">
+                        <i class="fas fa-plus me-1"></i>添加备件
+                    </a>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- 快速操作 -->
+        <div class="card detail-card">
+            <div class="card-header-custom">
+                <h5 class="card-title">
+                    <i class="fas fa-bolt"></i>
+                    快速操作
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% if available_routes.has_add_operation %}
+                    <div class="col-md-6 mb-2">
+                        <!-- 备件操作 -->
+                        <a href="{{ url_for('add_operation') }}?location={{ location.location_code }}"
+                           class="btn btn-success w-100">
+                            <i class="fas fa-exchange-alt me-1"></i>备件操作
+                        </a>
+                    </div>
+                    {% endif %}
+
+                    <div class="{% if available_routes.has_add_operation %}col-md-6{% else %}col-12{% endif %} mb-2">
+                        <button class="btn btn-info w-100" onclick="refreshLocationMetrics()">
+                            <i class="fas fa-sync-alt me-1"></i>刷新统计
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// 刷新库位统计指标
+function refreshLocationMetrics() {
+    showLoading('正在刷新库位统计...');
+
+    fetch(`/api/locations/{{ location.location_code }}/refresh_metrics`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading();
+        if (data.success) {
+            showSuccess(data.message);
+            // 延迟刷新页面以确保统计更新完成
+            setTimeout(() => {
+                location.reload();
+            }, 1500);
+        } else {
+            showError('刷新失败: ' + data.error);
+        }
+    })
+    .catch(error => {
+        hideLoading();
+        showError('网络错误: ' + error);
+    });
+}
+
+// 显示加载指示器
+function showLoading(message) {
+    // 创建加载遮罩
+    const loadingOverlay = document.createElement('div');
+    loadingOverlay.className = 'position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-50 d-flex justify-content-center align-items-center';
+    loadingOverlay.style.zIndex = '9999';
+    loadingOverlay.id = 'loadingOverlay';
+
+    loadingOverlay.innerHTML = `
+        <div class="text-center bg-white p-4 rounded-3">
+            <div class="spinner-border text-primary mb-3" role="status">
+                <span class="visually-hidden">加载中...</span>
+            </div>
+            <div class="text-primary">${message}</div>
+        </div>
+    `;
+
+    document.body.appendChild(loadingOverlay);
+}
+
+// 隐藏加载指示器
+function hideLoading() {
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    if (loadingOverlay) {
+        loadingOverlay.remove();
+    }
+}
+
+// 显示成功消息
+function showSuccess(message) {
+    const alert = document.createElement('div');
+    alert.className = 'alert alert-success alert-dismissible fade show position-fixed';
+    alert.style.cssText = 'top: 20px; right: 20px; z-index: 1060; min-width: 300px;';
+    alert.innerHTML = `
+        <i class="fas fa-check-circle me-2"></i>${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(alert);
+
+    setTimeout(() => {
+        if (alert.parentNode) {
+            alert.remove();
+        }
+    }, 3000);
+}
+
+// 显示错误消息
+function showError(message) {
+    const alert = document.createElement('div');
+    alert.className = 'alert alert-danger alert-dismissible fade show position-fixed';
+    alert.style.cssText = 'top: 20px; right: 20px; z-index: 1060; min-width: 300px;';
+    alert.innerHTML = `
+        <i class="fas fa-exclamation-circle me-2"></i>${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(alert);
+
+    setTimeout(() => {
+        if (alert.parentNode) {
+            alert.remove();
+        }
+    }, 3000);
+}
+
+// 页面加载完成后初始化
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('库位详情页面已加载');
+});
+
+// 键盘快捷键
+document.addEventListener('keydown', function(e) {
+    // Ctrl+R 刷新页面
+    if (e.ctrlKey && e.key === 'r') {
+        e.preventDefault();
+        location.reload();
+    }
+
+    // Escape 键返回上一级
+    if (e.key === 'Escape') {
+        window.history.back();
+    }
+});
+</script>
+{% endblock %}

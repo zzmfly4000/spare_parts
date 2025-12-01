@@ -848,8 +848,15 @@ def get_all_locations():
     """获取所有库位列表 - 修复版本"""
     db_manager = DatabaseManager()
     with db_manager.get_connection() as conn:
-        cursor = conn.execute('SELECT * FROM locations ORDER BY location_code')
-        # 返回列表而不是 sqlite3.Row 对象
+        cursor = conn.execute('''
+            SELECT location_code, rack, level, position, side, status, 
+                   capacity, size_type, description, last_updated,
+                   variety_count, total_quantity, utilization_rate,
+                   low_stock_varieties, out_of_stock_varieties, total_value,
+                   status_category
+            FROM locations 
+            ORDER BY location_code
+        ''')
         results = cursor.fetchall()
         # 转换为字典列表
         locations = []
@@ -870,8 +877,14 @@ def get_all_locations():
                     'capacity': row[6] if len(row) > 6 else 0,
                     'size_type': row[7] if len(row) > 7 else '',
                     'description': row[8] if len(row) > 8 else '',
-                    'part_count': row[9] if len(row) > 9 else 0,
-                    'last_updated': row[10] if len(row) > 10 else None
+                    'last_updated': row[9] if len(row) > 9 else None,
+                    'variety_count': row[10] if len(row) > 10 else 0,
+                    'total_quantity': row[11] if len(row) > 11 else 0,
+                    'utilization_rate': row[12] if len(row) > 12 else 0.0,
+                    'low_stock_varieties': row[13] if len(row) > 13 else 0,
+                    'out_of_stock_varieties': row[14] if len(row) > 14 else 0,
+                    'total_value': row[15] if len(row) > 15 else 0.0,
+                    'status_category': row[16] if len(row) > 16 else 'empty'
                 })
         return locations
 

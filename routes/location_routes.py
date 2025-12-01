@@ -18,6 +18,7 @@ from models.database import (
 from utils.stock_utils import calculate_location_status
 import json
 from datetime import datetime
+import logging
 
 
 def setup_location_routes(app):
@@ -53,16 +54,16 @@ def setup_location_routes(app):
             # 应用状态筛选 - 优化状态判断
             if status_filter:
                 loc_dict = location_to_dict(location)
-                part_count = loc_dict.get('part_count', 0)
+                variety_count = loc_dict.get('variety_count', 0)
 
                 # 优化状态判断逻辑
                 if status_filter == 'in_use':
                     # in_use 包括所有分配了备件的库位
-                    if part_count == 0:
+                    if variety_count == 0:
                         continue
                 elif status_filter == 'not_use':
                     # not_use 仅包括未分配备件的库位
-                    if part_count > 0:
+                    if variety_count > 0:
                         continue
                 else:
                     # 具体状态筛选
@@ -163,27 +164,70 @@ def setup_location_routes(app):
     def location_to_dict(location):
         """将位置数据转换为字典格式 - 修复 sqlite3.Row 问题"""
         if isinstance(location, dict):
+            # 确保数值字段是整数
+            for key in ['capacity', 'variety_count', 'total_quantity']:
+                if key in location and location[key] is not None:
+                    try:
+                        if isinstance(location[key], str):
+                            location[key] = int(location[key]) if location[key].strip() else 0
+                        else:
+                            location[key] = int(location[key])
+                    except (ValueError, TypeError):
+                        location[key] = 0
             return location
 
         # 处理 sqlite3.Row 对象
         if hasattr(location, '_fields'):
-            return {field: location[i] for i, field in enumerate(location._fields)}
+            result = {}
+            for i, field in enumerate(location._fields):
+                value = location[i]
+                # 转换数值字段
+                if field in ['capacity', 'variety_count', 'total_quantity']:
+                    try:
+                        if isinstance(value, str):
+                            value = int(value) if value.strip() else 0
+                        else:
+                            value = int(value)
+                    except (ValueError, TypeError):
+                        value = 0
+                result[field] = value
+            return result
 
         # 处理元组格式
         if isinstance(location, tuple):
-            return {
+            loc_dict = {
                 'location_code': location[0] if len(location) > 0 else '',
                 'rack': location[1] if len(location) > 1 else '',
                 'level': location[2] if len(location) > 2 else '',
                 'position': location[3] if len(location) > 3 else '',
                 'side': location[4] if len(location) > 4 else '',
-                'status': location[5] if len(location) > 5 else 'not_use',
+                'status': location[5] if len(location) > 5 else 'free',
                 'capacity': location[6] if len(location) > 6 else 0,
                 'size_type': location[7] if len(location) > 7 else '',
                 'description': location[8] if len(location) > 8 else '',
-                'part_count': location[9] if len(location) > 9 else 0,
-                'last_updated': location[10] if len(location) > 10 else None
+                'last_updated': location[9] if len(location) > 9 else None,
+                # 新增字段 - 移除 part_count
+                'variety_count': location[10] if len(location) > 10 else 0,
+                'total_quantity': location[11] if len(location) > 11 else 0,
+                'utilization_rate': location[12] if len(location) > 12 else 0.0,
+                'low_stock_varieties': location[13] if len(location) > 13 else 0,
+                'out_of_stock_varieties': location[14] if len(location) > 14 else 0,
+                'total_value': location[15] if len(location) > 15 else 0.0,
+                'status_category': location[16] if len(location) > 16 else 'empty'
             }
+
+            # 确保数值字段是整数
+            for key in ['capacity', 'variety_count', 'total_quantity']:
+                if loc_dict[key] is not None:
+                    try:
+                        if isinstance(loc_dict[key], str):
+                            loc_dict[key] = int(loc_dict[key]) if loc_dict[key].strip() else 0
+                        else:
+                            loc_dict[key] = int(loc_dict[key])
+                    except (ValueError, TypeError):
+                        loc_dict[key] = 0
+
+            return loc_dict
 
         return {}
 
@@ -341,51 +385,87 @@ def setup_location_routes(app):
 
     @app.route('/rack_detail/<string:rack_code>')
     def rack_detail(rack_code):
-        """货架详情页面 - 显示内部结构，移除 part_count"""
-        locations = get_all_locations()
-        rack_locations = []
+        """货架详情页面 - 修复统计量计算"""
+        try:
+            locations = get_all_locations()
+            rack_locations = []
 
-        for location in locations:
-            loc_dict = location_to_dict(location)
-            current_rack = loc_dict.get('rack', '')
+            for location in locations:
+                loc_dict = location_to_dict(location)
+                current_rack = loc_dict.get('rack', '')
 
-            if current_rack == rack_code:
-                rack_locations.append(loc_dict)
+                if current_rack == rack_code:
+                    # 确保所有必需的字段都有默认值
+                    loc_dict.setdefault('total_quantity', 0)
+                    loc_dict.setdefault('variety_count', 0)
+                    loc_dict.setdefault('capacity', 0)
+                    rack_locations.append(loc_dict)
 
-        # 按层级、侧面和位置排序
-        def sort_key(loc):
-            level = loc.get('level', '')
-            side = loc.get('side', '')
-            position = loc.get('position', '')
-            return (level, side, position)
+            # 按层级、侧面和位置排序
+            def sort_key(loc):
+                level = loc.get('level', '')
+                side = loc.get('side', '')
+                position = loc.get('position', '')
+                return (level, side, position)
 
-        rack_locations.sort(key=sort_key)
+            rack_locations.sort(key=sort_key)
 
-        # 计算货架统计 - 使用 variety_count 替代 part_count
-        total_locations = len(rack_locations)
+            # 修复统计量计算 - 使用正确的字段
+            total_locations = len(rack_locations)
 
-        # 使用 variety_count 判断状态
-        free_count = sum(1 for loc in rack_locations if loc.get('variety_count', 0) == 0)
-        in_use_count = sum(1 for loc in rack_locations if loc.get('variety_count', 0) > 0)
+            # 使用 variety_count 判断空闲和使用中
+            free_count = sum(1 for loc in rack_locations if loc.get('variety_count', 0) == 0)
+            in_use_count = total_locations - free_count
 
-        # 低库存统计需要根据实际业务逻辑调整
-        low_stock_count = sum(1 for loc in rack_locations if loc.get('status') == 'low_stock')
+            # 修复低库存统计 - 使用 status_category 字段
+            low_stock_count = sum(1 for loc in rack_locations if
+                                  loc.get('status_category') in ['all_low_stock', 'partial_low_stock', 'low_stock'])
 
-        # 获取层级、侧面、位置信息
-        levels = sorted(set(loc.get('level', '') for loc in rack_locations if loc.get('level')))
-        sides = sorted(set(loc.get('side', '') for loc in rack_locations if loc.get('side')))
-        positions = sorted(set(loc.get('position', '') for loc in rack_locations if loc.get('position')))
+            # 获取层级、侧面、位置信息
+            levels = sorted(set(loc.get('level', '') for loc in rack_locations if loc.get('level')))
+            sides = sorted(set(loc.get('side', '') for loc in rack_locations if loc.get('side')))
+            positions = sorted(set(loc.get('position', '') for loc in rack_locations if loc.get('position')))
 
-        return render_template('rack_detail.html',
-                               rack_code=rack_code,
-                               locations=rack_locations,
-                               total_locations=total_locations,
-                               free_count=free_count,
-                               in_use_count=in_use_count,
-                               low_stock_count=low_stock_count,
-                               levels=levels,
-                               sides=sides,
-                               positions=positions)
+            # 添加分页支持
+            page = request.args.get('page', 1, type=int)
+            per_page = 20  # 每页显示20个库位
+
+            # 计算分页
+            total_pages = (total_locations + per_page - 1) // per_page
+            start_idx = (page - 1) * per_page
+            end_idx = start_idx + per_page
+            paginated_locations = rack_locations[start_idx:end_idx]
+
+            # 计算更多统计信息
+            total_capacity = sum(loc.get('capacity', 0) for loc in rack_locations)
+            total_quantity = sum(loc.get('total_quantity', 0) for loc in rack_locations)
+            total_varieties = sum(loc.get('variety_count', 0) for loc in rack_locations)
+
+            utilization_rate = (total_quantity / total_capacity * 100) if total_capacity > 0 else 0
+
+            return render_template('rack_detail.html',
+                                   rack_code=rack_code,
+                                   locations=paginated_locations,
+                                   total_locations=total_locations,
+                                   free_count=free_count,
+                                   in_use_count=in_use_count,
+                                   low_stock_count=low_stock_count,
+                                   levels=levels,
+                                   sides=sides,
+                                   positions=positions,
+                                   # 分页信息
+                                   page=page,
+                                   total_pages=total_pages,
+                                   # 额外统计信息
+                                   total_capacity=total_capacity,
+                                   total_quantity=total_quantity,
+                                   total_varieties=total_varieties,
+                                   utilization_rate=round(utilization_rate, 1))
+
+        except Exception as e:
+            logging.error(f"加载货架详情失败: {str(e)}")
+            flash(f'加载货架详情失败: {str(e)}', 'error')
+            return redirect(url_for('location_management'))
 
     @app.route('/add_location', methods=['GET', 'POST'])
     def add_location():
@@ -455,22 +535,147 @@ def setup_location_routes(app):
 
     @app.route('/location_detail/<string:location_code>')
     def location_detail(location_code):
-        """库位详情页面"""
-        location = get_location_by_code(location_code)
-        if not location:
-            flash('库位不存在', 'error')
+        """库位详情页面 - 优化版本"""
+        try:
+            # 获取来源页面，用于返回按钮
+            referer = request.headers.get('Referer')
+            return_url = referer if referer and '/location_detail' not in referer else url_for('location_management')
+
+            # 获取库位信息
+            location = get_location_by_code(location_code)
+            if not location:
+                flash('库位不存在', 'error')
+                return redirect(url_for('location_management'))
+
+            # 将location转换为字典
+            location_dict = location_to_dict(location)
+
+            # 获取该库位的备件列表
+            db_manager = DatabaseManager()
+            with db_manager.get_connection() as conn:
+                # 获取该库位的所有备件 - 确保包含 id 字段
+                cursor = conn.execute('''
+                    SELECT id, part_no, name, current_stock, min_stock, max_stock, 
+                           unit_price, type, product_model, supplier, description
+                    FROM spare_parts 
+                    WHERE location = ?
+                    ORDER BY part_no
+                ''', (location_code,))
+
+                parts_in_location = []
+                for row in cursor.fetchall():
+                    if hasattr(row, '_fields'):
+                        part_dict = {}
+                        for i, field in enumerate(row._fields):
+                            part_dict[field] = row[i]
+                        parts_in_location.append(part_dict)
+                    else:
+                        parts_in_location.append({
+                            'id': row[0],
+                            'part_no': row[1],
+                            'name': row[2],
+                            'current_stock': row[3],
+                            'min_stock': row[4],
+                            'max_stock': row[5],
+                            'unit_price': row[6],
+                            'type': row[7],
+                            'product_model': row[8],
+                            'supplier': row[9],
+                            'description': row[10]
+                        })
+
+                # 计算更精确的统计信息
+                cursor = conn.execute('''
+                    SELECT 
+                        COUNT(*) as part_count,
+                        SUM(current_stock) as total_stock,
+                        SUM(CASE WHEN current_stock <= min_stock AND current_stock > 0 THEN 1 ELSE 0 END) as low_stock_count,
+                        SUM(CASE WHEN current_stock = 0 THEN 1 ELSE 0 END) as out_of_stock_count,
+                        SUM(current_stock * unit_price) as total_value
+                    FROM spare_parts 
+                    WHERE location = ?
+                ''', (location_code,))
+
+                stats_result = cursor.fetchone()
+                if stats_result:
+                    exact_stats = {
+                        'part_count': stats_result['part_count'] or 0,
+                        'total_stock': stats_result['total_stock'] or 0,
+                        'low_stock_count': stats_result['low_stock_count'] or 0,
+                        'out_of_stock_count': stats_result['out_of_stock_count'] or 0,
+                        'total_value': stats_result['total_value'] or 0.0
+                    }
+                else:
+                    exact_stats = {
+                        'part_count': 0,
+                        'total_stock': 0,
+                        'low_stock_count': 0,
+                        'out_of_stock_count': 0,
+                        'total_value': 0.0
+                    }
+
+            # 计算库位状态
+            variety_count = exact_stats['part_count']
+            location_status = 'in_use' if variety_count > 0 else 'not_use'
+
+            # 计算利用率
+            capacity = location_dict.get('capacity', 0)
+            if capacity > 0:
+                utilization_rate = round((exact_stats['total_stock'] / capacity) * 100, 1)
+            else:
+                utilization_rate = 0
+
+            # 计算健康状态
+            health_status = 'healthy'
+            if exact_stats['out_of_stock_count'] > 0:
+                if exact_stats['out_of_stock_count'] == exact_stats['part_count']:
+                    health_status = 'all_out_of_stock'
+                else:
+                    health_status = 'partial_out_of_stock'
+            elif exact_stats['low_stock_count'] > 0:
+                if exact_stats['low_stock_count'] == exact_stats['part_count']:
+                    health_status = 'all_low_stock'
+                else:
+                    health_status = 'partial_low_stock'
+            elif exact_stats['part_count'] == 0:
+                health_status = 'empty'
+
+            # 检查系统中可用的路由
+            from flask import url_for
+            available_routes = {
+                'has_add_part': check_route_exists('add_part'),
+                'has_edit_part': check_route_exists('edit_part'),
+                'has_part_detail': check_route_exists('part_detail'),
+                'has_parts_management': check_route_exists('parts_management'),
+                'has_stock_in': check_route_exists('stock_in'),
+                'has_stock_out': check_route_exists('stock_out'),
+                'has_add_operation': check_route_exists('add_operation'),
+                'has_operation_management': check_route_exists('operation_management'),
+                'has_low_stock_alerts': check_route_exists('low_stock_alerts'),
+            }
+
+            return render_template('location_detail.html',
+                                   location=location_dict,
+                                   parts=parts_in_location,
+                                   exact_stats=exact_stats,
+                                   location_status=location_status,
+                                   utilization_rate=utilization_rate,
+                                   health_status=health_status,
+                                   return_url=return_url,
+                                   available_routes=available_routes)
+
+        except Exception as e:
+            logging.error(f"加载库位详情失败: {str(e)}")
+            flash(f'加载库位详情失败: {str(e)}', 'error')
             return redirect(url_for('location_management'))
 
-        # 将location转换为字典
-        location_dict = location_to_dict(location)
-
-        # 计算库位状态 - 使用新的状态定义
-        part_count = location_dict.get('part_count', 0)
-        location_status = 'in_use' if part_count > 0 else 'not_use'
-
-        return render_template('location_detail.html',
-                               location=location_dict,
-                               location_status=location_status)
+    def check_route_exists(endpoint):
+        """检查路由是否存在"""
+        from flask import current_app
+        try:
+            return endpoint in current_app.view_functions
+        except:
+            return False
 
     @app.route('/delete_location/<string:location_code>', methods=['POST'])
     def delete_location_route(location_code):
@@ -881,13 +1086,21 @@ def setup_location_routes(app):
                 rack_locations = [loc for loc in locations if location_to_dict(loc).get('rack') == rack]
                 total_locations = len(rack_locations)
                 in_use_locations = sum(1 for loc in rack_locations if location_to_dict(loc).get('variety_count', 0) > 0)
+                free_locations = total_locations - in_use_locations
+
+                # 计算利用率
+                total_capacity = sum(location_to_dict(loc).get('capacity', 0) for loc in rack_locations)
+                total_quantity = sum(location_to_dict(loc).get('total_quantity', 0) for loc in rack_locations)
+                utilization = round((total_quantity / total_capacity * 100) if total_capacity > 0 else 0, 1)
 
                 racks_with_stats.append({
                     'rack_code': rack,
                     'total_locations': total_locations,
                     'in_use_locations': in_use_locations,
-                    'free_locations': total_locations - in_use_locations,
-                    'utilization': round((in_use_locations / total_locations * 100) if total_locations > 0 else 0, 1)
+                    'free_locations': free_locations,
+                    'utilization': utilization,
+                    'total_capacity': total_capacity,
+                    'total_quantity': total_quantity
                 })
 
             return render_template('rack_list.html',
@@ -895,6 +1108,7 @@ def setup_location_routes(app):
                                    total_racks=len(racks_with_stats))
 
         except Exception as e:
+            logging.error(f"加载货架列表失败: {str(e)}")
             flash(f'加载货架列表失败: {str(e)}', 'error')
             return redirect(url_for('location_management'))
 

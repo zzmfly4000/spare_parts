@@ -2,7 +2,258 @@
 
 {% block title %}货架详情 - {{ rack_code }} - 设备备件管理系统{% endblock %}
 
+{% block styles %}
+<style>
+/* 统计卡片样式 */
+.stat-card {
+    transition: all 0.3s ease;
+    border: none;
+    border-radius: 1rem;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    margin-bottom: 1rem;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+
+.stat-card .card-body {
+    padding: 1.5rem;
+    text-align: center;
+}
+
+.stat-card i {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+    opacity: 0.9;
+}
+
+.stat-card .number {
+    font-size: 2.25rem;
+    font-weight: 700;
+    margin: 0.5rem 0;
+    background: linear-gradient(135deg, var(--primary), var(--info));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.stat-card .text-muted {
+    font-size: 0.9rem;
+    color: #6c757d !important;
+}
+
+/* 库位卡片样式 */
+.location-card {
+    border: 1px solid #e9ecef;
+    border-radius: 0.75rem;
+    transition: all 0.3s ease;
+    margin-bottom: 1rem;
+}
+
+.location-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    border-color: var(--primary);
+}
+
+.location-status {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.location-status.free { background: #28a745; }
+.location-status.in_use { background: #007bff; }
+.location-status.low_stock { background: #ffc107; }
+.location-status.out_of_stock { background: #dc3545; }
+.location-status.not_use { background: #6c757d; }
+
+/* 表格样式优化 */
+.table th {
+    font-weight: 600;
+    color: var(--primary);
+    border-top: none;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.table td {
+    vertical-align: middle;
+    padding: 1rem 0.75rem;
+}
+
+/* 进度条样式 */
+.progress {
+    height: 8px;
+    border-radius: 4px;
+    background-color: #e9ecef;
+}
+
+.progress-bar {
+    border-radius: 4px;
+}
+
+/* 分页样式 */
+.pagination {
+    margin-bottom: 0;
+}
+
+.page-link {
+    border: none;
+    color: var(--primary);
+    font-weight: 500;
+}
+
+.page-item.active .page-link {
+    background: linear-gradient(135deg, var(--primary), var(--info));
+    border-color: var(--primary);
+}
+
+.page-link:hover {
+    background-color: rgba(67, 97, 238, 0.1);
+    color: var(--primary);
+}
+
+/* 货架结构样式 */
+.structure-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.structure-badges .badge {
+    font-size: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.5rem;
+}
+
+/* 加载状态 */
+.loading-indicator {
+    text-align: center;
+    padding: 3rem;
+}
+
+.loading-indicator .spinner-border {
+    width: 3rem;
+    height: 3rem;
+}
+
+/* 空状态 */
+.empty-state {
+    text-align: center;
+    padding: 3rem;
+    color: #6c757d;
+}
+
+.empty-state i {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .stat-card .number {
+        font-size: 1.75rem;
+    }
+
+    .stat-card i {
+        font-size: 2rem;
+    }
+
+    .table-responsive {
+        font-size: 0.875rem;
+    }
+
+    .btn-group-sm > .btn {
+        padding: 0.25rem 0.5rem;
+    }
+}
+
+/* 视图切换按钮 */
+.view-toggle .btn {
+    border-radius: 0.5rem;
+}
+
+.view-toggle .btn.active {
+    background: var(--primary);
+    color: white;
+}
+
+/* 容量指示器 */
+.capacity-indicator {
+    height: 6px;
+    background: #e9ecef;
+    border-radius: 3px;
+    margin: 0.5rem 0;
+    overflow: hidden;
+}
+
+.capacity-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #28a745, #20c997);
+    transition: width 0.3s ease;
+}
+
+/* 网格视图 */
+.locations-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.grid-location-card {
+    background: white;
+    border: 1px solid #e9ecef;
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.grid-location-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+/* 统计概览卡片 */
+.stats-overview {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 1rem;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.stats-overview .stat-item {
+    text-align: center;
+    padding: 0 1rem;
+}
+
+.stats-overview .stat-number {
+    font-size: 2rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+.stats-overview .stat-label {
+    font-size: 0.875rem;
+    opacity: 0.9;
+}
+</style>
+{% endblock %}
+
 {% block content %}
+<!-- 页面标题和操作 -->
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-4 mb-4 border-bottom">
     <div>
         <h1 class="h3 mb-2">
@@ -14,53 +265,111 @@
         <a href="{{ url_for('location_management') }}" class="btn btn-outline-secondary">
             <i class="fas fa-arrow-left me-1"></i>返回货架布局
         </a>
+        <a href="{{ url_for('rack_list') }}" class="btn btn-outline-info ms-2">
+            <i class="fas fa-list me-1"></i>货架列表
+        </a>
     </div>
 </div>
 
-<!-- 加载状态指示器 -->
-<div id="loadingIndicator" class="d-none">
-    <div class="text-center py-4">
-        <div class="spinner-border text-primary mb-3" role="status">
-            <span class="visually-hidden">加载中...</span>
+<!-- 统计概览 -->
+<div class="stats-overview">
+    <div class="row text-center">
+        <div class="col-md-3">
+            <div class="stat-item">
+                <div class="stat-number">{{ total_locations }}</div>
+                <div class="stat-label">总库位数</div>
+            </div>
         </div>
-        <p class="text-muted" id="loadingMessage">正在加载货架数据...</p>
-    </div>
-</div>
-
-<!-- 错误状态指示器 -->
-<div id="errorIndicator" class="d-none">
-    <div class="alert alert-danger text-center">
-        <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
-        <h5 id="errorTitle">数据加载失败</h5>
-        <p class="text-muted mb-3" id="errorDetail">无法连接到服务器</p>
-        <div class="mt-3">
-            <button class="btn btn-primary me-2" onclick="loadRackDetailData()">
-                <i class="fas fa-redo me-1"></i>重新加载
-            </button>
-            <button class="btn btn-outline-secondary" onclick="testConnection()">
-                <i class="fas fa-network-wired me-1"></i>诊断连接
-            </button>
-            <button class="btn btn-outline-info" onclick="showSimpleView()">
-                <i class="fas fa-list me-1"></i>使用简易视图
-            </button>
+        <div class="col-md-3">
+            <div class="stat-item">
+                <div class="stat-number">{{ in_use_count }}</div>
+                <div class="stat-label">使用中</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-item">
+                <div class="stat-number">{{ free_count }}</div>
+                <div class="stat-label">空闲</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-item">
+                <div class="stat-number">{{ low_stock_count }}</div>
+                <div class="stat-label">低库存</div>
+            </div>
         </div>
     </div>
-</div>
-
-<!-- 货架概览 - 动态加载 -->
-<div id="rackOverview" class="row mb-4">
-    <!-- 内容将通过JavaScript动态加载 -->
 </div>
 
 <div class="row">
     <!-- 货架结构信息 -->
     <div class="col-md-3">
-        <div class="card">
+        <div class="card stat-card">
             <div class="card-header">
-                <h6 class="card-title mb-0">货架结构</h6>
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-layer-group me-2"></i>货架结构
+                </h6>
             </div>
-            <div class="card-body" id="rackStructure">
-                <!-- 动态加载结构信息 -->
+            <div class="card-body">
+                <div class="mb-3">
+                    <h6 class="text-muted mb-2">层级 (Levels)</h6>
+                    <div class="structure-badges">
+                        {% for level in levels %}
+                        <span class="badge bg-primary">{{ level }}</span>
+                        {% else %}
+                        <span class="text-muted small">无层级信息</span>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <h6 class="text-muted mb-2">侧面 (Sides)</h6>
+                    <div class="structure-badges">
+                        {% for side in sides %}
+                        <span class="badge bg-info">{{ side }}</span>
+                        {% else %}
+                        <span class="text-muted small">无侧面信息</span>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <h6 class="text-muted mb-2">位置 (Positions)</h6>
+                    <div class="structure-badges">
+                        {% for position in positions %}
+                        <span class="badge bg-success">{{ position }}</span>
+                        {% else %}
+                        <span class="text-muted small">无位置信息</span>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 货架统计 -->
+        <div class="card stat-card mt-3">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-chart-bar me-2"></i>货架统计
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <small class="text-muted">总容量</small>
+                    <div class="fw-bold text-primary">{{ total_capacity }}</div>
+                </div>
+                <div class="mb-3">
+                    <small class="text-muted">总库存</small>
+                    <div class="fw-bold text-success">{{ total_quantity }}</div>
+                </div>
+                <div class="mb-3">
+                    <small class="text-muted">备件种类</small>
+                    <div class="fw-bold text-info">{{ total_varieties }}</div>
+                </div>
+                <div>
+                    <small class="text-muted">利用率</small>
+                    <div class="fw-bold text-warning">{{ utilization_rate }}%</div>
+                </div>
             </div>
         </div>
 
@@ -73,10 +382,10 @@
                 <a href="{{ url_for('add_location') }}?rack={{ rack_code }}" class="btn btn-primary btn-sm w-100 mb-2">
                     <i class="fas fa-plus me-1"></i>在此货架添加库位
                 </a>
-                <button class="btn btn-outline-secondary btn-sm w-100" onclick="exportRackData()">
+                <button class="btn btn-outline-secondary btn-sm w-100 mb-2" onclick="exportRackData()">
                     <i class="fas fa-download me-1"></i>导出货架数据
                 </button>
-                <button class="btn btn-outline-info btn-sm w-100 mt-2" onclick="refreshRackData()">
+                <button class="btn btn-outline-info btn-sm w-100" onclick="refreshData()">
                     <i class="fas fa-sync-alt me-1"></i>刷新数据
                 </button>
             </div>
@@ -87,20 +396,192 @@
     <div class="col-md-9">
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h6 class="card-title mb-0">库位详细信息</h6>
-                <div class="btn-group btn-group-sm">
-                    <button class="btn btn-outline-secondary" onclick="toggleViewMode()">
-                        <i class="fas fa-table me-1"></i>表格视图
-                    </button>
-                    <button class="btn btn-outline-secondary" onclick="toggleViewMode()">
-                        <i class="fas fa-th me-1"></i>网格视图
-                    </button>
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-list me-2"></i>库位详细信息
+                    <span class="badge bg-primary ms-2">{{ total_locations }}</span>
+                </h6>
+                <div class="d-flex gap-2">
+                    <div class="btn-group btn-group-sm view-toggle">
+                        <button class="btn btn-outline-primary active" data-view="table" onclick="setViewMode('table')">
+                            <i class="fas fa-table me-1"></i>表格
+                        </button>
+                        <button class="btn btn-outline-primary" data-view="grid" onclick="setViewMode('grid')">
+                            <i class="fas fa-th me-1"></i>网格
+                        </button>
+                    </div>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-secondary" onclick="refreshLocations()">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
             <div class="card-body">
-                <div id="locationsContent">
-                    <!-- 动态加载库位内容 -->
+                <!-- 表格视图 -->
+                <div id="tableView">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>库位代码</th>
+                                    <th>层级</th>
+                                    <th>位置</th>
+                                    <th>侧面</th>
+                                    <th>状态</th>
+                                    <th>库存/容量</th>
+                                    <th>利用率</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for location in locations %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ location.location_code }}</strong>
+                                        {% if location.description %}
+                                        <br><small class="text-muted">{{ location.description }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ location.level or '-' }}</td>
+                                    <td>{{ location.position or '-' }}</td>
+                                    <td>{{ location.side or '-' }}</td>
+                                    <td>
+                                        {% if location.variety_count == 0 %}
+                                        <span class="badge bg-success">空闲</span>
+                                        {% elif location.status_category in ['all_low_stock', 'partial_low_stock'] %}
+                                        <span class="badge bg-warning">低库存</span>
+                                        {% elif location.status_category in ['all_out_of_stock', 'partial_out_of_stock'] %}
+                                        <span class="badge bg-danger">缺货</span>
+                                        {% else %}
+                                        <span class="badge bg-primary">使用中</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <span class="fw-bold me-2">{{ location.total_quantity }}/{{ location.capacity }}</span>
+                                            <div class="progress flex-grow-1" style="height: 6px; width: 80px;">
+                                                <div class="progress-bar {{ 'bg-warning' if location.capacity > 0 and location.total_quantity/location.capacity >= 0.8 else 'bg-success' }}"
+                                                     style="width: {{ (location.total_quantity/location.capacity*100)|round|int if location.capacity > 0 else 0 }}%">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if location.capacity > 0 %}
+                                        {{ (location.total_quantity/location.capacity*100)|round|int }}%
+                                        {% else %}
+                                        0%
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{{ url_for('location_detail', location_code=location.location_code) }}"
+                                               class="btn btn-outline-primary" title="查看详情">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="{{ url_for('edit_location', location_code=location.location_code) }}"
+                                               class="btn btn-outline-secondary" title="编辑">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
+
+                <!-- 网格视图 -->
+                <div id="gridView" class="d-none">
+                    <div class="locations-grid">
+                        {% for location in locations %}
+                        <div class="grid-location-card">
+                            <div class="location-status {{ 'free' if location.variety_count == 0 else 'in_use' }}"></div>
+
+                            <h6 class="mb-2">{{ location.location_code }}</h6>
+
+                            <div class="small text-muted mb-2">
+                                <div>层级: {{ location.level or '-' }}</div>
+                                <div>位置: {{ location.position or '-' }}</div>
+                                <div>侧面: {{ location.side or '-' }}</div>
+                            </div>
+
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="badge bg-{{ 'success' if location.variety_count == 0 else 'primary' }}">
+                                        {{ '空闲' if location.variety_count == 0 else '使用中' }}
+                                    </span>
+                                    <small class="text-muted">{{ location.total_quantity }}/{{ location.capacity }}</small>
+                                </div>
+                                <div class="capacity-indicator">
+                                    <div class="capacity-fill" style="width: {{ (location.total_quantity/location.capacity*100)|round|int if location.capacity > 0 else 0 }}%"></div>
+                                </div>
+                                <div class="text-center small text-muted mt-1">
+                                    利用率: {{ (location.total_quantity/location.capacity*100)|round|int if location.capacity > 0 else 0 }}%
+                                </div>
+                            </div>
+
+                            <div class="btn-group w-100">
+                                <a href="{{ url_for('location_detail', location_code=location.location_code) }}"
+                                   class="btn btn-outline-primary btn-sm">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{{ url_for('edit_location', location_code=location.location_code) }}"
+                                   class="btn btn-outline-secondary btn-sm">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                {% if not locations %}
+                <div class="empty-state">
+                    <i class="fas fa-inbox"></i>
+                    <h5 class="text-muted">此货架暂无库位</h5>
+                    <p class="text-muted">点击下方按钮添加库位到此货架</p>
+                    <a href="{{ url_for('add_location') }}?rack={{ rack_code }}" class="btn btn-primary">
+                        <i class="fas fa-plus me-1"></i>添加库位
+                    </a>
+                </div>
+                {% endif %}
+
+                <!-- 分页控件 -->
+                {% if total_pages > 1 %}
+                <nav aria-label="库位列表分页" class="mt-4">
+                    <ul class="pagination justify-content-center">
+                        <!-- 上一页 -->
+                        <li class="page-item {% if page == 1 %}disabled{% endif %}">
+                            <a class="page-link" href="{{ url_for('rack_detail', rack_code=rack_code, page=page-1) if page > 1 else '#' }}">
+                                <i class="fas fa-chevron-left"></i>
+                            </a>
+                        </li>
+
+                        <!-- 页码 -->
+                        {% for p in range(1, total_pages + 1) %}
+                            {% if p >= page-2 and p <= page+2 %}
+                            <li class="page-item {% if p == page %}active{% endif %}">
+                                <a class="page-link" href="{{ url_for('rack_detail', rack_code=rack_code, page=p) }}">{{ p }}</a>
+                            </li>
+                            {% endif %}
+                        {% endfor %}
+
+                        <!-- 下一页 -->
+                        <li class="page-item {% if page == total_pages %}disabled{% endif %}">
+                            <a class="page-link" href="{{ url_for('rack_detail', rack_code=rack_code, page=page+1) if page < total_pages else '#' }}">
+                                <i class="fas fa-chevron-right"></i>
+                            </a>
+                        </li>
+                    </ul>
+
+                    <!-- 分页信息 -->
+                    <div class="text-center text-muted mt-2">
+                        <small>显示第 {{ ((page-1)*20 + 1) if locations else 0 }} - {{ [page*20, total_locations]|min }} 个库位，共 {{ total_locations }} 个</small>
+                    </div>
+                </nav>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -109,449 +590,72 @@
 
 {% block scripts %}
 <script>
-// 全局状态
-let rackData = null;
+// 当前视图模式
 let currentViewMode = 'table';
 
 // 页面加载完成后初始化
 document.addEventListener('DOMContentLoaded', function() {
-    loadRackDetailData();
+    // 设置初始视图模式
+    setViewMode('table');
+
+    // 更新分页信息显示
+    updatePaginationInfo();
 });
 
-// 增强的加载函数
-async function loadRackDetailData() {
-    try {
-        showLoading('正在加载货架详情数据...');
+// 设置视图模式
+function setViewMode(mode) {
+    currentViewMode = mode;
 
-        // 先检查健康状态
-        const healthResponse = await fetch('/api/health');
-        if (!healthResponse.ok) {
-            throw new Error('服务器健康检查失败');
-        }
+    // 更新按钮状态
+    document.querySelectorAll('.view-toggle .btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.querySelector(`.view-toggle .btn[data-view="${mode}"]`).classList.add('active');
 
-        const healthData = await healthResponse.json();
-        if (!healthData.success) {
-            throw new Error('数据库连接异常: ' + (healthData.error || '未知错误'));
-        }
+    // 显示对应的视图
+    const tableView = document.getElementById('tableView');
+    const gridView = document.getElementById('gridView');
 
-        // 加载货架详情数据
-        const response = await fetch(`/api/racks/{{ rack_code }}/detail`);
-
-        if (!response.ok) {
-            throw new Error(`HTTP错误: ${response.status}`);
-        }
-
-        const data = await response.json();
-
-        if (data.success) {
-            rackData = data.rack;
-            renderRackOverview();
-            renderRackStructure();
-            renderLocationsContent();
-            hideLoading();
-
-            showSuccess(`成功加载货架 {{ rack_code }} 的详细信息`);
-        } else {
-            throw new Error(data.error || data.message || '未知错误');
-        }
-    } catch (error) {
-        console.error('加载货架详情数据失败:', error);
-        hideLoading();
-
-        let errorMsg = '网络错误，请稍后重试';
-        if (error.name === 'TypeError') {
-            errorMsg = '网络连接失败，请检查服务器状态';
-        } else if (error.message.includes('HTTP')) {
-            errorMsg = `服务器错误: ${error.message}`;
-        } else if (error.message.includes('数据库')) {
-            errorMsg = error.message;
-        }
-
-        showError(errorMsg);
-        showErrorIndicator(errorMsg);
-    }
-}
-
-// 显示加载指示器
-function showLoading(message = '正在加载...') {
-    const loadingIndicator = document.getElementById('loadingIndicator');
-    const loadingMessage = document.getElementById('loadingMessage');
-    const rackOverview = document.getElementById('rackOverview');
-    const errorIndicator = document.getElementById('errorIndicator');
-
-    if (loadingMessage) loadingMessage.textContent = message;
-    if (loadingIndicator) loadingIndicator.classList.remove('d-none');
-    if (rackOverview) rackOverview.classList.add('d-none');
-    if (errorIndicator) errorIndicator.classList.add('d-none');
-}
-
-// 隐藏加载指示器
-function hideLoading() {
-    const loadingIndicator = document.getElementById('loadingIndicator');
-    const rackOverview = document.getElementById('rackOverview');
-
-    if (loadingIndicator) loadingIndicator.classList.add('d-none');
-    if (rackOverview) rackOverview.classList.remove('d-none');
-}
-
-// 显示错误指示器
-function showErrorIndicator(errorMessage) {
-    const errorIndicator = document.getElementById('errorIndicator');
-    const errorDetail = document.getElementById('errorDetail');
-    const rackOverview = document.getElementById('rackOverview');
-
-    if (errorDetail) errorDetail.textContent = errorMessage;
-    if (errorIndicator) errorIndicator.classList.remove('d-none');
-    if (rackOverview) rackOverview.classList.add('d-none');
-}
-
-// 隐藏错误指示器
-function hideErrorIndicator() {
-    const errorIndicator = document.getElementById('errorIndicator');
-    if (errorIndicator) errorIndicator.classList.add('d-none');
-}
-
-// 渲染货架概览
-function renderRackOverview() {
-    if (!rackData) return;
-
-    const rackOverview = document.getElementById('rackOverview');
-    if (!rackOverview) return;
-
-    const stats = rackData.stats || {};
-
-    rackOverview.innerHTML = `
-        <div class="col-md-3">
-            <div class="card stat-card">
-                <div class="card-body text-center">
-                    <i class="fas fa-cube text-primary"></i>
-                    <div class="number">${stats.total_locations || 0}</div>
-                    <div class="text-muted">总库位数</div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card stat-card">
-                <div class="card-body text-center">
-                    <i class="fas fa-check-circle text-success"></i>
-                    <div class="number">${stats.free_count || 0}</div>
-                    <div class="text-muted">空闲库位</div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card stat-card">
-                <div class="card-body text-center">
-                    <i class="fas fa-box-open text-primary"></i>
-                    <div class="number">${stats.in_use_count || 0}</div>
-                    <div class="text-muted">使用中</div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card stat-card">
-                <div class="card-body text-center">
-                    <i class="fas fa-exclamation-triangle text-warning"></i>
-                    <div class="number">${stats.low_stock_count || 0}</div>
-                    <div class="text-muted">低库存</div>
-                </div>
-            </div>
-        </div>
-    `;
-}
-
-// 渲染货架结构
-function renderRackStructure() {
-    if (!rackData) return;
-
-    const rackStructure = document.getElementById('rackStructure');
-    if (!rackStructure) return;
-
-    rackStructure.innerHTML = `
-        <div class="mb-3">
-            <h6 class="text-muted mb-2">层级 (Levels)</h6>
-            <div class="d-flex flex-wrap gap-1">
-                ${rackData.levels && rackData.levels.length > 0 ?
-                    rackData.levels.map(level => `<span class="badge bg-primary">${level}</span>`).join('') :
-                    '<span class="text-muted">暂无层级数据</span>'
-                }
-            </div>
-        </div>
-
-        <div class="mb-3">
-            <h6 class="text-muted mb-2">侧面 (Sides)</h6>
-            <div class="d-flex flex-wrap gap-1">
-                ${rackData.sides && rackData.sides.length > 0 ?
-                    rackData.sides.map(side => `<span class="badge bg-info">${side}</span>`).join('') :
-                    '<span class="text-muted">暂无侧面数据</span>'
-                }
-            </div>
-        </div>
-
-        <div class="mb-3">
-            <h6 class="text-muted mb-2">位置 (Positions)</h6>
-            <div class="d-flex flex-wrap gap-1">
-                ${rackData.positions && rackData.positions.length > 0 ?
-                    rackData.positions.map(position => `<span class="badge bg-success">${position}</span>`).join('') :
-                    '<span class="text-muted">暂无位置数据</span>'
-                }
-            </div>
-        </div>
-    `;
-}
-
-// 渲染库位内容
-function renderLocationsContent() {
-    if (!rackData) return;
-
-    const locationsContent = document.getElementById('locationsContent');
-    if (!locationsContent) return;
-
-    const locations = rackData.locations || [];
-
-    if (locations.length === 0) {
-        locationsContent.innerHTML = `
-            <div class="text-center py-5">
-                <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
-                <h5 class="text-muted">此货架暂无库位</h5>
-                <p class="text-muted">点击下方按钮添加库位到此货架</p>
-                <a href="{{ url_for('add_location') }}?rack={{ rack_code }}" class="btn btn-primary">
-                    <i class="fas fa-plus me-1"></i>添加库位
-                </a>
-            </div>
-        `;
-        return;
-    }
-
-    if (currentViewMode === 'table') {
-        renderTableView(locations);
+    if (mode === 'table') {
+        tableView.classList.remove('d-none');
+        gridView.classList.add('d-none');
     } else {
-        renderGridView(locations);
+        tableView.classList.add('d-none');
+        gridView.classList.remove('d-none');
     }
-}
-
-// 渲染表格视图
-function renderTableView(locations) {
-    const locationsContent = document.getElementById('locationsContent');
-
-    locationsContent.innerHTML = `
-        <div class="table-responsive">
-            <table class="table table-hover">
-                <thead>
-                    <tr>
-                        <th>库位代码</th>
-                        <th>层级</th>
-                        <th>位置</th>
-                        <th>侧面</th>
-                        <th>状态</th>
-                        <th>库存/容量</th>
-                        <th>利用率</th>
-                        <th>操作</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${locations.map(location => `
-                        <tr>
-                            <td><strong>${location.location_code}</strong></td>
-                            <td>${location.level || '-'}</td>
-                            <td>${location.position || '-'}</td>
-                            <td>${location.side || '-'}</td>
-                            <td>
-                                ${getStatusBadge(location)}
-                            </td>
-                            <td>
-                                <div class="d-flex align-items-center">
-                                    <span class="fw-bold me-2">${location.total_quantity || 0}/${location.capacity || 0}</span>
-                                    <div class="progress flex-grow-1" style="height: 6px; width: 80px;">
-                                        <div class="progress-bar ${getProgressBarClass(location)}"
-                                             style="width: ${calculateUtilization(location)}%">
-                                        </div>
-                                    </div>
-                                </div>
-                            </td>
-                            <td>${calculateUtilization(location)}%</td>
-                            <td>
-                                <div class="btn-group btn-group-sm">
-                                    <a href="/location_detail/${location.location_code}"
-                                       class="btn btn-outline-primary" title="查看详情">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
-                                    <a href="/edit_location/${location.location_code}"
-                                       class="btn btn-outline-secondary" title="编辑">
-                                        <i class="fas fa-edit"></i>
-                                    </a>
-                                </div>
-                            </td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-            </table>
-        </div>
-    `;
-}
-
-// 渲染网格视图
-function renderGridView(locations) {
-    const locationsContent = document.getElementById('locationsContent');
-
-    locationsContent.innerHTML = `
-        <div class="row g-3" id="locationsGrid">
-            ${locations.map(location => `
-                <div class="col-md-4 col-lg-3">
-                    <div class="card location-card h-100">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-start mb-2">
-                                <h6 class="card-title mb-0">${location.location_code}</h6>
-                                ${getStatusBadge(location)}
-                            </div>
-                            <div class="small text-muted mb-2">
-                                <div>层级: ${location.level || '-'}</div>
-                                <div>位置: ${location.position || '-'}</div>
-                                <div>侧面: ${location.side || '-'}</div>
-                            </div>
-                            <div class="mb-3">
-                                <div class="d-flex justify-content-between align-items-center mb-1">
-                                    <small>库存/容量</small>
-                                    <small class="fw-bold">${location.total_quantity || 0}/${location.capacity || 0}</small>
-                                </div>
-                                <div class="progress" style="height: 4px;">
-                                    <div class="progress-bar ${getProgressBarClass(location)}"
-                                         style="width: ${calculateUtilization(location)}%">
-                                    </div>
-                                </div>
-                                <div class="text-center small text-muted mt-1">
-                                    利用率: ${calculateUtilization(location)}%
-                                </div>
-                            </div>
-                            <div class="btn-group w-100">
-                                <a href="/location_detail/${location.location_code}"
-                                   class="btn btn-outline-primary btn-sm">
-                                    <i class="fas fa-eye"></i>
-                                </a>
-                                <a href="/edit_location/${location.location_code}"
-                                   class="btn btn-outline-secondary btn-sm">
-                                    <i class="fas fa-edit"></i>
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `).join('')}
-        </div>
-    `;
-}
-
-// 工具函数
-function getStatusBadge(location) {
-    if (location.variety_count === 0) {
-        return '<span class="badge bg-success">空闲</span>';
-    } else if (location.status_category === 'low_stock') {
-        return '<span class="badge bg-warning">低库存</span>';
-    } else {
-        return '<span class="badge bg-primary">使用中</span>';
-    }
-}
-
-function getProgressBarClass(location) {
-    const utilization = calculateUtilization(location);
-    if (utilization >= 80) {
-        return 'bg-warning';
-    } else if (utilization >= 90) {
-        return 'bg-danger';
-    } else {
-        return 'bg-success';
-    }
-}
-
-function calculateUtilization(location) {
-    if (!location.capacity || location.capacity === 0) return 0;
-    const utilization = ((location.total_quantity || 0) / location.capacity) * 100;
-    return Math.round(utilization);
-}
-
-// 视图切换
-function toggleViewMode() {
-    currentViewMode = currentViewMode === 'table' ? 'grid' : 'table';
-    if (rackData) {
-        renderLocationsContent();
-    }
-    showInfo(`已切换到${currentViewMode === 'table' ? '表格' : '网格'}视图`);
 }
 
 // 刷新数据
-function refreshRackData() {
-    loadRackDetailData();
+function refreshData() {
+    window.location.reload();
 }
 
-// 连接测试
-async function testConnection() {
-    try {
-        showLoading('正在测试连接...');
-
-        const tests = [
-            { name: '应用健康检查', url: '/api/health' },
-            { name: '货架详情API', url: `/api/racks/{{ rack_code }}/detail` }
-        ];
-
-        let results = '';
-
-        for (const test of tests) {
-            try {
-                const response = await fetch(test.url);
-                const data = await response.json();
-                results += `<div class="mb-2">
-                    <span class="badge bg-${data.success ? 'success' : 'danger'} me-2">${data.success ? '✓' : '✗'}</span>
-                    ${test.name}: ${data.success ? '正常' : data.error || '失败'}
-                </div>`;
-            } catch (e) {
-                results += `<div class="mb-2">
-                    <span class="badge bg-danger me-2">✗</span>
-                    ${test.name}: 连接失败 - ${e.message}
-                </div>`;
-            }
-        }
-
-        hideLoading();
-
-        // 显示测试结果
-        const errorDetail = document.getElementById('errorDetail');
-        if (errorDetail) {
-            errorDetail.innerHTML = `<div class="text-start">${results}</div>`;
-        }
-
-    } catch (error) {
-        hideLoading();
-        showError('连接测试失败: ' + error.message);
-    }
+// 刷新库位数据
+function refreshLocations() {
+    // 这里可以添加AJAX刷新逻辑，暂时使用页面刷新
+    refreshData();
 }
 
-// 简易视图模式
-function showSimpleView() {
-    // 隐藏复杂的货架详情，显示简单的库位列表
-    const rackStructure = document.querySelector('.col-md-3 .card');
-    const locationsCard = document.querySelector('.col-md-9 .card');
-
-    if (rackStructure) rackStructure.style.display = 'none';
-    if (locationsCard) locationsCard.classList.add('col-12');
-
-    showInfo('已切换到简易视图模式');
-
-    // 强制重新加载数据
-    loadRackDetailData();
-}
-
-// 导出功能
+// 导出货架数据
 function exportRackData() {
-    if (!rackData) {
-        showError('暂无数据可导出');
-        return;
-    }
-
     // 创建导出数据
     const exportData = {
         rack_code: '{{ rack_code }}',
         export_time: new Date().toISOString(),
-        data: rackData
+        statistics: {
+            total_locations: {{ total_locations }},
+            in_use_count: {{ in_use_count }},
+            free_count: {{ free_count }},
+            low_stock_count: {{ low_stock_count }},
+            total_capacity: {{ total_capacity }},
+            total_quantity: {{ total_quantity }},
+            utilization_rate: {{ utilization_rate }}
+        },
+        structure: {
+            levels: {{ levels|tojson }},
+            sides: {{ sides|tojson }},
+            positions: {{ positions|tojson }}
+        }
     };
 
     // 创建下载链接
@@ -559,34 +663,34 @@ function exportRackData() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `rack_{{ rack_code }}_${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `rack_{{ rack_code }}_export_${new Date().toISOString().split('T')[0]}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
-    showSuccess('数据导出成功');
+    showSuccess('货架数据导出成功');
 }
 
-// 消息提示函数
+// 更新分页信息
+function updatePaginationInfo() {
+    const currentPage = {{ page }};
+    const totalPages = {{ total_pages }};
+    const totalLocations = {{ total_locations }};
+
+    const startItem = ((currentPage - 1) * 20) + 1;
+    const endItem = Math.min(currentPage * 20, totalLocations);
+
+    console.log(`分页信息: 第 ${startItem}-${endItem} 项，共 ${totalLocations} 项`);
+}
+
+// 显示成功消息
 function showSuccess(message) {
-    flashMessage(message, 'success');
-}
-
-function showError(message) {
-    flashMessage(message, 'danger');
-}
-
-function showInfo(message) {
-    flashMessage(message, 'info');
-}
-
-function flashMessage(message, type) {
     const alert = document.createElement('div');
-    alert.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    alert.className = 'alert alert-success alert-dismissible fade show position-fixed';
     alert.style.cssText = 'top: 20px; right: 20px; z-index: 1060; min-width: 300px;';
     alert.innerHTML = `
-        ${message}
+        <i class="fas fa-check-circle me-2"></i>${message}
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     `;
     document.body.appendChild(alert);
@@ -595,34 +699,37 @@ function flashMessage(message, type) {
         if (alert.parentNode) {
             alert.remove();
         }
-    }, 5000);
+    }, 3000);
 }
+
+// 键盘快捷键
+document.addEventListener('keydown', function(e) {
+    // Ctrl+R 刷新数据
+    if (e.ctrlKey && e.key === 'r') {
+        e.preventDefault();
+        refreshData();
+    }
+
+    // Escape 键取消选择等
+    if (e.key === 'Escape') {
+        // 可以添加取消选择的逻辑
+    }
+});
+
+// 响应式调整
+function handleResize() {
+    if (window.innerWidth < 768) {
+        // 在小屏幕上默认使用网格视图
+        if (currentViewMode === 'table') {
+            setViewMode('grid');
+        }
+    }
+}
+
+// 监听窗口大小变化
+window.addEventListener('resize', handleResize);
+
+// 初始检查
+handleResize();
 </script>
-
-<style>
-.location-card {
-    transition: all 0.3s ease;
-    border: 1px solid #e9ecef;
-}
-
-.location-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-}
-
-.stat-card {
-    transition: all 0.3s ease;
-}
-
-.stat-card:hover {
-    transform: translateY(-2px);
-}
-
-#loadingIndicator {
-    min-height: 200px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-</style>
 {% endblock %}
