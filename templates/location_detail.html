@@ -248,6 +248,13 @@
         width: 100%;
     }
 }
+
+/* 指标说明样式 */
+.metric-explanation {
+    font-size: 0.8rem;
+    color: #6c757d;
+    margin-top: 0.25rem;
+}
 </style>
 {% endblock %}
 
@@ -262,6 +269,10 @@
             </h1>
             <p class="page-subtitle mb-0">
                 查看库位详细信息、库存状态和相关备件
+                <i class="fas fa-info-circle ms-1"
+                   data-bs-toggle="tooltip"
+                   data-bs-placement="right"
+                   title="基于专业库位统计指标体系的详细视图"></i>
             </p>
         </div>
         <div class="action-buttons">
@@ -328,7 +339,13 @@
                         <div class="fw-bold">{{ location.side or '-' }}</div>
                     </div>
                     <div class="col-6">
-                        <div class="text-muted small">容量</div>
+                        <div class="text-muted small d-flex align-items-center">
+                            容量
+                            <i class="fas fa-info-circle text-muted ms-1"
+                               data-bs-toggle="tooltip"
+                               data-bs-placement="top"
+                               title="该库位可容纳的最大备件数量"></i>
+                        </div>
                         <div class="fw-bold">{{ location.capacity or 0 }}</div>
                     </div>
                 </div>
@@ -353,6 +370,16 @@
                 <h5 class="card-title">
                     <i class="fas fa-heartbeat"></i>
                     库存健康状态
+                    <i class="fas fa-info-circle text-muted ms-1"
+                       data-bs-toggle="tooltip"
+                       data-bs-placement="top"
+                       title="基于专业库位状态分类系统的评估结果：
+                       • 健康状态良好：库存充足，无预警
+                       • 空置库位：未存放任何备件
+                       • 全部缺货：所有备件库存为0
+                       • 部分缺货：部分备件库存为0
+                       • 全部低库存：所有备件库存低于最小库存
+                       • 部分低库存：部分备件库存低于最小库存"></i>
                 </h5>
             </div>
             <div class="card-body">
@@ -380,13 +407,25 @@
                 <div class="row">
                     <div class="col-6">
                         <div class="text-center p-2">
-                            <div class="text-muted small">低库存备件</div>
+                            <div class="text-muted small d-flex align-items-center justify-content-center">
+                                低库存备件
+                                <i class="fas fa-info-circle text-muted ms-1"
+                                   data-bs-toggle="tooltip"
+                                   data-bs-placement="top"
+                                   title="库存低于最小库存的备件种类数"></i>
+                            </div>
                             <div class="h4 text-warning">{{ exact_stats.low_stock_count }}</div>
                         </div>
                     </div>
                     <div class="col-6">
                         <div class="text-center p-2">
-                            <div class="text-muted small">缺货备件</div>
+                            <div class="text-muted small d-flex align-items-center justify-content-center">
+                                缺货备件
+                                <i class="fas fa-info-circle text-muted ms-1"
+                                   data-bs-toggle="tooltip"
+                                   data-bs-placement="top"
+                                   title="库存为0的备件种类数"></i>
+                            </div>
                             <div class="h4 text-danger">{{ exact_stats.out_of_stock_count }}</div>
                         </div>
                     </div>
@@ -400,42 +439,50 @@
         <!-- 统计概览 -->
         <div class="row mb-4">
             <div class="col-md-3 col-6">
-                <div class="stat-card">
+                <div class="stat-card" data-bs-toggle="tooltip"
+                     title="该库位上存储的不同备件类型数量">
                     <div class="stat-icon bg-primary bg-opacity-10 text-primary">
                         <i class="fas fa-boxes"></i>
                     </div>
                     <div class="stat-value text-primary">{{ exact_stats.part_count }}</div>
                     <div class="stat-label">备件种类</div>
+                    <div class="metric-explanation">variety_count</div>
                 </div>
             </div>
 
             <div class="col-md-3 col-6">
-                <div class="stat-card">
+                <div class="stat-card" data-bs-toggle="tooltip"
+                     title="该库位上所有备件的库存总量">
                     <div class="stat-icon bg-success bg-opacity-10 text-success">
                         <i class="fas fa-layer-group"></i>
                     </div>
                     <div class="stat-value text-success">{{ exact_stats.total_stock }}</div>
                     <div class="stat-label">库存总量</div>
+                    <div class="metric-explanation">total_quantity</div>
                 </div>
             </div>
 
             <div class="col-md-3 col-6">
-                <div class="stat-card">
+                <div class="stat-card" data-bs-toggle="tooltip"
+                     title="库存数量占库位容量的百分比">
                     <div class="stat-icon bg-info bg-opacity-10 text-info">
                         <i class="fas fa-chart-line"></i>
                     </div>
                     <div class="stat-value text-info">{{ utilization_rate }}%</div>
                     <div class="stat-label">库位利用率</div>
+                    <div class="metric-explanation">utilization_rate</div>
                 </div>
             </div>
 
             <div class="col-md-3 col-6">
-                <div class="stat-card">
+                <div class="stat-card" data-bs-toggle="tooltip"
+                     title="该库位所有备件的总价值（数量×单价）">
                     <div class="stat-icon bg-warning bg-opacity-10 text-warning">
                         <i class="fas fa-money-bill-wave"></i>
                     </div>
                     <div class="stat-value text-warning">¥{{ "%.2f"|format(exact_stats.total_value) }}</div>
                     <div class="stat-label">库存价值</div>
+                    <div class="metric-explanation">total_value</div>
                 </div>
             </div>
         </div>
@@ -446,6 +493,13 @@
                 <h5 class="card-title">
                     <i class="fas fa-tachometer-alt"></i>
                     容量使用情况
+                    <i class="fas fa-info-circle text-muted ms-1"
+                       data-bs-toggle="tooltip"
+                       data-bs-placement="top"
+                       title="空间效率指标：
+                       • ＜70%：利用率适中
+                       • 70-90%：高利用率（黄色警示）
+                       • ≥90%：接近满载（红色警示）"></i>
                 </h5>
             </div>
             <div class="capacity-container">
@@ -458,6 +512,17 @@
                 </div>
                 <div class="utilization-text">
                     库位利用率: {{ utilization_rate }}%
+                    <i class="fas fa-info-circle text-muted ms-1"
+                       data-bs-toggle="tooltip"
+                       data-bs-placement="top"
+                       title="{{ utilization_rate }}% 属于
+                       {% if utilization_rate >= 90 %}
+                       满载状态（需要关注扩容）
+                       {% elif utilization_rate >= 70 %}
+                       高利用率状态（建议监控）
+                       {% else %}
+                       正常利用率状态
+                       {% endif %}"></i>
                     {% if utilization_rate >= 90 %}
                     <span class="text-danger">(接近满载)</span>
                     {% elif utilization_rate >= 70 %}
@@ -494,8 +559,21 @@
                                 <th>备件编号</th>
                                 <th>名称</th>
                                 <th>类型</th>
-                                <th>库存状态</th>
-                                <th>库存量</th>
+                                <th>库存状态
+                                    <i class="fas fa-info-circle text-muted ms-1"
+                                       data-bs-toggle="tooltip"
+                                       data-bs-placement="top"
+                                       title="基于备件当前库存和最小库存判断：
+                                       • 缺货：库存为0
+                                       • 低库存：库存≤最小库存
+                                       • 充足：库存＞最小库存"></i>
+                                </th>
+                                <th>库存量
+                                    <i class="fas fa-info-circle text-muted ms-1"
+                                       data-bs-toggle="tooltip"
+                                       data-bs-placement="top"
+                                       title="当前库存/最大库存"></i>
+                                </th>
                                 <th>单价</th>
                                 {% if available_routes.has_edit_part or available_routes.has_part_detail %}
                                 <th>操作</th>
@@ -592,30 +670,53 @@
             </div>
         </div>
 
-        <!-- 快速操作 -->
+        <!-- 指标说明卡片 -->
         <div class="card detail-card">
             <div class="card-header-custom">
                 <h5 class="card-title">
-                    <i class="fas fa-bolt"></i>
-                    快速操作
+                    <i class="fas fa-chart-bar"></i>
+                    专业库位统计指标体系
                 </h5>
             </div>
             <div class="card-body">
                 <div class="row">
-                    {% if available_routes.has_add_operation %}
-                    <div class="col-md-6 mb-2">
-                        <!-- 备件操作 -->
-                        <a href="{{ url_for('add_operation') }}?location={{ location.location_code }}"
-                           class="btn btn-success w-100">
-                            <i class="fas fa-exchange-alt me-1"></i>备件操作
-                        </a>
+                    <div class="col-md-6">
+                        <h6>核心统计量定义：</h6>
+                        <ul class="list-unstyled mb-3">
+                            <li class="mb-2">
+                                <strong>备件种类数 (variety_count)</strong>
+                                <div class="text-muted small">该库位上存储的不同备件类型数量</div>
+                            </li>
+                            <li class="mb-2">
+                                <strong>总库存数量 (total_quantity)</strong>
+                                <div class="text-muted small">该库位上所有备件的库存总量</div>
+                            </li>
+                            <li class="mb-2">
+                                <strong>容量利用率 (utilization_rate)</strong>
+                                <div class="text-muted small">库存数量占库位容量的百分比</div>
+                            </li>
+                            <li class="mb-2">
+                                <strong>库存价值 (total_value)</strong>
+                                <div class="text-muted small">该库位所有备件的总价值</div>
+                            </li>
+                        </ul>
                     </div>
-                    {% endif %}
-
-                    <div class="{% if available_routes.has_add_operation %}col-md-6{% else %}col-12{% endif %} mb-2">
-                        <button class="btn btn-info w-100" onclick="refreshLocationMetrics()">
-                            <i class="fas fa-sync-alt me-1"></i>刷新统计
-                        </button>
+                    <div class="col-md-6">
+                        <h6>状态分类系统：</h6>
+                        <div class="d-flex flex-wrap gap-2 mb-3">
+                            <span class="badge bg-success">正常</span>
+                            <span class="badge bg-warning">低库存</span>
+                            <span class="badge bg-danger">缺货</span>
+                            <span class="badge bg-info">使用中</span>
+                            <span class="badge bg-secondary">空闲</span>
+                        </div>
+                        <h6>评估维度：</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-ruler me-2"></i>空间效率 - 利用率、容量使用</li>
+                            <li><i class="fas fa-heartbeat me-2"></i>库存健康度 - 缺货率、低库存率</li>
+                            <li><i class="fas fa-money-bill-wave me-2"></i>价值贡献 - 库存总价值</li>
+                            <li><i class="fas fa-tachometer-alt me-2"></i>运营效率 - 库位周转率</li>
+                        </ul>
                     </div>
                 </div>
             </div>
@@ -722,6 +823,12 @@ function showError(message) {
 // 页面加载完成后初始化
 document.addEventListener('DOMContentLoaded', function() {
     console.log('库位详情页面已加载');
+
+    // 初始化工具提示
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
 });
 
 // 键盘快捷键

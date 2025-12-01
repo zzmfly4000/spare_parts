@@ -27,36 +27,41 @@
                         <i class="fas fa-pallet text-primary me-2"></i>
                         {{ rack.rack_code }}
                     </h5>
-                    <span class="badge bg-primary">{{ rack.utilization }}%</span>
+                    <span class="badge bg-primary" data-bs-toggle="tooltip"
+                          title="该货架的空间利用率">{{ rack.utilization }}%</span>
                 </div>
-                
+
                 <div class="rack-stats mb-3">
                     <div class="row text-center">
-                        <div class="col-4">
+                        <div class="col-4" data-bs-toggle="tooltip"
+                             title="该货架包含的库位总数">
                             <div class="stat-number text-primary">{{ rack.total_locations }}</div>
                             <small class="text-muted">总库位</small>
                         </div>
-                        <div class="col-4">
+                        <div class="col-4" data-bs-toggle="tooltip"
+                             title="存放了备件的库位数量">
                             <div class="stat-number text-success">{{ rack.in_use_locations }}</div>
                             <small class="text-muted">使用中</small>
                         </div>
-                        <div class="col-4">
+                        <div class="col-4" data-bs-toggle="tooltip"
+                             title="未存放备件的库位数量">
                             <div class="stat-number text-secondary">{{ rack.free_locations }}</div>
                             <small class="text-muted">空闲</small>
                         </div>
                     </div>
                 </div>
-                
-                <div class="progress mb-3" style="height: 8px;">
+
+                <div class="progress mb-3" style="height: 8px;" data-bs-toggle="tooltip"
+                     title="空间利用率: {{ rack.utilization }}%">
                     <div class="progress-bar bg-success" style="width: {{ rack.utilization }}%"></div>
                 </div>
-                
+
                 <div class="rack-actions">
-                    <a href="{{ url_for('rack_detail', rack_code=rack.rack_code) }}" 
+                    <a href="{{ url_for('rack_detail', rack_code=rack.rack_code) }}"
                        class="btn btn-primary btn-sm w-100 mb-2">
                         <i class="fas fa-info-circle me-1"></i>查看详情
                     </a>
-                    <a href="{{ url_for('location_management') }}?rack_filter={{ rack.rack_code }}" 
+                    <a href="{{ url_for('location_management') }}?rack_filter={{ rack.rack_code }}"
                        class="btn btn-outline-secondary btn-sm w-100">
                         <i class="fas fa-warehouse me-1"></i>查看库位
                     </a>
@@ -83,17 +88,23 @@
     <div class="col-12">
         <div class="card">
             <div class="card-header">
-                <h6 class="card-title mb-0">货架统计概览</h6>
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-chart-pie me-2"></i>货架统计概览
+                    <i class="fas fa-info-circle text-muted ms-1"
+                       data-bs-toggle="tooltip"
+                       data-bs-placement="top"
+                       title="基于专业库位统计指标体系计算的聚合数据"></i>
+                </h6>
             </div>
             <div class="card-body">
                 <div class="row text-center">
-                    <div class="col-md-3">
+                    <div class="col-md-3" data-bs-toggle="tooltip" title="系统中所有货架的数量">
                         <div class="stat-card">
                             <div class="number text-primary">{{ total_racks }}</div>
                             <div class="text-muted">总货架数</div>
                         </div>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-3" data-bs-toggle="tooltip" title="至少有一个库位存放备件的货架数量">
                         <div class="stat-card">
                             <div class="number text-success">
                                 {{ racks|selectattr('in_use_locations', 'gt', 0)|list|length }}
@@ -101,7 +112,7 @@
                             <div class="text-muted">使用中货架</div>
                         </div>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-3" data-bs-toggle="tooltip" title="所有货架利用率的平均值">
                         <div class="stat-card">
                             <div class="number text-info">
                                 {{ "%.1f"|format(racks|map(attribute='utilization')|sum / total_racks) }}%
@@ -109,7 +120,7 @@
                             <div class="text-muted">平均利用率</div>
                         </div>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-3" data-bs-toggle="tooltip" title="所有货架的库位总数">
                         <div class="stat-card">
                             <div class="number text-warning">
                                 {{ racks|map(attribute='total_locations')|sum }}
@@ -148,4 +159,17 @@
     padding-bottom: 1rem;
 }
 </style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// 页面加载完成后初始化工具提示
+document.addEventListener('DOMContentLoaded', function() {
+    // 初始化工具提示
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+</script>
 {% endblock %}

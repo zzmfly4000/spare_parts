@@ -1,0 +1,175 @@
+设备备件管理系统 - 专业库位统计指标体系
+📊 概述
+本系统采用全新的专业库位统计指标体系，全面取代原有的简单 part_count 统计方式。新指标体系从空间效率、库存健康度、价值贡献、运营效率四个维度构建完整的评估体系，为仓库精细化管理提供数据支撑。
+
+📋 核心统计量定义与计算
+1. 基础统计量
+统计量	字段名	含义	计算方式	更新时机
+备件种类数	variety_count	该库位上存储的不同备件类型数量	SELECT COUNT(DISTINCT p.id) FROM spare_parts p WHERE p.location = ?	备件分配/移除时
+总库存数量	total_quantity	该库位上所有备件的库存总量	SELECT COALESCE(SUM(p.current_stock), 0) FROM spare_parts p WHERE p.location = ?	任何库存变动时
+容量利用率	utilization_rate	库存数量占库位容量的百分比	(total_quantity / capacity) × 100%	库存变动时
+低库存种类数	low_stock_varieties	库存低于最小库存的备件种类数	COUNT(p.id WHERE p.current_stock ≤ p.min_stock AND p.current_stock > 0)	库存变动时
+缺货种类数	out_of_stock_varieties	库存为0的备件种类数	COUNT(p.id WHERE p.current_stock = 0)	库存变动时
+总价值	total_value	该库位所有备件的总价值	SUM(p.current_stock × p.unit_price)	库存或单价变动时
+🎯 库位状态分类系统
+状态定义与判断逻辑
+基于核心统计量，系统将库位分为8种专业状态：
+
+状态	状态码	判断条件	描述	优先级
+空置	empty	variety_count = 0	未存放任何备件	1
+全部缺货	all_out_of_stock	out_of_stock_varieties = variety_count > 0	存放了备件但全部缺货	2
+部分缺货	partial_out_of_stock	0 < out_of_stock_varieties < variety_count	部分备件缺货	3
+全部低库存	all_low_stock	low_stock_varieties = variety_count > 0 且 out_of_stock_varieties = 0	全部备件处于低库存	4
+部分低库存	partial_low_stock	0 < low_stock_varieties < variety_count 且 out_of_stock_varieties = 0	部分备件低库存	5
+满载	full	utilization_rate ≥ 90%	利用率超过90%	6
+高利用率	high_utilization	70% ≤ utilization_rate < 90%	利用率70%-90%	7
+正常	normal	不符合以上条件	库存充足且利用率适中	8
+状态颜色映射
+状态	颜色	图标	警示级别
+empty	#6c757d (灰)	📦 fa-box-open	信息
+all_out_of_stock	#dc3545 (红)	❌ fa-times-circle	严重
+partial_out_of_stock	#fd7e14 (橙)	⚠️ fa-exclamation-circle	高
+all_low_stock	#ffc107 (黄)	⚠️ fa-exclamation-triangle	中
+partial_low_stock	#0dcaf0 (浅蓝)	ℹ️ fa-info-circle	低
+full	#198754 (深绿)	✅ fa-check-circle	信息
+high_utilization	#0d6efd (蓝)	📈 fa-chart-line	信息
+normal	#28a745 (绿)	✅ fa-check-circle	正常
+📈 聚合统计与专业分析
+1. 库位总体统计
+sql
+-- 整体库位统计
+SELECT 
+    COUNT(*) as total_locations,                      -- 总库位数
+    SUM(CASE WHEN status_category = 'empty' THEN 1 ELSE 0 END) as empty_locations,
+    SUM(CASE WHEN status_category IN ('all_out_of_stock', 'partial_out_of_stock') THEN 1 ELSE 0 END) as out_of_stock_locations,
+    SUM(CASE WHEN status_category IN ('all_low_stock', 'partial_low_stock') THEN 1 ELSE 0 END) as low_stock_locations,
+    SUM(CASE WHEN status_category = 'full' THEN 1 ELSE 0 END) as full_locations,
+    SUM(CASE WHEN status_category = 'high_utilization' THEN 1 ELSE 0 END) as high_utilization_locations,
+    SUM(CASE WHEN status_category = 'normal' THEN 1 ELSE 0 END) as normal_locations,
+    AVG(utilization_rate) as avg_utilization_rate,    -- 平均利用率
+    SUM(total_value) as total_inventory_value         -- 库存总价值
+FROM locations
+2. 货架级统计
+sql
+-- 货架统计
+SELECT 
+    rack,
+    COUNT(*) as total_locations,                      -- 总库位数
+    SUM(variety_count) as total_varieties,           -- 总备件种类数
+    SUM(total_quantity) as total_parts,              -- 总库存数量
+    SUM(capacity) as total_capacity,                 -- 总容量
+    -- 货架利用率
+    CASE 
+        WHEN SUM(capacity) > 0 
+        THEN ROUND(SUM(total_quantity) * 100.0 / SUM(capacity), 2)
+        ELSE 0 
+    END as utilization_rate,
+    -- 库位占用率
+    ROUND(SUM(CASE WHEN variety_count > 0 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 2) as occupancy_rate
+FROM locations
+WHERE rack IS NOT NULL AND rack != ''
+GROUP BY rack
+3. 专业分析指标
+分析维度	指标	计算方式	管理意义
+空间效率	空间利用率分布	统计不同利用率区间(0-30%, 30-70%, 70-90%, 90-100%, >100%)的库位数量	了解空间使用情况，识别浪费
+库位占用率	occupied_locations / total_locations	整体库位使用情况
+价值密度	total_value / capacity	单位容量的价值产出
+库存健康度	缺货率	out_of_stock_locations / total_locations	缺货严重程度
+低库存率	low_stock_locations / total_locations	库存预警程度
+库存健康度	normal_locations / total_locations	整体库存健康程度
+价值分析	单位库位价值	total_inventory_value / occupied_locations	库位平均价值
+单位种类价值	total_inventory_value / SUM(variety_count)	备件种类的平均价值
+ABC分类占比	按价值将库位分为A(前20%)、B(中间30%)、C(后50%)三类	重点管理识别
+运营效率	库位周转率	基于操作记录计算的周转频率	库存流动性分析
+呆滞料识别	长期无变动的库位识别	减少资金积压
+🔄 数据更新机制
+1. 实时更新触发器
+以下操作自动触发库位统计更新：
+
+触发操作	影响字段	更新逻辑
+备件入库/出库	total_quantity, utilization_rate, total_value, status_category	重新计算库存相关指标
+备件信息更新	所有相关字段	重新计算全部指标
+新备件创建	variety_count, total_quantity, total_value, status_category	增加种类数，重新计算
+备件删除	variety_count, total_quantity, total_value, status_category	减少种类数，重新计算
+库位信息变更	utilization_rate, status_category	重新计算利用率和状态
+2. 批量更新接口
+python
+# 手动触发全部更新
+POST /api/locations/refresh_metrics
+
+# 响应
+{
+    "success": true,
+    "updated_count": 125,
+    "message": "成功更新 125 个库位的统计指标"
+}
+
+# 单个库位更新
+POST /api/locations/<location_code>/refresh_metrics
+3. 定时任务配置
+python
+# 后台定时更新（可选）
+# 每30分钟自动刷新
+schedule.every(30).minutes.do(update_all_location_metrics)
+🖥️ 界面显示规则
+1. 首页统计卡片
+卡片	指标	图标	说明
+总库位数	total_locations	🏢 fa-warehouse	仓库总容量
+正常库位	normal_locations	✅ fa-check-circle	状态正常的库位
+问题库位	out_of_stock_locations + low_stock_locations	⚠️ fa-exclamation-triangle	缺货+低库存库位
+平均利用率	avg_utilization_rate	📈 fa-chart-line	空间使用效率
+库存总价值	total_inventory_value	💰 fa-money-bill-wave	库存资产价值
+刷新统计	-	🔄 fa-sync-alt	手动刷新按钮
+2. 库位列表显示
+列	显示内容	格式说明
+状态	状态标签 + 颜色	根据 status_category 显示对应标签
+库位代码	location_code	加粗显示，可点击查看详情
+库存/容量	total_quantity / capacity	数字显示 + 进度条
+利用率	utilization_rate	百分比 + 颜色指示
+价值	total_value	货币格式化显示
+3. 货架布局可视化
+元素	显示内容	说明
+货架矩形	货架名称 + 利用率	不同利用率显示不同颜色
+库位状态	小圆点指示	红/黄/绿表示库存状态
+统计信息	总库位/使用中/未使用	鼠标悬停显示详情
+⚡ 性能优化策略
+1. 查询优化
+✅ 为 status_category 字段建立索引
+
+✅ 使用预计算的统计字段减少实时计算
+
+✅ 分页加载大数据集
+
+✅ 缓存频繁访问的统计结果
+
+2. 更新优化
+✅ 只更新受影响的库位，而不是全部
+
+✅ 使用数据库事务确保数据一致性
+
+✅ 后台异步处理批量更新
+
+✅ 设置合理的缓存过期时间
+
+3. 扩展性设计
+python
+# 未来可扩展的指标
+extended_metrics = {
+    "turnover_rate": "月周转频率",
+    "seasonal_pattern": "季节性使用模式",
+    "dormant_identification": "呆滞料识别",
+    "predictive_capacity": "预测性容量需求",
+    "ai_layout_optimization": "AI布局优化评分"
+}
+🚀 API 接口规范
+1. 统计查询接口
+text
+GET  /api/locations/statistics           # 获取整体统计
+GET  /api/locations/:id/metrics         # 获取单个库位详细指标
+GET  /api/locations/rack/:id/stats      # 获取货架统计
+POST /api/locations/refresh_metrics     # 手动刷新统计
+2. 数据导出接口
+text
+POST /api/locations/export              # 导出库位统计数据
+GET  /api/locations/report/daily        # 生成日报
+GET  /api/locations/report/weekly       # 生成周报

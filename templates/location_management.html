@@ -767,7 +767,8 @@
 <!-- 统计概览 - 优化显示 -->
 <div class="row mb-4" id="statsOverview">
     <div class="col-xl-2 col-md-4 col-6">
-        <div class="card stat-card">
+        <div class="card stat-card" data-bs-toggle="tooltip"
+             title="仓库中所有库位的总数">
             <div class="card-body">
                 <i class="fas fa-warehouse text-primary"></i>
                 <div class="number">{{ stats.total_locations if stats else 0 }}</div>
@@ -776,7 +777,8 @@
         </div>
     </div>
     <div class="col-xl-2 col-md-4 col-6">
-        <div class="card stat-card">
+        <div class="card stat-card" data-bs-toggle="tooltip"
+             title="状态为正常的库位数量（库存充足且无预警）">
             <div class="card-body">
                 <i class="fas fa-box text-success"></i>
                 <div class="number">{{ stats.normal_locations if stats else 0 }}</div>
@@ -785,7 +787,8 @@
         </div>
     </div>
     <div class="col-xl-2 col-md-4 col-6">
-        <div class="card stat-card">
+        <div class="card stat-card" data-bs-toggle="tooltip"
+             title="包含缺货或低库存问题的库位总数">
             <div class="card-body">
                 <i class="fas fa-exclamation-triangle text-warning"></i>
                 <div class="number" id="problemLocationsCount">
@@ -796,7 +799,8 @@
         </div>
     </div>
     <div class="col-xl-2 col-md-4 col-6">
-        <div class="card stat-card">
+        <div class="card stat-card" data-bs-toggle="tooltip"
+             title="所有库位利用率的平均值">
             <div class="card-body">
                 <i class="fas fa-chart-line text-info"></i>
                 <div class="number">{{ "%.1f"|format(stats.avg_utilization_rate) if stats else 0 }}%</div>
@@ -805,7 +809,8 @@
         </div>
     </div>
     <div class="col-xl-2 col-md-4 col-6">
-        <div class="card stat-card">
+        <div class="card stat-card" data-bs-toggle="tooltip"
+             title="所有库位中备件的总价值">
             <div class="card-body">
                 <i class="fas fa-money-bill-wave text-success"></i>
                 <div class="number">{{ "%.2f"|format(stats.total_inventory_value/1000) if stats else 0 }}K</div>
@@ -814,7 +819,10 @@
         </div>
     </div>
     <div class="col-xl-2 col-md-4 col-6">
-        <div class="card stat-card" style="cursor: pointer;" onclick="refreshAllMetrics()">
+        <div class="card stat-card" style="cursor: pointer;"
+             onclick="refreshAllMetrics()"
+             data-bs-toggle="tooltip"
+             title="手动刷新所有库位的统计指标">
             <div class="card-body text-center">
                 <i class="fas fa-sync-alt text-primary"></i>
                 <div class="number"><i class="fas fa-refresh"></i></div>
@@ -829,13 +837,19 @@
     <div class="row g-3">
         <div class="col-md-4">
             <label class="form-label">快速筛选</label>
+            <!-- 快速筛选区域 -->
             <div class="quick-filters">
-                <button class="quick-filter-btn active" data-filter="all">全部</button>
-                <button class="quick-filter-btn" data-filter="in_use">使用中</button>
-                <button class="quick-filter-btn" data-filter="not_use">未使用</button>
-                <button class="quick-filter-btn" data-filter="low_stock">低库存</button>
-                <button class="quick-filter-btn" data-filter="out_of_stock">缺货</button>
-            </div>
+    <button class="quick-filter-btn active" data-filter="all"
+            data-bs-toggle="tooltip" title="显示所有库位">全部</button>
+    <button class="quick-filter-btn" data-filter="in_use"
+            data-bs-toggle="tooltip" title="备件种类数＞0的库位">使用中</button>
+    <button class="quick-filter-btn" data-filter="not_use"
+            data-bs-toggle="tooltip" title="未存放任何备件">未使用</button>
+    <button class="quick-filter-btn" data-filter="low_stock"
+            data-bs-toggle="tooltip" title="存在低库存或全部低库存">低库存</button>
+    <button class="quick-filter-btn" data-filter="out_of_stock"
+            data-bs-toggle="tooltip" title="存在缺货或全部缺货">缺货</button>
+</div>
         </div>
         <div class="col-md-4">
             <label class="form-label">货架筛选</label>
@@ -1115,6 +1129,12 @@ document.addEventListener('DOMContentLoaded', function() {
     initEventListeners();
     updateToolButtons();
     setMode('view'); // 默认查看模式
+
+    // 初始化工具提示
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
 
     // 初始化库位管理
     loadLocationsData();
