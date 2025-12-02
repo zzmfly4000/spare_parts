@@ -1,3 +1,10 @@
+{% if not session.get('user_id') %}
+<script>
+    // 如果未登录，重定向到登录页面
+    window.location.href = "{{ url_for('login_page') }}";
+</script>
+{% endif %}
+
 {% extends "base.html" %}
 
 {% block title %}设备备件管理系统 - 首页{% endblock %}

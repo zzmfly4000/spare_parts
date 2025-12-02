@@ -383,23 +383,32 @@
                     <i class="fas fa-tools me-2"></i>设备备件管理系统
                 </a>
 
+                <!-- 在 base.html 中找到导航栏的用户下拉菜单部分，修改如下： -->
                 <div class="navbar-nav ms-auto">
-                    <div class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-user-circle me-2"></i>
-                            <span>管理员</span>
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i>个人资料</a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('system_settings') }}"><i class="fas fa-cog me-2"></i>系统设置</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="#"><i class="fas fa-sign-out-alt me-2"></i>退出登录</a></li>
-                        </ul>
-                    </div>
-                    <button class="btn theme-switcher" onclick="toggleTheme()">
-                        <i class="fas fa-moon"></i>
-                    </button>
-                </div>
+    {% if session.get('user_id') %}
+    <div class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" role="button" data-bs-toggle="dropdown">
+            <i class="fas fa-user-circle me-2"></i>
+            <span>{{ session.get('username', '用户') }}</span>
+        </a>
+        <ul class="dropdown-menu dropdown-menu-end">
+            <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i>个人资料</a></li>
+            {% if session.get('role') == 'admin' %}
+            <li><a class="dropdown-item" href="{{ url_for('system_settings') }}"><i class="fas fa-cog me-2"></i>系统设置</a></li>
+            {% endif %}
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="#" onclick="logout()"><i class="fas fa-sign-out-alt me-2"></i>退出登录</a></li>
+        </ul>
+    </div>
+    {% else %}
+    <a class="nav-link" href="{{ url_for('login_page') }}">
+        <i class="fas fa-sign-in-alt me-2"></i>登录
+    </a>
+    {% endif %}
+    <button class="btn theme-switcher" onclick="toggleTheme()">
+        <i class="fas fa-moon"></i>
+    </button>
+</div>
             </div>
         </nav>
 
@@ -624,6 +633,20 @@
             });
         });
 
+        function logout() {
+            if (confirm('确定要退出登录吗？')) {
+                window.location.href = '/api/logout';
+            }
+        }
+
+        // 页面加载时检查登录状态
+        document.addEventListener('DOMContentLoaded', function() {
+            // 检查是否需要显示登录提示
+            if (window.location.pathname !== '/login' && !{{ 'true' if session.get('user_id') else 'false' }}) {
+                // 如果用户未登录且不在登录页面，可以显示提示
+                // 这里可以根据需要添加逻辑
+            }
+        });
         // 页面加载动画
         document.addEventListener('DOMContentLoaded', function() {
             const elements = document.querySelectorAll('.fade-in-up');

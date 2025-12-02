@@ -1,0 +1,1625 @@
+{% extends "base.html" %}
+
+{% block title %}设备备件管理系统 - 系统设置{% endblock %}
+
+{% block content %}
+<!-- 页面标题和操作 -->
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-4 mb-4 border-bottom">
+    <div>
+        <h1 class="h3 mb-2">系统设置</h1>
+        <p class="text-muted mb-0">配置系统参数、用户权限和通知设置</p>
+    </div>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <button type="button" class="btn btn-outline-primary" onclick="location.reload()">
+                <i class="fas fa-sync-alt me-1"></i>刷新
+            </button>
+        </div>
+        <div class="btn-group">
+            <button type="button" class="btn btn-primary" onclick="saveAllSettings()">
+                <i class="fas fa-save me-1"></i>保存所有设置
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- 设置导航 -->
+<div class="row mb-4">
+    <div class="col-12">
+        <ul class="nav nav-tabs" id="settingsTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="general-tab" data-bs-toggle="tab" data-bs-target="#general" type="button">
+                    <i class="fas fa-cog me-2"></i>基本设置
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="users-tab" data-bs-toggle="tab" data-bs-target="#users" type="button">
+                    <i class="fas fa-users me-2"></i>用户管理
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="notifications-tab" data-bs-toggle="tab" data-bs-target="#notifications" type="button">
+                    <i class="fas fa-bell me-2"></i>通知设置
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="security-tab" data-bs-toggle="tab" data-bs-target="#security" type="button">
+                    <i class="fas fa-shield-alt me-2"></i>安全设置
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="backup-tab" data-bs-toggle="tab" data-bs-target="#backup" type="button">
+                    <i class="fas fa-database me-2"></i>数据备份
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="api-tab" data-bs-toggle="tab" data-bs-target="#api" type="button">
+                    <i class="fas fa-code me-2"></i>API设置
+                </button>
+            </li>
+        </ul>
+    </div>
+</div>
+
+<div class="tab-content" id="settingsTabContent">
+    <!-- 基本设置 -->
+    <div class="tab-pane fade show active" id="general" role="tabpanel">
+        <div class="row">
+            <div class="col-lg-6">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0"><i class="fas fa-info-circle me-2"></i>系统信息</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">系统名称</label>
+                                <input type="text" class="form-control" id="system_name" value="{{ settings.system_name if settings else '设备备件管理系统' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">公司名称</label>
+                                <input type="text" class="form-control" id="company_name" value="{{ settings.company_name if settings else '' }}">
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">时区设置</label>
+                                <select class="form-select" id="timezone">
+                                    <option value="Asia/Shanghai" selected>中国标准时间 (UTC+8)</option>
+                                    <option value="America/New_York">美国东部时间 (UTC-5)</option>
+                                    <option value="Europe/London">伦敦时间 (UTC+0)</option>
+                                    <option value="Asia/Tokyo">日本时间 (UTC+9)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">语言</label>
+                                <select class="form-select" id="language">
+                                    <option value="zh-CN" selected>简体中文</option>
+                                    <option value="en-US">English</option>
+                                    <option value="ja-JP">日本語</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <label class="form-label">系统描述</label>
+                                <textarea class="form-control" id="system_description" rows="3" placeholder="输入系统描述...">{{ settings.description if settings else '' }}</textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0"><i class="fas fa-boxes me-2"></i>库存设置</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">低库存阈值 (%)</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="low_stock_threshold" value="{{ settings.low_stock_threshold if settings else '20' }}" min="1" max="100">
+                                    <span class="input-group-text">%</span>
+                                </div>
+                                <div class="form-text">当库存低于最低库存的百分比时触发预警</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">缺货预警天数</label>
+                                <input type="number" class="form-control" id="out_of_stock_days" value="3" min="1" max="30">
+                                <div class="form-text">提前多少天预警即将缺货的备件</div>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">自动同步库存</label>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="auto_sync_enabled" checked>
+                                    <label class="form-check-label" for="auto_sync_enabled">启用自动同步</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">同步频率</label>
+                                <select class="form-select" id="sync_frequency">
+                                    <option value="5">每5分钟</option>
+                                    <option value="15" selected>每15分钟</option>
+                                    <option value="30">每30分钟</option>
+                                    <option value="60">每小时</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <label class="form-label">关键备件阈值</label>
+                                <input type="number" class="form-control" id="critical_part_threshold" value="50" min="0" max="1000">
+                                <div class="form-text">定义多少数量以上为关键备件</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 用户管理 -->
+    <div class="tab-pane fade" id="users" role="tabpanel">
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0"><i class="fas fa-user-cog me-2"></i>用户权限管理</h5>
+                        <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
+                            <i class="fas fa-user-plus me-1"></i>添加用户
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>用户名</th>
+                                        <th>姓名</th>
+                                        <th>邮箱</th>
+                                        <th>角色</th>
+                                        <th>状态</th>
+                                        <th>最后登录</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- 示例用户数据 -->
+                                    <tr>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="avatar-sm bg-primary rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 32px; height: 32px;">
+                                                    <span class="text-white fw-bold">A</span>
+                                                </div>
+                                                <span>admin</span>
+                                            </div>
+                                        </td>
+                                        <td>系统管理员</td>
+                                        <td>admin@example.com</td>
+                                        <td>
+                                            <span class="badge bg-danger">系统管理员</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-success">活跃</span>
+                                        </td>
+                                        <td>2024-01-15 14:30</td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <button type="button" class="btn btn-outline-primary" onclick="editUser(1)">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <button type="button" class="btn btn-outline-secondary" onclick="resetPassword(1)">
+                                                    <i class="fas fa-key"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="avatar-sm bg-success rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 32px; height: 32px;">
+                                                    <span class="text-white fw-bold">M</span>
+                                                </div>
+                                                <span>manager</span>
+                                            </div>
+                                        </td>
+                                        <td>仓库管理员</td>
+                                        <td>manager@example.com</td>
+                                        <td>
+                                            <span class="badge bg-warning">仓库管理员</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-success">活跃</span>
+                                        </td>
+                                        <td>2024-01-14 09:15</td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <button type="button" class="btn btn-outline-primary" onclick="editUser(2)">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <button type="button" class="btn btn-outline-secondary" onclick="resetPassword(2)">
+                                                    <i class="fas fa-key"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="avatar-sm bg-info rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 32px; height: 32px;">
+                                                    <span class="text-white fw-bold">O</span>
+                                                </div>
+                                                <span>operator</span>
+                                            </div>
+                                        </td>
+                                        <td>操作员</td>
+                                        <td>operator@example.com</td>
+                                        <td>
+                                            <span class="badge bg-info">操作员</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-success">活跃</span>
+                                        </td>
+                                        <td>2024-01-13 16:45</td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <button type="button" class="btn btn-outline-primary" onclick="editUser(3)">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <button type="button" class="btn btn-outline-secondary" onclick="resetPassword(3)">
+                                                    <i class="fas fa-key"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0"><i class="fas fa-user-shield me-2"></i>角色权限</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="accordion" id="rolePermissions">
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#roleAdmin">
+                                        系统管理员
+                                    </button>
+                                </h2>
+                                <div id="roleAdmin" class="accordion-collapse collapse show" data-bs-parent="#rolePermissions">
+                                    <div class="accordion-body">
+                                        <div class="row">
+                                            {% for perm in ['系统设置', '用户管理', '所有数据查看', '所有数据编辑', '数据导入导出', '数据库管理'] %}
+                                            <div class="col-md-6 mb-2">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" checked disabled>
+                                                    <label class="form-check-label">{{ perm }}</label>
+                                                </div>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#roleManager">
+                                        仓库管理员
+                                    </button>
+                                </h2>
+                                <div id="roleManager" class="accordion-collapse collapse" data-bs-parent="#rolePermissions">
+                                    <div class="accordion-body">
+                                        <div class="row">
+                                            {% for perm in ['备件管理', '库位管理', '出入库操作', '数据查看', '数据编辑', '报表导出'] %}
+                                            <div class="col-md-6 mb-2">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" checked disabled>
+                                                    <label class="form-check-label">{{ perm }}</label>
+                                                </div>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0"><i class="fas fa-history me-2"></i>登录日志</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="list-group list-group-flush">
+                            {% for log in [
+                                {'user': 'admin', 'ip': '192.168.1.100', 'time': '2024-01-15 14:30', 'status': '成功'},
+                                {'user': 'manager', 'ip': '192.168.1.101', 'time': '2024-01-14 09:15', 'status': '成功'},
+                                {'user': 'admin', 'ip': '192.168.1.102', 'time': '2024-01-13 08:45', 'status': '失败'},
+                                {'user': 'operator', 'ip': '192.168.1.103', 'time': '2024-01-12 16:30', 'status': '成功'}
+                            ] %}
+                            <div class="list-group-item border-0 px-0 py-2">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>{{ log.user }}</strong>
+                                        <small class="text-muted ms-2">{{ log.ip }}</small>
+                                    </div>
+                                    <div>
+                                        <small class="text-muted me-2">{{ log.time }}</small>
+                                        <span class="badge bg-{{ 'success' if log.status=='成功' else 'danger' }}">
+                                            {{ log.status }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 通知设置 -->
+    <div class="tab-pane fade" id="notifications" role="tabpanel">
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0"><i class="fas fa-envelope me-2"></i>邮件服务器设置</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">SMTP服务器</label>
+                                <input type="text" class="form-control" id="mail_server" value="{{ settings.mail_server if settings else 'smtp.example.com' }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">端口</label>
+                                <input type="number" class="form-control" id="mail_port" value="{{ settings.mail_port if settings else '587' }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">加密方式</label>
+                                <select class="form-select" id="mail_encryption">
+                                    <option value="tls">TLS</option>
+                                    <option value="ssl">SSL</option>
+                                    <option value="none">无</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">发件人邮箱</label>
+                                <input type="email" class="form-control" id="mail_sender" value="{{ settings.mail_sender if settings else 'noreply@example.com' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">发件人名称</label>
+                                <input type="text" class="form-control" id="mail_sender_name" value="{{ settings.mail_sender_name if settings else '备件管理系统' }}">
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">用户名</label>
+                                <input type="text" class="form-control" id="mail_username" value="{{ settings.mail_username if settings else '' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">密码</label>
+                                <div class="input-group">
+                                    <input type="password" class="form-control" id="mail_password" value="{{ settings.mail_password if settings else '' }}">
+                                    <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('mail_password', this)">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <button type="button" class="btn btn-outline-primary" onclick="testEmailConnection()">
+                                    <i class="fas fa-paper-plane me-1"></i>测试邮件连接
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0"><i class="fas fa-bell me-2"></i>通知规则</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" id="notify_low_stock" checked>
+                                    <label class="form-check-label fw-bold">低库存通知</label>
+                                </div>
+                                <div class="ms-4">
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" id="notify_email" checked>
+                                        <label class="form-check-label">邮件通知</label>
+                                    </div>
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" id="notify_sms">
+                                        <label class="form-check-label">短信通知</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="notify_dashboard" checked>
+                                        <label class="form-check-label">仪表板通知</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">通知时间</label>
+                                <select class="form-select" id="notify_time">
+                                    <option value="immediate">立即通知</option>
+                                    <option value="daily_9am" selected>每天上午9点</option>
+                                    <option value="daily_3pm">每天下午3点</option>
+                                    <option value="twice_daily">每天两次(9am, 3pm)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">通知频率</label>
+                                <select class="form-select" id="notify_frequency">
+                                    <option value="each">每次发生</option>
+                                    <option value="daily" selected>每天汇总</option>
+                                    <option value="weekly">每周汇总</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-12">
+                                <label class="form-label">通知接收人</label>
+                                <textarea class="form-control" id="notify_recipients" rows="3" placeholder="输入邮箱地址，多个用逗号分隔">admin@example.com, manager@example.com</textarea>
+                                <div class="form-text">多个邮箱用逗号分隔</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0"><i class="fas fa-sliders-h me-2"></i>通知模板</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">低库存邮件标题</label>
+                            <input type="text" class="form-control" id="email_subject_low" value="【库存预警】备件库存不足通知">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">缺货邮件标题</label>
+                            <input type="text" class="form-control" id="email_subject_out" value="【紧急通知】备件已缺货">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">邮件签名</label>
+                            <textarea class="form-control" id="email_signature" rows="3">{{ settings.company_name if settings else '' }} 备件管理系统
+联系电话: 400-xxx-xxxx
+此邮件为系统自动发送，请勿回复</textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0"><i class="fas fa-chart-line me-2"></i>通知统计</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <div class="col-6 mb-3">
+                                <div class="border rounded p-2">
+                                    <div class="text-primary fw-bold">128</div>
+                                    <small class="text-muted">今日通知</small>
+                                </div>
+                            </div>
+                            <div class="col-6 mb-3">
+                                <div class="border rounded p-2">
+                                    <div class="text-success fw-bold">125</div>
+                                    <small class="text-muted">发送成功</small>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="border rounded p-2">
+                                    <div class="text-warning fw-bold">3</div>
+                                    <small class="text-muted">发送失败</small>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="border rounded p-2">
+                                    <div class="text-info fw-bold">97%</div>
+                                    <small class="text-muted">成功率</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 安全设置 -->
+    <div class="tab-pane fade" id="security" role="tabpanel">
+        <div class="row">
+            <div class="col-lg-6">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0"><i class="fas fa-lock me-2"></i>登录安全</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="enable_2fa">
+                                    <label class="form-check-label">启用双因素认证</label>
+                                </div>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="require_strong_password" checked>
+                                    <label class="form-check-label">强制使用强密码</label>
+                                </div>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="session_timeout" checked>
+                                    <label class="form-check-label">会话超时自动退出</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">会话超时时间(分钟)</label>
+                                <input type="number" class="form-control" id="session_timeout_minutes" value="30" min="5" max="480">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">密码过期时间(天)</label>
+                                <input type="number" class="form-control" id="password_expire_days" value="90" min="30" max="365">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-12">
+                                <label class="form-label">允许的IP范围</label>
+                                <textarea class="form-control" id="allowed_ips" rows="3" placeholder="输入IP地址或CIDR，每行一个">192.168.1.0/24
+10.0.0.0/8</textarea>
+                                <div class="form-text">留空表示允许所有IP访问</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0"><i class="fas fa-history me-2"></i>操作日志</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="log_all_operations" checked>
+                                    <label class="form-check-label">记录所有操作</label>
+                                </div>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="log_failed_logins" checked>
+                                    <label class="form-check-label">记录失败的登录尝试</label>
+                                </div>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="log_data_changes" checked>
+                                    <label class="form-check-label">记录数据变更</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">日志保留时间(天)</label>
+                                <input type="number" class="form-control" id="log_retention_days" value="90" min="7" max="3650">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">最大登录尝试次数</label>
+                                <input type="number" class="form-control" id="max_login_attempts" value="5" min="1" max="10">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-12">
+                                <label class="form-label">审计级别</label>
+                                <select class="form-select" id="audit_level">
+                                    <option value="minimal">最小</option>
+                                    <option value="normal" selected>普通</option>
+                                    <option value="detailed">详细</option>
+                                    <option value="full">完整</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 数据备份 -->
+    <div class="tab-pane fade" id="backup" role="tabpanel">
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0"><i class="fas fa-hdd me-2"></i>备份设置</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="auto_backup_enabled" checked>
+                                    <label class="form-check-label">启用自动备份</label>
+                                </div>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="backup_compression" checked>
+                                    <label class="form-check-label">启用压缩备份</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">备份频率</label>
+                                <select class="form-select" id="backup_frequency">
+                                    <option value="daily" selected>每天</option>
+                                    <option value="weekly">每周</option>
+                                    <option value="monthly">每月</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">备份时间</label>
+                                <input type="time" class="form-control" id="backup_time" value="02:00">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">保留备份数量</label>
+                                <input type="number" class="form-control" id="backup_retention_count" value="30" min="1" max="365">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-12">
+                                <label class="form-label">备份路径</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="backup_path" value="/backups/spare_parts">
+                                    <button class="btn btn-outline-secondary" type="button" onclick="browseBackupPath()">
+                                        <i class="fas fa-folder-open"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0"><i class="fas fa-download me-2"></i>手动备份</h5>
+                        <button type="button" class="btn btn-sm btn-success" onclick="createBackup()">
+                            <i class="fas fa-plus me-1"></i>创建备份
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>备份名称</th>
+                                        <th>大小</th>
+                                        <th>创建时间</th>
+                                        <th>状态</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for backup in [
+                                        {'name': 'backup_20240115', 'size': '245 MB', 'time': '2024-01-15 02:00', 'status': '成功'},
+                                        {'name': 'backup_20240114', 'size': '240 MB', 'time': '2024-01-14 02:00', 'status': '成功'},
+                                        {'name': 'backup_20240113', 'size': '238 MB', 'time': '2024-01-13 02:00', 'status': '成功'}
+                                    ] %}
+                                    <tr>
+                                        <td>{{ backup.name }}</td>
+                                        <td>{{ backup.size }}</td>
+                                        <td>{{ backup.time }}</td>
+                                        <td>
+                                            <span class="badge bg-success">{{ backup.status }}</span>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <button type="button" class="btn btn-outline-primary" onclick="downloadBackup('{{ backup.name }}')">
+                                                    <i class="fas fa-download"></i>
+                                                </button>
+                                                <button type="button" class="btn btn-outline-danger" onclick="deleteBackup('{{ backup.name }}')">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0"><i class="fas fa-upload me-2"></i>恢复备份</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">选择备份文件</label>
+                            <input type="file" class="form-control" id="restore_file" accept=".db,.sqlite,.backup">
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="restore_data_only">
+                                <label class="form-check-label">仅恢复数据（不恢复结构）</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="restore_verify">
+                                <label class="form-check-label">恢复前验证备份</label>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-warning w-100" onclick="restoreBackup()">
+                            <i class="fas fa-undo me-1"></i>恢复备份
+                        </button>
+                        <div class="alert alert-warning mt-3">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>警告：</strong>恢复备份会覆盖当前数据，请谨慎操作！
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0"><i class="fas fa-chart-pie me-2"></i>备份统计</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <div class="col-6 mb-3">
+                                <div class="border rounded p-2">
+                                    <div class="text-primary fw-bold">15</div>
+                                    <small class="text-muted">总备份数</small>
+                                </div>
+                            </div>
+                            <div class="col-6 mb-3">
+                                <div class="border rounded p-2">
+                                    <div class="text-success fw-bold">3.5 GB</div>
+                                    <small class="text-muted">总大小</small>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="border rounded p-2">
+                                    <div class="text-warning fw-bold">97%</div>
+                                    <small class="text-muted">备份成功率</small>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="border rounded p-2">
+                                    <div class="text-info fw-bold">30 天</div>
+                                    <small class="text-muted">保留期限</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- API设置 -->
+    <div class="tab-pane fade" id="api" role="tabpanel">
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0"><i class="fas fa-key me-2"></i>API密钥管理</h5>
+                        <button type="button" class="btn btn-sm btn-primary" onclick="generateApiKey()">
+                            <i class="fas fa-plus me-1"></i>生成新密钥
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>密钥名称</th>
+                                        <th>权限</th>
+                                        <th>创建时间</th>
+                                        <th>过期时间</th>
+                                        <th>状态</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>Web应用密钥</td>
+                                        <td>
+                                            <span class="badge bg-primary me-1">读取</span>
+                                            <span class="badge bg-success">写入</span>
+                                        </td>
+                                        <td>2024-01-01</td>
+                                        <td>2024-12-31</td>
+                                        <td>
+                                            <span class="badge bg-success">活跃</span>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <button type="button" class="btn btn-outline-primary" onclick="showApiKey('web_app_key')">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>
+                                                <button type="button" class="btn btn-outline-danger" onclick="revokeApiKey(1)">
+                                                    <i class="fas fa-ban"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>移动应用密钥</td>
+                                        <td>
+                                            <span class="badge bg-primary">读取</span>
+                                        </td>
+                                        <td>2024-01-10</td>
+                                        <td>2024-06-10</td>
+                                        <td>
+                                            <span class="badge bg-success">活跃</span>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <button type="button" class="btn btn-outline-primary" onclick="showApiKey('mobile_app_key')">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>
+                                                <button type="button" class="btn btn-outline-danger" onclick="revokeApiKey(2)">
+                                                    <i class="fas fa-ban"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0"><i class="fas fa-code me-2"></i>API文档</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <h6>基础URL</h6>
+                            <code>https://your-domain.com/api/v1</code>
+                        </div>
+                        <div class="mb-3">
+                            <h6>主要端点</h6>
+                            <ul class="list-unstyled">
+                                <li><code>GET /parts</code> - 获取备件列表</li>
+                                <li><code>GET /parts/{id}</code> - 获取备件详情</li>
+                                <li><code>POST /parts</code> - 创建备件</li>
+                                <li><code>PUT /parts/{id}</code> - 更新备件</li>
+                                <li><code>GET /locations</code> - 获取库位信息</li>
+                                <li><code>POST /operations/inbound</code> - 入库操作</li>
+                                <li><code>POST /operations/outbound</code> - 出库操作</li>
+                            </ul>
+                        </div>
+                        <div class="mb-3">
+                            <h6>认证方式</h6>
+                            <p>在请求头中添加: <code>Authorization: Bearer YOUR_API_KEY</code></p>
+                        </div>
+                        <button type="button" class="btn btn-outline-primary" onclick="downloadApiDocumentation()">
+                            <i class="fas fa-download me-1"></i>下载完整API文档
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0"><i class="fas fa-sliders-h me-2"></i>API设置</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox" id="api_enabled" checked>
+                                <label class="form-check-label">启用API访问</label>
+                            </div>
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox" id="api_rate_limit" checked>
+                                <label class="form-check-label">启用速率限制</label>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <label class="form-label">请求限制</label>
+                                <input type="number" class="form-control" id="api_rate_limit_count" value="100" min="10" max="1000">
+                                <div class="form-text">每分钟最大请求数</div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-12">
+                                <label class="form-label">允许的来源</label>
+                                <textarea class="form-control" id="api_allowed_origins" rows="3" placeholder="输入允许的域名，每行一个">https://your-domain.com
+https://app.your-domain.com</textarea>
+                                <div class="form-text">留空表示允许所有来源</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0"><i class="fas fa-chart-bar me-2"></i>API使用统计</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <div class="col-6 mb-3">
+                                <div class="border rounded p-2">
+                                    <div class="text-primary fw-bold">1,245</div>
+                                    <small class="text-muted">今日请求</small>
+                                </div>
+                            </div>
+                            <div class="col-6 mb-3">
+                                <div class="border rounded p-2">
+                                    <div class="text-success fw-bold">99.8%</div>
+                                    <small class="text-muted">成功率</small>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="border rounded p-2">
+                                    <div class="text-warning fw-bold">23 ms</div>
+                                    <small class="text-muted">平均响应时间</small>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="border rounded p-2">
+                                    <div class="text-info fw-bold">5</div>
+                                    <small class="text-muted">活跃密钥</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 添加用户模态框 -->
+<div class="modal fade" id="addUserModal" tabindex="-1" aria-labelledby="addUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addUserModalLabel">
+                    <i class="fas fa-user-plus me-2"></i>添加新用户
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+            </div>
+            <form id="addUserForm" onsubmit="addNewUser(event)">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">用户名 *</label>
+                            <input type="text" class="form-control" name="username" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">邮箱 *</label>
+                            <input type="email" class="form-control" name="email" required>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">姓名</label>
+                            <input type="text" class="form-control" name="display_name">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">部门</label>
+                            <select class="form-select" name="department">
+                                <option value="">选择部门</option>
+                                <option value="warehouse">仓库管理部</option>
+                                <option value="maintenance">设备维护部</option>
+                                <option value="purchase">采购部</option>
+                                <option value="it">IT部</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">角色 *</label>
+                            <select class="form-select" name="role" required>
+                                <option value="">选择角色</option>
+                                <option value="admin">系统管理员</option>
+                                <option value="manager">仓库管理员</option>
+                                <option value="operator">操作员</option>
+                                <option value="viewer">查看员</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">初始密码 *</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" name="password" required>
+                                <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility(this)">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                            <div class="form-text">至少8位字符，包含字母和数字</div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-12 mb-3">
+                            <label class="form-label">权限设置</label>
+                            <div class="row">
+                                <div class="col-md-4 mb-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="permissions" value="parts_manage" checked>
+                                        <label class="form-check-label">备件管理</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 mb-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="permissions" value="locations_manage" checked>
+                                        <label class="form-check-label">库位管理</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 mb-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="permissions" value="operations_manage" checked>
+                                        <label class="form-check-label">出入库操作</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 mb-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="permissions" value="reports_view" checked>
+                                        <label class="form-check-label">报表查看</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 mb-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="permissions" value="data_export">
+                                        <label class="form-check-label">数据导出</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 mb-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="permissions" value="system_settings">
+                                        <label class="form-check-label">系统设置</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">添加用户</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- API密钥显示模态框 -->
+<div class="modal fade" id="apiKeyModal" tabindex="-1" aria-labelledby="apiKeyModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="apiKeyModalLabel">
+                    <i class="fas fa-key me-2"></i>API密钥
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>重要：</strong>请立即复制并保存此密钥，关闭后将无法再次查看！
+                </div>
+                <div class="input-group mb-3">
+                    <input type="text" class="form-control" id="api_key_value" readonly>
+                    <button class="btn btn-outline-secondary" type="button" onclick="copyApiKey()">
+                        <i class="fas fa-copy"></i>
+                    </button>
+                </div>
+                <small class="text-muted">此密钥拥有对API的完全访问权限，请妥善保管。</small>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">关闭</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 初始化标签页
+    const settingsTab = document.getElementById('settingsTab');
+
+    // 监听标签页切换事件
+    const tabTriggers = [].slice.call(settingsTab.querySelectorAll('button[data-bs-toggle="tab"]'));
+    tabTriggers.forEach(function(tabTrigger) {
+        tabTrigger.addEventListener('shown.bs.tab', function(event) {
+            const activeTab = event.target.getAttribute('data-bs-target');
+            // 保存当前激活的标签页
+            localStorage.setItem('lastActiveSettingsTab', activeTab);
+        });
+    });
+
+    // 恢复上次激活的标签页
+    const lastActiveTab = localStorage.getItem('lastActiveSettingsTab');
+    if (lastActiveTab) {
+        const tabElement = settingsTab.querySelector(`[data-bs-target="${lastActiveTab}"]`);
+        if (tabElement) {
+            const tab = new bootstrap.Tab(tabElement);
+            tab.show();
+        }
+    }
+});
+
+function togglePasswordVisibility(button) {
+    const input = button.previousElementSibling;
+    const icon = button.querySelector('i');
+
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.className = 'fas fa-eye-slash';
+    } else {
+        input.type = 'password';
+        icon.className = 'fas fa-eye';
+    }
+}
+
+function saveAllSettings() {
+    // 收集所有设置
+    const settings = {
+        general: {
+            system_name: document.getElementById('system_name')?.value || '',
+            company_name: document.getElementById('company_name')?.value || '',
+            timezone: document.getElementById('timezone')?.value || 'Asia/Shanghai',
+            language: document.getElementById('language')?.value || 'zh-CN',
+            system_description: document.getElementById('system_description')?.value || ''
+        },
+        inventory: {
+            low_stock_threshold: document.getElementById('low_stock_threshold')?.value || '20',
+            out_of_stock_days: document.getElementById('out_of_stock_days')?.value || '3',
+            auto_sync_enabled: document.getElementById('auto_sync_enabled')?.checked || false,
+            sync_frequency: document.getElementById('sync_frequency')?.value || '15',
+            critical_part_threshold: document.getElementById('critical_part_threshold')?.value || '50'
+        },
+        email: {
+            mail_server: document.getElementById('mail_server')?.value || '',
+            mail_port: document.getElementById('mail_port')?.value || '587',
+            mail_encryption: document.getElementById('mail_encryption')?.value || 'tls',
+            mail_sender: document.getElementById('mail_sender')?.value || '',
+            mail_sender_name: document.getElementById('mail_sender_name')?.value || '',
+            mail_username: document.getElementById('mail_username')?.value || '',
+            mail_password: document.getElementById('mail_password')?.value || ''
+        },
+        notifications: {
+            notify_low_stock: document.getElementById('notify_low_stock')?.checked || false,
+            notify_email: document.getElementById('notify_email')?.checked || false,
+            notify_sms: document.getElementById('notify_sms')?.checked || false,
+            notify_dashboard: document.getElementById('notify_dashboard')?.checked || false,
+            notify_time: document.getElementById('notify_time')?.value || 'daily_9am',
+            notify_frequency: document.getElementById('notify_frequency')?.value || 'daily',
+            notify_recipients: document.getElementById('notify_recipients')?.value || '',
+            email_subject_low: document.getElementById('email_subject_low')?.value || '',
+            email_subject_out: document.getElementById('email_subject_out')?.value || '',
+            email_signature: document.getElementById('email_signature')?.value || ''
+        },
+        security: {
+            enable_2fa: document.getElementById('enable_2fa')?.checked || false,
+            require_strong_password: document.getElementById('require_strong_password')?.checked || false,
+            session_timeout: document.getElementById('session_timeout')?.checked || false,
+            session_timeout_minutes: document.getElementById('session_timeout_minutes')?.value || '30',
+            password_expire_days: document.getElementById('password_expire_days')?.value || '90',
+            allowed_ips: document.getElementById('allowed_ips')?.value || '',
+            log_all_operations: document.getElementById('log_all_operations')?.checked || false,
+            log_failed_logins: document.getElementById('log_failed_logins')?.checked || false,
+            log_data_changes: document.getElementById('log_data_changes')?.checked || false,
+            log_retention_days: document.getElementById('log_retention_days')?.value || '90',
+            max_login_attempts: document.getElementById('max_login_attempts')?.value || '5',
+            audit_level: document.getElementById('audit_level')?.value || 'normal'
+        },
+        backup: {
+            auto_backup_enabled: document.getElementById('auto_backup_enabled')?.checked || false,
+            backup_compression: document.getElementById('backup_compression')?.checked || false,
+            backup_frequency: document.getElementById('backup_frequency')?.value || 'daily',
+            backup_time: document.getElementById('backup_time')?.value || '02:00',
+            backup_retention_count: document.getElementById('backup_retention_count')?.value || '30',
+            backup_path: document.getElementById('backup_path')?.value || ''
+        },
+        api: {
+            api_enabled: document.getElementById('api_enabled')?.checked || false,
+            api_rate_limit: document.getElementById('api_rate_limit')?.checked || false,
+            api_rate_limit_count: document.getElementById('api_rate_limit_count')?.value || '100',
+            api_allowed_origins: document.getElementById('api_allowed_origins')?.value || ''
+        }
+    };
+
+    // 显示加载状态
+    const saveBtn = document.querySelector('button[onclick="saveAllSettings()"]');
+    const originalHtml = saveBtn.innerHTML;
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>保存中...';
+    saveBtn.disabled = true;
+
+    // 发送到服务器
+    fetch('/api/settings/save', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(settings)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('设置保存成功', 'success');
+        } else {
+            showToast('保存失败: ' + (data.error || '未知错误'), 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('保存设置失败:', error);
+        showToast('保存失败，请检查网络连接', 'danger');
+    })
+    .finally(() => {
+        // 恢复按钮状态
+        saveBtn.innerHTML = originalHtml;
+        saveBtn.disabled = false;
+    });
+}
+
+function addNewUser(event) {
+    event.preventDefault();
+
+    const form = event.target;
+    const formData = new FormData(form);
+
+    const userData = {
+        username: formData.get('username'),
+        email: formData.get('email'),
+        display_name: formData.get('display_name'),
+        department: formData.get('department'),
+        role: formData.get('role'),
+        password: formData.get('password'),
+        permissions: []
+    };
+
+    // 收集选中的权限
+    form.querySelectorAll('input[name="permissions"]:checked').forEach(checkbox => {
+        userData.permissions.push(checkbox.value);
+    });
+
+    // 验证密码强度
+    if (userData.password.length < 8) {
+        showToast('密码至少需要8位字符', 'warning');
+        return;
+    }
+
+    // 显示加载状态
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const originalHtml = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>添加中...';
+    submitBtn.disabled = true;
+
+    fetch('/api/users/add', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(userData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('用户添加成功', 'success');
+            // 关闭模态框
+            const modal = bootstrap.Modal.getInstance(document.getElementById('addUserModal'));
+            modal.hide();
+            // 重置表单
+            form.reset();
+            // 刷新页面（或重新加载用户列表）
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast('添加失败: ' + (data.error || '未知错误'), 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('添加用户失败:', error);
+        showToast('添加失败，请检查网络连接', 'danger');
+    })
+    .finally(() => {
+        // 恢复按钮状态
+        submitBtn.innerHTML = originalHtml;
+        submitBtn.disabled = false;
+    });
+}
+
+function testEmailConnection() {
+    const mailServer = document.getElementById('mail_server')?.value;
+    const mailPort = document.getElementById('mail_port')?.value;
+    const mailUsername = document.getElementById('mail_username')?.value;
+
+    if (!mailServer) {
+        showToast('请输入邮件服务器地址', 'warning');
+        return;
+    }
+
+    showToast('正在测试邮件服务器连接...', 'info');
+
+    fetch('/api/settings/test_email', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            mail_server: mailServer,
+            mail_port: mailPort,
+            mail_username: mailUsername
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('邮件服务器连接成功', 'success');
+        } else {
+            showToast('连接失败: ' + (data.error || '未知错误'), 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('测试邮件连接失败:', error);
+        showToast('测试失败，请检查网络连接', 'danger');
+    });
+}
+
+function createBackup() {
+    showToast('正在创建备份...', 'info');
+
+    fetch('/api/backup/create', {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('备份创建成功', 'success');
+            // 刷新页面或更新备份列表
+            setTimeout(() => location.reload(), 2000);
+        } else {
+            showToast('备份失败: ' + (data.error || '未知错误'), 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('创建备份失败:', error);
+        showToast('创建失败，请检查网络连接', 'danger');
+    });
+}
+
+function restoreBackup() {
+    const fileInput = document.getElementById('restore_file');
+    const file = fileInput.files[0];
+
+    if (!file) {
+        showToast('请选择备份文件', 'warning');
+        return;
+    }
+
+    if (!confirm('警告：恢复备份将覆盖当前数据，此操作不可撤销。确定要继续吗？')) {
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('backup_file', file);
+    formData.append('data_only', document.getElementById('restore_data_only')?.checked || false);
+    formData.append('verify', document.getElementById('restore_verify')?.checked || false);
+
+    showToast('正在恢复备份...', 'info');
+
+    fetch('/api/backup/restore', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('备份恢复成功，系统将在3秒后重启', 'success');
+            setTimeout(() => location.reload(), 3000);
+        } else {
+            showToast('恢复失败: ' + (data.error || '未知错误'), 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('恢复备份失败:', error);
+        showToast('恢复失败，请检查网络连接', 'danger');
+    });
+}
+
+function generateApiKey() {
+    const keyName = prompt('请输入API密钥名称：');
+    if (!keyName) return;
+
+    fetch('/api/settings/generate_api_key', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name: keyName })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('api_key_value').value = data.api_key;
+            const modal = new bootstrap.Modal(document.getElementById('apiKeyModal'));
+            modal.show();
+        } else {
+            showToast('生成失败: ' + (data.error || '未知错误'), 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('生成API密钥失败:', error);
+        showToast('生成失败，请检查网络连接', 'danger');
+    });
+}
+
+function copyApiKey() {
+    const apiKeyInput = document.getElementById('api_key_value');
+    apiKeyInput.select();
+    apiKeyInput.setSelectionRange(0, 99999);
+
+    try {
+        document.execCommand('copy');
+        showToast('API密钥已复制到剪贴板', 'success');
+    } catch (err) {
+        // 使用现代API
+        navigator.clipboard.writeText(apiKeyInput.value)
+            .then(() => showToast('API密钥已复制到剪贴板', 'success'))
+            .catch(() => showToast('复制失败', 'danger'));
+    }
+}
+
+function browseBackupPath() {
+    // 模拟浏览文件夹
+    const path = prompt('请输入备份路径：', '/backups/spare_parts');
+    if (path) {
+        document.getElementById('backup_path').value = path;
+    }
+}
+
+function downloadBackup(backupName) {
+    showToast('开始下载备份文件: ' + backupName, 'info');
+    // 这里应该调用下载API
+    // window.location.href = `/api/backup/download/${backupName}`;
+}
+
+function deleteBackup(backupName) {
+    if (confirm(`确定要删除备份文件 "${backupName}" 吗？`)) {
+        fetch(`/api/backup/delete/${backupName}`, {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast('备份删除成功', 'success');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showToast('删除失败: ' + (data.error || '未知错误'), 'danger');
+            }
+        });
+    }
+}
+
+function editUser(userId) {
+    // 这里应该打开编辑用户的模态框
+    showToast('用户编辑功能开发中', 'info');
+}
+
+function resetPassword(userId) {
+    if (confirm('确定要重置此用户的密码吗？新密码将通过邮件发送给用户。')) {
+        fetch('/api/users/reset_password', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ user_id: userId })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast('密码重置成功，新密码已发送到用户邮箱', 'success');
+            } else {
+                showToast('重置失败: ' + (data.error || '未知错误'), 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('重置密码失败:', error);
+            showToast('重置失败，请检查网络连接', 'danger');
+        });
+    }
+}
+
+function showApiKey(keyName) {
+    // 这里应该获取并显示API密钥
+    showToast('查看API密钥功能开发中', 'info');
+}
+
+function revokeApiKey(keyId) {
+    if (confirm('确定要撤销此API密钥吗？撤销后将无法使用。')) {
+        fetch(`/api/settings/revoke_api_key/${keyId}`, {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast('API密钥已撤销', 'success');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showToast('撤销失败: ' + (data.error || '未知错误'), 'danger');
+            }
+        });
+    }
+}
+
+function downloadApiDocumentation() {
+    showToast('开始下载API文档', 'info');
+    // 这里应该调用下载API文档的API
+    // window.location.href = '/api/settings/download_api_documentation';
+}
+
+function showToast(message, type = 'info') {
+    // 移除现有的toast
+    const existingToasts = document.querySelectorAll('.toast');
+    existingToasts.forEach(toast => {
+        const bsToast = bootstrap.Toast.getInstance(toast);
+        if (bsToast) bsToast.hide();
+    });
+
+    const toast = document.createElement('div');
+    toast.className = `toast align-items-center text-white bg-${type} border-0 position-fixed top-0 end-0 m-3`;
+    toast.setAttribute('role', 'alert');
+    toast.setAttribute('aria-live', 'assertive');
+    toast.setAttribute('aria-atomic', 'true');
+
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body d-flex align-items-center">
+                ${type === 'success' ? '<i class="fas fa-check-circle me-2"></i>' : ''}
+                ${type === 'danger' ? '<i class="fas fa-times-circle me-2"></i>' : ''}
+                ${type === 'warning' ? '<i class="fas fa-exclamation-triangle me-2"></i>' : ''}
+                ${type === 'info' ? '<i class="fas fa-info-circle me-2"></i>' : ''}
+                ${message}
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    `;
+
+    document.body.appendChild(toast);
+
+    const bsToast = new bootstrap.Toast(toast, { delay: 3000 });
+    bsToast.show();
+    
+    toast.addEventListener('hidden.bs.toast', () => {
+        toast.remove();
+    });
+}
+
+// 键盘快捷键
+document.addEventListener('keydown', function(event) {
+    if (event.ctrlKey && event.key === 's') {
+        event.preventDefault();
+        saveAllSettings();
+    }
+});
+</script>
+{% endblock %}

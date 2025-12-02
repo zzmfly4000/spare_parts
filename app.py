@@ -14,6 +14,7 @@ import logging
 import threading
 import time
 from routes.database_routes import setup_database_routes
+from routes.enhanced_settings_routes import setup_settings_routes
 
 
 def create_app(config_name='default'):
@@ -366,6 +367,43 @@ def create_app(config_name='default'):
                 return f"{num:.{precision}f}"
         except (ValueError, TypeError):
             return str(value)
+
+    # 在 app.py 的适当位置添加登录页面路由
+    @app.route('/login')
+    def login_page():
+        """登录页面"""
+        # 如果用户已登录，重定向到首页
+        if 'user_id' in session:
+            return redirect(url_for('index'))
+        return render_template('login.html')
+
+    @app.route('/api/logout')
+    def logout_api():
+        """退出登录API"""
+        session.clear()
+        flash('已成功退出登录', 'success')
+        return redirect(url_for('login_page'))
+
+    # 在增强设置路由中，确保未登录用户无法访问设置页面
+    @app.route('/settings')
+    def settings_page():
+        """系统设置页面"""
+        if 'user_id' not in session:
+            flash('请先登录', 'warning')
+            return redirect(url_for('login_page'))
+
+        # 检查是否是管理员
+        from routes.enhanced_settings_routes import check_admin_permission
+        if not check_admin_permission(session.get('user_id')):
+            flash('需要管理员权限', 'danger')
+            return redirect(url_for('index'))
+
+        # 获取当前设置
+        from models.database import get_system_settings
+        current_settings = get_system_settings()
+        return render_template('settings.html', settings=current_settings)
+
+    # 同时需要更新 base.html 中的登录链接
 
     # 启动后台任务（如果不在调试模式）
     if not app.config.get('DEBUG'):
