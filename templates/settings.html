@@ -1369,371 +1369,30 @@ https://app.your-domain.com</textarea>
 
 {% block scripts %}
 <script>
-// ====== 模态框显示修复方案 ======
+// ======================= 修复事件冒泡问题的模态框解决方案 =======================
+let isModalClosing = false; // 防止重复关闭
 
-// 1. 页面加载完成初始化
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('页面加载完成，初始化模态框系统...');
-
-    // 修复所有模态框
-    fixAllModals();
-
-    // 添加测试按钮
-    addTestButton();
-
-    // 绑定表单提交
-    bindFormEvents();
+    console.log('页面加载完成，初始化系统...');
 
     // 初始化标签页
     initTabs();
+
+    // 初始化添加用户按钮
+    initAddUserButtonFixed();
+
+    // 初始化其他功能
+    initOtherFunctions();
 });
 
-// 2. 修复所有模态框
-function fixAllModals() {
-    console.log('开始修复模态框显示问题...');
-
-    // 修复每个模态框的显示
-    document.querySelectorAll('.modal').forEach(modal => {
-        fixModalDisplay(modal);
-    });
-
-    // 特别修复添加用户模态框
-    const addUserModal = document.getElementById('addUserModal');
-    if (addUserModal) {
-        fixModalDisplay(addUserModal);
-    }
-
-    // 修复按钮点击事件
-    fixModalButtons();
-}
-
-// 3. 修复单个模态框显示
-function fixModalDisplay(modal) {
-    if (!modal) return;
-
-    console.log('修复模态框:', modal.id);
-
-    // 移除所有可能的问题属性
-    modal.removeAttribute('aria-hidden');
-    modal.removeAttribute('style');
-
-    // 设置基础样式
-    modal.style.cssText = `
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        z-index: 9999;
-        overflow: auto;
-        outline: 0;
-        background-color: transparent;
-    `;
-
-    // 修复对话框
-    const dialog = modal.querySelector('.modal-dialog');
-    if (dialog) {
-        dialog.removeAttribute('style');
-        dialog.style.cssText = `
-            position: relative;
-            margin: 50px auto;
-            pointer-events: none;
-            z-index: 10000;
-            width: auto;
-            max-width: 500px;
-        `;
-    }
-
-    // 修复内容区域
-    const content = modal.querySelector('.modal-content');
-    if (content) {
-        content.removeAttribute('style');
-        content.style.cssText = `
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            width: 100%;
-            pointer-events: auto;
-            background-color: #fff;
-            background-clip: padding-box;
-            border: 1px solid rgba(0,0,0,.2);
-            border-radius: 0.3rem;
-            box-shadow: 0 0.25rem 0.5rem rgba(0,0,0,.5);
-            outline: 0;
-            z-index: 10001;
-        `;
-
-        // 确保所有子元素可交互
-        content.querySelectorAll('*').forEach(child => {
-            child.style.cssText = `
-                pointer-events: auto !important;
-                cursor: auto !important;
-                opacity: 1 !important;
-                user-select: auto !important;
-                -webkit-user-select: auto !important;
-            `;
-        });
-    }
-
-    console.log('模态框修复完成:', modal.id);
-}
-
-// 4. 修复模态框按钮 - 修复选择器问题
-function fixModalButtons() {
-    console.log('修复模态框按钮...');
-
-    // 修复添加用户按钮 - 使用多个选择器
-    const addUserBtn = document.querySelector('button[onclick*="showAddUserModal"]') ||
-                      document.querySelector('button:has(i.fa-user-plus)') ||
-                      findButtonByText('添加用户');
-
-    if (addUserBtn) {
-        console.log('找到添加用户按钮:', addUserBtn);
-        addUserBtn.removeAttribute('onclick');
-        addUserBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            console.log('点击添加用户按钮');
-            showAddUserModal();
-        });
-        console.log('已修复添加用户按钮');
-    } else {
-        console.log('未找到添加用户按钮，尝试其他方式...');
-        // 尝试通过父元素查找
-        const userCard = document.querySelector('#users .card');
-        if (userCard) {
-            const buttons = userCard.querySelectorAll('button');
-            buttons.forEach(btn => {
-                if (btn.textContent.includes('添加用户')) {
-                    btn.removeAttribute('onclick');
-                    btn.addEventListener('click', showAddUserModal);
-                    console.log('通过文本找到并修复按钮');
-                }
-            });
-        }
-    }
-}
-
-// 5. 通过文本查找按钮的辅助函数
-function findButtonByText(text) {
-    const buttons = document.querySelectorAll('button');
-    for (let btn of buttons) {
-        if (btn.textContent.includes(text)) {
-            return btn;
-        }
-    }
-    return null;
-}
-
-// 6. 显示添加用户模态框（主函数）
-function showAddUserModal() {
-    console.log('=== 显示添加用户模态框 ===');
-
-    const modal = document.getElementById('addUserModal');
-    if (!modal) {
-        console.error('错误：找不到添加用户模态框');
-        alert('找不到模态框');
-        return;
-    }
-
-    // 首先确保模态框可见
-    modal.style.cssText = `
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        width: 100% !important;
-        height: 100% !important;
-        z-index: 9999 !important;
-        background-color: rgba(0,0,0,0.5) !important;
-        opacity: 1 !important;
-        visibility: visible !important;
-    `;
-
-    // 确保对话框可见
-    const dialog = modal.querySelector('.modal-dialog');
-    if (dialog) {
-        dialog.style.cssText = `
-            position: relative !important;
-            margin: auto !important;
-            pointer-events: none !important;
-            z-index: 10000 !important;
-            opacity: 1 !important;
-            visibility: visible !important;
-        `;
-    }
-
-    // 确保内容可见
-    const content = modal.querySelector('.modal-content');
-    if (content) {
-        content.style.cssText = `
-            position: relative !important;
-            display: flex !important;
-            flex-direction: column !important;
-            width: 100% !important;
-            pointer-events: auto !important;
-            background-color: #fff !important;
-            border-radius: 0.3rem !important;
-            box-shadow: 0 0.25rem 0.5rem rgba(0,0,0,.5) !important;
-            z-index: 10001 !important;
-            opacity: 1 !important;
-            visibility: visible !important;
-            transform: none !important;
-        `;
-    }
-
-    // 阻止body滚动
-    document.body.style.overflow = 'hidden';
-
-    // 设置ARIA属性
-    modal.setAttribute('aria-modal', 'true');
-    modal.setAttribute('role', 'dialog');
-    modal.setAttribute('aria-hidden', 'false');
-
-    // 绑定关闭事件
-    bindModalCloseEvents(modal);
-
-    // 聚焦到第一个输入框
-    setTimeout(() => {
-        const firstInput = modal.querySelector('input:not([type="hidden"]):not([disabled])');
-        if (firstInput) {
-            firstInput.focus();
-            console.log('已聚焦到输入框:', firstInput);
-        }
-    }, 100);
-
-    console.log('模态框显示完成');
-}
-
-// 7. 绑定关闭事件
-function bindModalCloseEvents(modal) {
-    // 绑定关闭按钮
-    const closeButtons = modal.querySelectorAll('[data-bs-dismiss="modal"], .btn-secondary[type="button"]');
-    closeButtons.forEach(btn => {
-        btn.addEventListener('click', function(e) {
-            e.preventDefault();
-            closeModal();
-        });
-    });
-
-    // ESC键关闭
-    const escHandler = function(e) {
-        if (e.key === 'Escape') {
-            closeModal();
-        }
-    };
-
-    document.addEventListener('keydown', escHandler);
-
-    // 保存handler以便移除
-    modal.escHandler = escHandler;
-}
-
-// 8. 关闭模态框
-function closeModal() {
-    const modal = document.getElementById('addUserModal');
-    if (modal) {
-        modal.style.display = 'none';
-        modal.setAttribute('aria-hidden', 'true');
-
-        // 移除ESC事件监听
-        if (modal.escHandler) {
-            document.removeEventListener('keydown', modal.escHandler);
-        }
-    }
-
-    // 恢复body滚动
-    document.body.style.overflow = '';
-
-    console.log('模态框已关闭');
-}
-
-// 9. 添加新用户
-function addNewUser(event) {
-    if (event) event.preventDefault();
-
-    const form = event ? event.target : document.getElementById('addUserForm');
-    if (!form) return;
-
-    // 获取表单数据
-    const formData = new FormData(form);
-    const username = formData.get('username');
-    const email = formData.get('email');
-    const password = formData.get('password');
-
-    // 验证
-    if (!username || !email || !password) {
-        alert('请填写所有必填字段');
-        return;
-    }
-
-    if (password.length < 8) {
-        alert('密码至少需要8位字符');
-        return;
-    }
-
-    // 显示加载状态
-    const submitBtn = form.querySelector('button[type="submit"]');
-    const originalHtml = submitBtn.innerHTML;
-    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>添加中...';
-    submitBtn.disabled = true;
-
-    // 模拟提交
-    setTimeout(() => {
-        alert('用户添加成功: ' + username);
-
-        // 重置表单
-        form.reset();
-
-        // 恢复按钮
-        submitBtn.innerHTML = originalHtml;
-        submitBtn.disabled = false;
-
-        // 关闭模态框
-        closeModal();
-    }, 1000);
-}
-
-// 10. 添加测试按钮
-function addTestButton() {
-    // 查找用户管理卡片
-    const userCard = document.querySelector('#users .card');
-    if (!userCard) return;
-
-    // 查找卡片头部
-    const cardHeader = userCard.querySelector('.card-header');
-    if (!cardHeader) return;
-
-    // 创建测试按钮
-    const testBtn = document.createElement('button');
-    testBtn.className = 'btn btn-danger btn-sm ms-2';
-    testBtn.innerHTML = '<i class="fas fa-vial me-1"></i>测试显示';
-    testBtn.onclick = function() {
-        console.log('=== 测试按钮被点击 ===');
-        showAddUserModal();
-    };
-
-    // 添加到卡片头部
-    cardHeader.appendChild(testBtn);
-}
-
-// 11. 绑定表单事件
-function bindFormEvents() {
-    const addUserForm = document.getElementById('addUserForm');
-    if (addUserForm) {
-        addUserForm.addEventListener('submit', addNewUser);
-    }
-}
-
-// 12. 初始化标签页
+/**
+ * 初始化标签页
+ */
 function initTabs() {
     const settingsTab = document.getElementById('settingsTab');
     if (!settingsTab) return;
 
-    const tabTriggers = [].slice.call(settingsTab.querySelectorAll('button[data-bs-toggle="tab"]'));
+    const tabTriggers = settingsTab.querySelectorAll('button[data-bs-toggle="tab"]');
     tabTriggers.forEach(function(tabTrigger) {
         tabTrigger.addEventListener('shown.bs.tab', function(event) {
             const activeTab = event.target.getAttribute('data-bs-target');
@@ -1745,184 +1404,744 @@ function initTabs() {
     if (lastActiveTab) {
         const tabElement = settingsTab.querySelector(`[data-bs-target="${lastActiveTab}"]`);
         if (tabElement) {
-            try {
-                const tab = new bootstrap.Tab(tabElement);
-                tab.show();
-            } catch (e) {
-                tabElement.click();
-            }
+            setTimeout(() => {
+                try {
+                    const tab = new bootstrap.Tab(tabElement);
+                    tab.show();
+                } catch (e) {
+                    tabElement.click();
+                }
+            }, 100);
         }
     }
 }
 
-// 13. 调试函数
-function debugModalDisplay() {
-    console.log('=== 调试模态框显示 ===');
+/**
+ * 初始化添加用户按钮 - 修复版
+ */
+function initAddUserButtonFixed() {
+    console.log('初始化添加用户按钮...');
 
-    const modal = document.getElementById('addUserModal');
-    if (!modal) {
-        console.error('找不到模态框');
+    // 查找按钮
+    const buttons = document.querySelectorAll('button');
+    let addUserBtn = null;
+
+    for (let btn of buttons) {
+        if (btn.textContent.includes('添加用户')) {
+            addUserBtn = btn;
+            break;
+        }
+    }
+
+    if (!addUserBtn) {
+        console.warn('未找到添加用户按钮，尝试其他选择器...');
+        addUserBtn = document.querySelector('#users .card-header .btn-primary');
+    }
+
+    if (!addUserBtn) {
+        console.error('无法找到添加用户按钮');
         return;
     }
 
-    // 检查样式
-    const computedStyle = window.getComputedStyle(modal);
-    console.log('模态框计算样式:', {
-        display: computedStyle.display,
-        visibility: computedStyle.visibility,
-        opacity: computedStyle.opacity,
-        zIndex: computedStyle.zIndex,
-        position: computedStyle.position,
-        width: computedStyle.width,
-        height: computedStyle.height
+    console.log('找到按钮:', addUserBtn);
+
+    // 移除所有现有事件监听器并重新绑定
+    const newBtn = addUserBtn.cloneNode(true);
+    newBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('点击添加用户按钮');
+        showFixedModal();
     });
 
-    // 检查父元素
-    let parent = modal.parentElement;
-    let depth = 0;
-    while (parent && depth < 10) {
-        const parentStyle = window.getComputedStyle(parent);
-        console.log(`父元素 ${depth} (${parent.tagName}.${parent.className}):`, {
-            display: parentStyle.display,
-            visibility: parentStyle.visibility,
-            overflow: parentStyle.overflow
-        });
-        parent = parent.parentElement;
-        depth++;
-    }
+    addUserBtn.parentNode.replaceChild(newBtn, addUserBtn);
 
-    // 强制显示
-    showAddUserModal();
+    console.log('按钮初始化完成');
 }
 
-// 14. 全局导出函数
-window.showAddUserModal = showAddUserModal;
-window.testModal = debugModalDisplay;
-window.closeModal = closeModal;
+/**
+ * 显示修复版模态框 - 解决事件冒泡问题
+ */
+function showFixedModal() {
+    console.log('显示修复版模态框');
 
-console.log('模态框显示修复脚本已加载');
+    // 创建模态框容器
+    let modalContainer = document.getElementById('fixedUserModal');
+
+    if (!modalContainer) {
+        modalContainer = createFixedModal();
+        document.body.appendChild(modalContainer);
+        bindFixedModalEvents(modalContainer);
+    }
+
+    // 显示模态框
+    modalContainer.style.display = 'flex';
+
+    // 防止body滚动
+    document.body.style.overflow = 'hidden';
+    document.body.classList.add('modal-open');
+
+    // 重置关闭标志
+    isModalClosing = false;
+
+    // 聚焦到第一个输入框
+    setTimeout(() => {
+        const firstInput = modalContainer.querySelector('input[name="username"]');
+        if (firstInput) {
+            firstInput.focus();
+        }
+    }, 50);
+}
+
+/**
+ * 创建修复版模态框HTML结构
+ */
+function createFixedModal() {
+    const container = document.createElement('div');
+    container.id = 'fixedUserModal';
+    container.style.cssText = `
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 9999;
+        background-color: rgba(0,0,0,0.5);
+        align-items: center;
+        justify-content: center;
+    `;
+
+    container.innerHTML = `
+        <div id="fixedModalContent" style="
+            background: white;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            position: relative;
+            z-index: 10000;
+        ">
+            <div style="
+                padding: 20px;
+                border-bottom: 1px solid #e9ecef;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            ">
+                <h4 style="margin: 0;">
+                    <i class="fas fa-user-plus me-2"></i>添加新用户
+                </h4>
+                <button type="button" id="fixedModalClose" style="
+                    background: none;
+                    border: none;
+                    font-size: 24px;
+                    cursor: pointer;
+                    color: #6c757d;
+                    line-height: 1;
+                ">×</button>
+            </div>
+
+            <div style="padding: 20px;">
+                <form id="fixedUserForm">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">用户名 *</label>
+                            <input type="text" name="username" required style="
+                                width: 100%;
+                                padding: 8px 12px;
+                                border: 1px solid #dee2e6;
+                                border-radius: 6px;
+                                font-size: 14px;
+                            ">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">邮箱 *</label>
+                            <input type="email" name="email" required style="
+                                width: 100%;
+                                padding: 8px 12px;
+                                border: 1px solid #dee2e6;
+                                border-radius: 6px;
+                                font-size: 14px;
+                            ">
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">姓名</label>
+                            <input type="text" name="display_name" style="
+                                width: 100%;
+                                padding: 8px 12px;
+                                border: 1px solid #dee2e6;
+                                border-radius: 6px;
+                                font-size: 14px;
+                            ">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">部门</label>
+                            <select name="department" style="
+                                width: 100%;
+                                padding: 8px 12px;
+                                border: 1px solid #dee2e6;
+                                border-radius: 6px;
+                                font-size: 14px;
+                                background: white;
+                            ">
+                                <option value="">选择部门</option>
+                                <option value="warehouse">仓库管理部</option>
+                                <option value="maintenance">设备维护部</option>
+                                <option value="purchase">采购部</option>
+                                <option value="it">IT部</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">角色 *</label>
+                            <select name="role" required style="
+                                width: 100%;
+                                padding: 8px 12px;
+                                border: 1px solid #dee2e6;
+                                border-radius: 6px;
+                                font-size: 14px;
+                                background: white;
+                            ">
+                                <option value="">选择角色</option>
+                                <option value="admin">系统管理员</option>
+                                <option value="manager">仓库管理员</option>
+                                <option value="operator">操作员</option>
+                                <option value="viewer">查看员</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">初始密码 *</label>
+                            <div style="display: flex;">
+                                <input type="password" name="password" required style="
+                                    flex: 1;
+                                    padding: 8px 12px;
+                                    border: 1px solid #dee2e6;
+                                    border-right: none;
+                                    border-radius: 6px 0 0 6px;
+                                    font-size: 14px;
+                                ">
+                                <button type="button" onclick="toggleFixedPassword(this)" style="
+                                    background: #e9ecef;
+                                    border: 1px solid #dee2e6;
+                                    border-left: none;
+                                    border-radius: 0 6px 6px 0;
+                                    cursor: pointer;
+                                    padding: 0 12px;
+                                ">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                            <small style="color: #6c757d; display: block; margin-top: 5px;">至少8位字符，包含字母和数字</small>
+                        </div>
+                    </div>
+
+                    <div style="margin: 20px 0;">
+                        <label style="display: block; margin-bottom: 10px; font-weight: 500;">权限设置</label>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px;">
+                            <label style="display: flex; align-items: center; gap: 8px; font-size: 14px;">
+                                <input type="checkbox" name="permissions" value="parts_manage" checked>
+                                <span>备件管理</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 8px; font-size: 14px;">
+                                <input type="checkbox" name="permissions" value="locations_manage" checked>
+                                <span>库位管理</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 8px; font-size: 14px;">
+                                <input type="checkbox" name="permissions" value="operations_manage" checked>
+                                <span>出入库操作</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 8px; font-size: 14px;">
+                                <input type="checkbox" name="permissions" value="reports_view" checked>
+                                <span>报表查看</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 8px; font-size: 14px;">
+                                <input type="checkbox" name="permissions" value="data_export">
+                                <span>数据导出</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 8px; font-size: 14px;">
+                                <input type="checkbox" name="permissions" value="system_settings">
+                                <span>系统设置</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; padding-top: 20px; border-top: 1px solid #e9ecef;">
+                        <button type="button" id="fixedModalCancel" style="
+                            padding: 8px 16px;
+                            background: #6c757d;
+                            color: white;
+                            border: none;
+                            border-radius: 6px;
+                            cursor: pointer;
+                            font-size: 14px;
+                        ">取消</button>
+                        <button type="submit" style="
+                            padding: 8px 16px;
+                            background: #4361ee;
+                            color: white;
+                            border: none;
+                            border-radius: 6px;
+                            cursor: pointer;
+                            font-size: 14px;
+                            font-weight: 500;
+                        ">添加用户</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    `;
+
+    return container;
+}
+
+/**
+ * 绑定模态框事件 - 修复事件冒泡问题
+ */
+function bindFixedModalEvents(modalContainer) {
+    const modalContent = modalContainer.querySelector('#fixedModalContent');
+    const closeBtn = modalContainer.querySelector('#fixedModalClose');
+    const cancelBtn = modalContainer.querySelector('#fixedModalCancel');
+    const form = modalContainer.querySelector('#fixedUserForm');
+
+    // 点击背景关闭 - 修复：使用事件捕获阶段
+    modalContainer.addEventListener('click', function(e) {
+        // 如果正在关闭中，直接返回
+        if (isModalClosing) return;
+
+        // 只有当点击的是背景（不是内容区域）时才关闭
+        if (e.target === modalContainer) {
+            e.preventDefault();
+            e.stopPropagation();
+            closeFixedModal();
+        }
+    }, true); // 使用事件捕获阶段，确保先执行
+
+    // 点击关闭按钮
+    if (closeBtn) {
+        closeBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            closeFixedModal();
+        });
+    }
+
+    // 点击取消按钮
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            closeFixedModal();
+        });
+    }
+
+    // 阻止模态框内容区域的点击事件冒泡到背景
+    if (modalContent) {
+        modalContent.addEventListener('click', function(e) {
+            e.stopPropagation(); // 阻止事件冒泡到背景
+        });
+    }
+
+    // 阻止表单提交事件的冒泡
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            submitFixedUserForm(this);
+        });
+    }
+
+    // ESC键关闭 - 修复：检查焦点元素
+    const escHandler = function(e) {
+        if (e.key === 'Escape' && !isModalClosing) {
+            // 检查焦点是否在模态框的输入元素上
+            const activeElement = document.activeElement;
+            const isInModal = modalContent && modalContent.contains(activeElement);
+
+            if (!isInModal) {
+                e.preventDefault();
+                e.stopPropagation();
+                closeFixedModal();
+            }
+        }
+    };
+
+    document.addEventListener('keydown', escHandler);
+    modalContainer.escHandler = escHandler;
+
+    // 防止模态框内的输入框失去焦点时意外关闭
+    modalContainer.addEventListener('focusout', function(e) {
+        // 延迟检查，避免焦点切换时立即关闭
+        setTimeout(() => {
+            if (!modalContent.contains(document.activeElement) && !isModalClosing) {
+                // 焦点不在模态框内，但不立即关闭，只记录日志
+                console.log('焦点离开模态框');
+            }
+        }, 100);
+    });
+}
+
+/**
+ * 关闭修复版模态框
+ */
+function closeFixedModal() {
+    if (isModalClosing) return;
+
+    isModalClosing = true;
+    console.log('关闭模态框');
+
+    const modalContainer = document.getElementById('fixedUserModal');
+    if (modalContainer) {
+        // 移除ESC键事件监听器
+        if (modalContainer.escHandler) {
+            document.removeEventListener('keydown', modalContainer.escHandler);
+        }
+
+        // 隐藏模态框
+        modalContainer.style.display = 'none';
+    }
+
+    // 恢复body滚动
+    document.body.style.overflow = '';
+    document.body.classList.remove('modal-open');
+
+    // 重置标志
+    setTimeout(() => {
+        isModalClosing = false;
+    }, 300);
+}
+
+/**
+ * 切换密码显示
+ */
+function toggleFixedPassword(button) {
+    const input = button.parentNode.querySelector('input[name="password"]');
+    if (input) {
+        if (input.type === 'password') {
+            input.type = 'text';
+            button.innerHTML = '<i class="fas fa-eye-slash"></i>';
+        } else {
+            input.type = 'password';
+            button.innerHTML = '<i class="fas fa-eye"></i>';
+        }
+    }
+}
+
+/**
+ * 提交修复版用户表单
+ */
+function submitFixedUserForm(form) {
+    console.log('提交用户表单');
+
+    // 验证表单
+    const username = form.querySelector('input[name="username"]').value.trim();
+    const email = form.querySelector('input[name="email"]').value.trim();
+    const password = form.querySelector('input[name="password"]').value;
+    const role = form.querySelector('select[name="role"]').value;
+
+    if (!username || !email || !password || !role) {
+        showFixedAlert('请填写所有必填字段（用户名、邮箱、密码、角色）', 'error');
+        return;
+    }
+
+    if (password.length < 8) {
+        showFixedAlert('密码至少需要8位字符', 'error');
+        return;
+    }
+
+    // 显示加载状态
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>添加中...';
+    submitBtn.disabled = true;
+
+    // 模拟提交
+    setTimeout(() => {
+        console.log('用户添加成功:', username);
+
+        // 显示成功消息
+        showFixedAlert('用户 ' + username + ' 添加成功', 'success');
+
+        // 重置表单
+        form.reset();
+
+        // 恢复按钮
+        submitBtn.textContent = originalText;
+        submitBtn.disabled = false;
+
+        // 关闭模态框
+        closeFixedModal();
+
+    }, 1500);
+}
+
+/**
+ * 显示修复版提示消息
+ */
+function showFixedAlert(message, type) {
+    // 移除现有的提示
+    const existingAlert = document.getElementById('fixedAlert');
+    if (existingAlert) {
+        existingAlert.remove();
+    }
+
+    // 创建新的提示
+    const alertDiv = document.createElement('div');
+    alertDiv.id = 'fixedAlert';
+    alertDiv.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 12px 20px;
+        border-radius: 6px;
+        color: white;
+        font-weight: 500;
+        z-index: 10000;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        animation: fixedAlertSlideIn 0.3s ease-out;
+    `;
+
+    if (type === 'success') {
+        alertDiv.style.background = '#28a745';
+    } else if (type === 'error') {
+        alertDiv.style.background = '#dc3545';
+    } else {
+        alertDiv.style.background = '#17a2b8';
+    }
+
+    alertDiv.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i>
+            <span>${message}</span>
+        </div>
+    `;
+
+    document.body.appendChild(alertDiv);
+
+    // 5秒后移除
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.style.animation = 'fixedAlertSlideOut 0.3s ease-out';
+            setTimeout(() => {
+                if (alertDiv.parentNode) {
+                    alertDiv.remove();
+                }
+            }, 300);
+        }
+    }, 5000);
+}
+
+/**
+ * 初始化其他功能
+ */
+function initOtherFunctions() {
+    // 保存所有设置按钮
+    const saveAllBtn = document.querySelector('button[onclick="saveAllSettings()"]');
+    if (saveAllBtn) {
+        saveAllBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            saveAllSettings();
+        });
+    }
+
+    // 编辑用户按钮
+    document.querySelectorAll('button[onclick^="editUser"]').forEach(btn => {
+        const originalOnclick = btn.getAttribute('onclick');
+        btn.removeAttribute('onclick');
+        btn.addEventListener('click', function() {
+            const userId = originalOnclick.match(/editUser\((\d+)\)/)[1];
+            editUser(userId);
+        });
+    });
+
+    // 重置密码按钮
+    document.querySelectorAll('button[onclick^="resetPassword"]').forEach(btn => {
+        const originalOnclick = btn.getAttribute('onclick');
+        btn.removeAttribute('onclick');
+        btn.addEventListener('click', function() {
+            const userId = originalOnclick.match(/resetPassword\((\d+)\)/)[1];
+            resetPassword(userId);
+        });
+    });
+
+    // 密码显示切换按钮
+    document.querySelectorAll('.toggle-password-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const inputId = this.closest('.input-group').querySelector('input[type="password"]').id;
+            togglePasswordVisibility(inputId, this);
+        });
+    });
+}
+
+/**
+ * 保存所有设置
+ */
+function saveAllSettings() {
+    console.log('保存所有设置');
+
+    // 显示加载状态
+    const saveBtn = document.querySelector('button[onclick="saveAllSettings()"]');
+    const originalText = saveBtn.innerHTML;
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>保存中...';
+    saveBtn.disabled = true;
+
+    setTimeout(() => {
+        showFixedAlert('系统设置已保存', 'success');
+        saveBtn.innerHTML = originalText;
+        saveBtn.disabled = false;
+    }, 1500);
+}
+
+/**
+ * 编辑用户
+ */
+function editUser(userId) {
+    alert('编辑用户 ' + userId + ' (功能演示)');
+}
+
+/**
+ * 重置密码
+ */
+function resetPassword(userId) {
+    if (confirm('确定要重置用户 ' + userId + ' 的密码吗？')) {
+        alert('用户 ' + userId + ' 的密码已重置为默认密码 (功能演示)');
+    }
+}
+
+/**
+ * 切换密码显示
+ */
+function togglePasswordVisibility(inputId, button) {
+    const input = document.getElementById(inputId);
+    if (input) {
+        if (input.type === 'password') {
+            input.type = 'text';
+            button.innerHTML = '<i class="fas fa-eye-slash"></i>';
+        } else {
+            input.type = 'password';
+            button.innerHTML = '<i class="fas fa-eye"></i>';
+        }
+    }
+}
+
+// 全局导出函数
+window.showAddUserModal = showFixedModal;
+window.saveAllSettings = saveAllSettings;
+window.editUser = editUser;
+window.resetPassword = resetPassword;
+window.togglePasswordVisibility = togglePasswordVisibility;
+
+console.log('系统设置页面初始化完成 - 修复事件冒泡问题');
 </script>
 
-<!-- 关键CSS修复 -->
 <style>
-/* 确保模态框正确显示 */
-#addUserModal {
-    display: none !important;
+/* 修复版模态框样式 */
+#fixedUserModal {
+    animation: fixedFadeIn 0.3s ease-out;
 }
 
-/* 当模态框显示时的样式 */
-#addUserModal.show {
-    display: flex !important;
-    align-items: center;
-    justify-content: center;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 9999;
-    background-color: rgba(0,0,0,0.5);
+@keyframes fixedFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
-/* 确保模态框内容可见 */
-#addUserModal .modal-dialog {
-    max-width: 500px;
-    width: 90%;
-    margin: 0 auto;
+@keyframes fixedAlertSlideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
 }
 
-#addUserModal .modal-content {
-    background-color: white !important;
-    border-radius: 0.5rem !important;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.3) !important;
-    border: 1px solid rgba(0,0,0,0.1) !important;
-    transform: translateY(0) !important;
+@keyframes fixedAlertSlideOut {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
 }
 
-/* 确保所有内容可交互 */
-#addUserModal .modal-content * {
-    pointer-events: auto !important;
-    cursor: auto !important;
-    opacity: 1 !important;
-    visibility: visible !important;
+/* 确保修复版模态框在最顶层 */
+#fixedUserModal {
+    z-index: 9999 !important;
 }
 
-/* 移除所有可能隐藏的元素 */
-body.modal-open {
-    overflow: hidden !important;
+#fixedUserModal > div {
+    z-index: 10000 !important;
 }
 
-/* 表单样式 */
-#addUserModal input,
-#addUserModal select,
-#addUserModal textarea {
-    background-color: white !important;
-    color: black !important;
-    border: 1px solid #dee2e6 !important;
-    border-radius: 0.375rem !important;
-    padding: 0.5rem !important;
-    font-size: 1rem !important;
-    width: 100% !important;
-    box-sizing: border-box !important;
-}
-
-#addUserModal input:focus,
-#addUserModal select:focus,
-#addUserModal textarea:focus {
+/* 输入框焦点样式 */
+#fixedUserModal input:focus,
+#fixedUserModal select:focus {
+    outline: none;
     border-color: #4361ee !important;
-    outline: none !important;
-    box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.2) !important;
+    box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.2);
 }
 
-/* 按钮样式 */
-#addUserModal button {
-    background-color: #4361ee !important;
-    color: white !important;
-    border: none !important;
-    border-radius: 0.375rem !important;
-    padding: 0.5rem 1rem !important;
-    font-size: 1rem !important;
-    cursor: pointer !important;
-    transition: background-color 0.2s !important;
+/* 阻止模态框内容区域的点击事件传播 */
+#fixedModalContent {
+    pointer-events: auto;
 }
 
-#addUserModal button:hover {
-    background-color: #3a56d4 !important;
-}
-
-#addUserModal button.btn-secondary {
-    background-color: #6c757d !important;
-}
-
-#addUserModal button.btn-secondary:hover {
-    background-color: #5c636a !important;
-}
-
-/* 响应式调整 */
-@media (max-width: 768px) {
-    #addUserModal .modal-dialog {
-        width: 95%;
-        margin: 10px auto;
-    }
-
-    #addUserModal .modal-content {
-        max-height: 90vh;
-        overflow-y: auto;
-    }
-}
-
-/* 暗色主题 */
-[data-bs-theme="dark"] #addUserModal .modal-content {
-    background-color: #1e293b !important;
+/* 暗色主题支持 */
+[data-bs-theme="dark"] #fixedModalContent {
+    background: #1e293b !important;
     color: #f8f9fa !important;
 }
 
-[data-bs-theme="dark"] #addUserModal input,
-[data-bs-theme="dark"] #addUserModal select,
-[data-bs-theme="dark"] #addUserModal textarea {
-    background-color: #0f172a !important;
+[data-bs-theme="dark"] #fixedModalContent input,
+[data-bs-theme="dark"] #fixedModalContent select {
+    background: #0f172a !important;
     color: #f8f9fa !important;
     border-color: #475569 !important;
+}
+
+[data-bs-theme="dark"] #fixedModalContent button:not([type="submit"]) {
+    background: #475569 !important;
+    color: #f8f9fa !important;
+}
+
+/* 防止模态框内的点击事件影响外部 */
+body.modal-open {
+    overflow: hidden !important;
+    position: fixed;
+    width: 100%;
+    height: 100%;
+}
+
+/* 关闭按钮悬停效果 */
+#fixedModalClose:hover {
+    color: #212529 !important;
+    transform: scale(1.1);
+    transition: all 0.2s;
+}
+
+/* 确保表单元素有正确的光标 */
+#fixedUserModal input,
+#fixedUserModal select,
+#fixedUserModal textarea,
+#fixedUserModal button {
+    cursor: pointer;
+}
+
+#fixedUserModal input[type="text"],
+#fixedUserModal input[type="email"],
+#fixedUserModal input[type="password"],
+#fixedUserModal select {
+    cursor: text;
 }
 </style>
 {% endblock %}
