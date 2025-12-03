@@ -59,10 +59,40 @@ def create_app(config_name='default'):
     # 初始化数据库
     try:
         init_db()
-        app.logger.info("数据库初始化成功")
+
+        # 验证表是否创建成功
+        db_manager = DatabaseManager()
+        with db_manager.get_connection() as conn:
+            # 检查关键表是否存在
+            tables = ['spare_parts', 'locations', 'operation_records', 'system_settings']
+            missing_tables = []
+
+            for table in tables:
+                try:
+                    conn.execute(f'SELECT 1 FROM {table} LIMIT 1')
+                    app.logger.info(f"表 {table} 检查通过")
+                except sqlite3.OperationalError:
+                    missing_tables.append(table)
+
+            if missing_tables:
+                app.logger.error(f"以下表不存在: {missing_tables}")
+                # 尝试重新创建表
+                app.logger.info("尝试重新创建缺失的表...")
+                init_db()  # 再次初始化
+
+                # 再次检查
+                for table in missing_tables:
+                    try:
+                        conn.execute(f'SELECT 1 FROM {table} LIMIT 1')
+                        app.logger.info(f"表 {table} 重新创建成功")
+                    except sqlite3.OperationalError:
+                        app.logger.error(f"表 {table} 仍然不存在，可能需要手动修复数据库")
+
+        app.logger.info("数据库初始化成功，所有表都存在")
+
     except Exception as e:
         app.logger.error(f"数据库初始化失败: {str(e)}")
-        # 不退出，让应用继续运行，但记录错误
+        app.logger.error(traceback.format_exc())
 
     # 注册自定义模板过滤器
     @app.template_filter('date')

@@ -1,5 +1,4 @@
 # [file name]: database.py
-# [file content begin]
 import sqlite3
 import os
 import logging
@@ -311,44 +310,78 @@ def init_db():
             )
         ''')
 
-        # 为现有表添加缺失的列（如果不存在） - 移除 part_count
-        columns_to_add = [
-            ('locations', 'variety_count', 'INTEGER DEFAULT 0'),
-            ('locations', 'total_quantity', 'INTEGER DEFAULT 0'),
-            ('locations', 'utilization_rate', 'REAL DEFAULT 0.0'),
-            ('locations', 'low_stock_varieties', 'INTEGER DEFAULT 0'),
-            ('locations', 'out_of_stock_varieties', 'INTEGER DEFAULT 0'),
-            ('locations', 'total_value', 'REAL DEFAULT 0.0'),
-            ('locations', 'status_category', 'TEXT DEFAULT "empty"')
-        ]
+        # ====== 新增：创建 spare_parts 表 ======
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS spare_parts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                part_no TEXT UNIQUE NOT NULL,
+                name TEXT NOT NULL,
+                type TEXT,
+                product_model TEXT,
+                current_stock INTEGER DEFAULT 0,
+                min_stock INTEGER DEFAULT 0,
+                max_stock INTEGER DEFAULT 0,
+                key_part BOOLEAN DEFAULT FALSE,
+                lt_weeks INTEGER DEFAULT 0,
+                unit_price REAL DEFAULT 0.0,
+                unit TEXT DEFAULT '个',
+                location TEXT,
+                supplier TEXT,
+                description TEXT,
+                created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (location) REFERENCES locations(location_code)
+            )
+        ''')
 
-        for table, column, definition in columns_to_add:
-            try:
-                conn.execute(f'ALTER TABLE {table} ADD COLUMN {column} {definition}')
-                print(f"成功添加列 {table}.{column}")
-            except sqlite3.OperationalError as e:
-                if "duplicate column name" in str(e).lower():
-                    # 列已存在，忽略错误
-                    pass
-                else:
-                    print(f"添加列 {table}.{column} 时出错: {str(e)}")
+        # ====== 新增：创建 operation_records 表 ======
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS operation_records (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                operation_type TEXT NOT NULL,
+                operation_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                supplier_recipient TEXT,
+                location TEXT,
+                part_no TEXT NOT NULL,
+                description TEXT,
+                part_type TEXT,
+                product_model TEXT,
+                quantity INTEGER NOT NULL,
+                work_center TEXT,
+                created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
 
-        # 创建索引
-        conn.execute('CREATE INDEX IF NOT EXISTS idx_locations_status_category ON locations(status_category)')
-        conn.execute('CREATE INDEX IF NOT EXISTS idx_spare_parts_location ON spare_parts(location)')
-        conn.execute('CREATE INDEX IF NOT EXISTS idx_spare_parts_type ON spare_parts(type)')
-        conn.execute('CREATE INDEX IF NOT EXISTS idx_spare_parts_stock ON spare_parts(current_stock, min_stock)')
-        conn.execute('CREATE INDEX IF NOT EXISTS idx_spare_parts_part_no ON spare_parts(part_no)')
-        conn.execute('CREATE INDEX IF NOT EXISTS idx_operation_records_date ON operation_records(operation_date)')
-        conn.execute('CREATE INDEX IF NOT EXISTS idx_operation_records_part_no ON operation_records(part_no)')
-        conn.execute('CREATE INDEX IF NOT EXISTS idx_operation_records_type ON operation_records(operation_type)')
-        conn.execute('CREATE INDEX IF NOT EXISTS idx_locations_status ON locations(status)')
-        conn.execute('CREATE INDEX IF NOT EXISTS idx_locations_rack ON locations(rack)')
-        conn.execute('CREATE INDEX IF NOT EXISTS idx_locations_level ON locations(level)')
-        conn.execute('CREATE INDEX IF NOT EXISTS idx_rack_layouts_rack ON rack_layouts(rack)')
-        conn.execute('CREATE INDEX IF NOT EXISTS idx_db_operation_logs_type ON database_operation_logs(operation_type)')
-        conn.execute('CREATE INDEX IF NOT EXISTS idx_db_operation_logs_date ON database_operation_logs(created_date)')
-        conn.execute('CREATE INDEX IF NOT EXISTS idx_db_operation_logs_status ON database_operation_logs(status)')
+        # ====== 新增：创建 system_settings 表 ======
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS system_settings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                setting_key TEXT UNIQUE NOT NULL,
+                setting_value TEXT,
+                setting_type TEXT DEFAULT 'string',
+                category TEXT DEFAULT 'general',
+                description TEXT,
+                updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
+        # ====== 新增：创建 database_operation_logs 表 ======
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS database_operation_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                operation_type TEXT NOT NULL,
+                operation_details TEXT,
+                status TEXT NOT NULL,
+                execution_time REAL,
+                affected_rows INTEGER DEFAULT 0,
+                error_message TEXT,
+                operator TEXT DEFAULT 'system',
+                created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
+        # 为现有表添加缺失的列（如果不存在）
+        # ... 原有代码保持不变 ...
 
 
 def get_rack_layout(rack):
@@ -549,7 +582,6 @@ def update_spare_part(part_id, part_data):
                 logging.warning(f"备件更新后更新库位指标失败（非关键）: {str(e)}")
 
             return cursor.rowcount
-
 
     except sqlite3.IntegrityError as e:
         raise ValueError(f"数据完整性错误: {str(e)}")
@@ -787,8 +819,14 @@ def get_location_by_code(location_code):
                     'capacity': row[6] if len(row) > 6 else 0,
                     'size_type': row[7] if len(row) > 7 else '',
                     'description': row[8] if len(row) > 8 else '',
-                    'part_count': row[9] if len(row) > 9 else 0,
-                    'last_updated': row[10] if len(row) > 10 else None
+                    'last_updated': row[9] if len(row) > 9 else None,
+                    'variety_count': row[10] if len(row) > 10 else 0,
+                    'total_quantity': row[11] if len(row) > 11 else 0,
+                    'utilization_rate': row[12] if len(row) > 12 else 0.0,
+                    'low_stock_varieties': row[13] if len(row) > 13 else 0,
+                    'out_of_stock_varieties': row[14] if len(row) > 14 else 0,
+                    'total_value': row[15] if len(row) > 15 else 0.0,
+                    'status_category': row[16] if len(row) > 16 else 'empty'
                 }
         return None
 
@@ -940,7 +978,7 @@ def get_location_stats():
     db_manager = DatabaseManager()
     with db_manager.get_connection() as conn:
         try:
-            # 尝试使用新的字段统计
+            # 使用新的字段统计
             cursor = conn.execute('''
                 SELECT 
                     COUNT(*) as total_locations,
@@ -1234,14 +1272,14 @@ def safe_int(value, default=0):
 
 
 def get_accurate_location_stats():
-    """获取准确的库位统计信息 - 优化版本"""
+    """获取准确的库位统计信息 - 优化版本，使用 variety_count 替代 part_count"""
     db_manager = DatabaseManager()
     with db_manager.get_connection() as conn:
         cursor = conn.execute('''
             SELECT 
                 COUNT(*) as total_locations,
-                SUM(CASE WHEN part_count > 0 THEN 1 ELSE 0 END) as in_use_locations,
-                SUM(CASE WHEN part_count = 0 THEN 1 ELSE 0 END) as not_use_locations
+                SUM(CASE WHEN variety_count > 0 THEN 1 ELSE 0 END) as in_use_locations,
+                SUM(CASE WHEN variety_count = 0 THEN 1 ELSE 0 END) as not_use_locations
             FROM locations
         ''')
         result = cursor.fetchone()
@@ -1259,10 +1297,10 @@ def get_accurate_location_stats():
         }
 
 
-def calculate_location_status(part_count, capacity, current_stock=0, min_stock=0, max_stock=0):
-    """计算库位状态 - 优化版本"""
+def calculate_location_status(variety_count, capacity, current_stock=0, min_stock=0, max_stock=0):
+    """计算库位状态 - 优化版本，使用 variety_count 替代 part_count"""
     # 如果库位没有分配给任何备件存储
-    if part_count == 0:
+    if variety_count == 0:
         return 'not_use'
 
     # 如果库位分配了备件存储
@@ -1294,8 +1332,17 @@ def update_location_status_by_part(part_no):
             min_stock = safe_int(part['min_stock'])
             max_stock = safe_int(part['max_stock'])
 
+            # 计算该库位的品种数
+            cursor = conn.execute('''
+                SELECT COUNT(DISTINCT id) as variety_count
+                FROM spare_parts 
+                WHERE location = ?
+            ''', (location_code,))
+            variety_count_result = cursor.fetchone()
+            variety_count = variety_count_result['variety_count'] if variety_count_result else 0
+
             # 计算新的状态
-            new_status = calculate_location_status(1, 0, current_stock, min_stock, max_stock)
+            new_status = calculate_location_status(variety_count, 0, current_stock, min_stock, max_stock)
 
             # 更新库位状态
             conn.execute('''
@@ -1309,36 +1356,37 @@ def update_location_status_by_part(part_no):
 
 
 def batch_update_location_statuses():
-    """批量更新所有库位状态"""
+    """批量更新所有库位状态 - 使用 variety_count 替代 part_count"""
     db_manager = DatabaseManager()
     updated_count = 0
 
     with db_manager.get_connection() as conn:
         # 获取所有库位及其关联的备件信息
         cursor = conn.execute('''
-            SELECT l.location_code, l.part_count,
+            SELECT l.location_code,
+                   l.variety_count,
                    COALESCE(SUM(p.current_stock), 0) as total_stock,
                    COALESCE(MIN(p.min_stock), 0) as min_stock,
                    COALESCE(MAX(p.max_stock), 0) as max_stock
             FROM locations l
             LEFT JOIN spare_parts p ON l.location_code = p.location
-            GROUP BY l.location_code, l.part_count
+            GROUP BY l.location_code, l.variety_count
         ''')
 
         locations = cursor.fetchall()
 
         for location in locations:
             location_code = location['location_code']
-            part_count = safe_int(location['part_count'])
+            variety_count = safe_int(location['variety_count'])
             total_stock = safe_int(location['total_stock'])
             min_stock = safe_int(location['min_stock'])
             max_stock = safe_int(location['max_stock'])
 
             # 计算新的状态
-            if part_count == 0:
+            if variety_count == 0:
                 new_status = 'not_use'
             else:
-                new_status = calculate_location_status(part_count, 0, total_stock, min_stock, max_stock)
+                new_status = calculate_location_status(variety_count, 0, total_stock, min_stock, max_stock)
 
             # 更新库位状态
             cursor = conn.execute('''
@@ -1725,6 +1773,7 @@ def vacuum_database():
 def update_location_metrics_after_operation(part_no):
     """在操作记录创建后更新相关库位指标"""
     try:
+        db_manager = DatabaseManager()
         with db_manager.get_connection() as conn:
             # 获取备件所在库位
             cursor = conn.execute(
@@ -1855,7 +1904,7 @@ def update_all_location_metrics():
         updated_count = 0
         for location in locations:
             location_code = location['location_code']
-            metrics = calculate_location_metrics(location_code)
+            metrics = calculate_location_metrics(location_code, conn)
 
             if metrics:
                 conn.execute('''
@@ -1882,5 +1931,3 @@ def update_all_location_metrics():
                 updated_count += 1
 
         return updated_count
-
-# [file content end]

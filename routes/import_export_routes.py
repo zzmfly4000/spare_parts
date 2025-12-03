@@ -1,6 +1,4 @@
 # [file name]: import_export_routes.py
-# [修改位置：在文件顶部添加导入]
-
 from flask import render_template, request, redirect, url_for, flash, send_file, session, jsonify, current_app
 import pandas as pd
 from io import BytesIO
@@ -22,15 +20,17 @@ from models.database import (
     get_location_by_code,
     get_spare_part_by_part_no,
     calculate_stock_from_operations,
-    calculate_stock_from_operations_with_connection,  # 添加这个导入
+    calculate_stock_from_operations_with_connection,
     update_spare_part,
     get_spare_part_by_id,
-    batch_update_parts
+    batch_update_parts,
+    calculate_location_status,
+    safe_int,
+    safe_float,
+    update_single_location_metrics
 )
-from utils.helpers import safe_int, safe_str, safe_float, validate_excel_file, safe_datetime
+from utils.helpers import safe_str, validate_excel_file, safe_datetime
 from utils.sync_utils import sync_all_operations
-
-# 其余代码保持不变...
 
 
 def setup_import_export_routes(app):
@@ -42,7 +42,7 @@ def setup_import_export_routes(app):
         os.makedirs(log_dir)
 
     # =============================================================================
-    # 库位导入辅助函数 - 添加在这里
+    # 库位导入辅助函数
     # =============================================================================
 
     def batch_upsert_locations(locations_data, conn):
@@ -68,15 +68,23 @@ def setup_import_export_routes(app):
                     location_data.get('capacity', 0),
                     location_data.get('size_type', ''),
                     location_data.get('description', ''),
-                    location_data.get('part_count', 0)
+                    0,  # variety_count
+                    0,  # total_quantity
+                    0.0,  # utilization_rate
+                    0,  # low_stock_varieties
+                    0,  # out_of_stock_varieties
+                    0.0,  # total_value
+                    'empty'  # status_category
                 )
                 batch_data.append(data_tuple)
 
             # 使用INSERT OR REPLACE实现UPSERT
             query = '''
                 INSERT OR REPLACE INTO locations 
-                (location_code, rack, level, position, side, status, capacity, size_type, description, part_count, last_updated)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                (location_code, rack, level, position, side, status, capacity, size_type, description, 
+                 variety_count, total_quantity, utilization_rate, low_stock_varieties, 
+                 out_of_stock_varieties, total_value, status_category, last_updated)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
             '''
 
             # 执行批量操作
@@ -221,10 +229,6 @@ def setup_import_export_routes(app):
             'import_summary': import_summary
         }
 
-    # =============================================================================
-    # 1. 库位导入功能 - 高性能版本
-    # =============================================================================
-
     @app.route('/import_locations', methods=['GET', 'POST'])
     def import_locations():
         """库位信息导入页面 - 高性能版本"""
@@ -345,11 +349,6 @@ def setup_import_export_routes(app):
                                updated_count=import_results.get('updated_count', 0),
                                import_summary=import_results.get('import_summary', {}),
                                import_id=import_results.get('import_id', ''))
-
-    def has_required_location_columns(df):
-        """检查是否包含必需的实际库位列 - 支持多种列名"""
-        location_columns = ['location', '实际库位', '库位', 'Location', '库位代码']
-        return any(col in df.columns for col in location_columns)
 
     def clean_locations_dataframe_quick(df):
         """清理库位DataFrame - 快速版本"""
@@ -575,200 +574,15 @@ def setup_import_export_routes(app):
             'import_summary': import_summary
         }
 
-    def process_locations_import_batch_optimized(df, import_id):
-        """处理库位信息导入 - 批量优化版本（适用于大数据量）"""
-        created_count = 0
-        updated_count = 0
-        error_count = 0
-        errors = []
-
-        import_summary = {
-            'total_rows': len(df),
-            'import_start_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            'file_columns': list(df.columns),
-            'import_id': import_id
-        }
-
-        current_app.logger.info(f"开始批量处理库位导入，共 {len(df)} 行数据")
-
-        try:
-            db_manager = DatabaseManager()
-            with db_manager.get_connection() as conn:
-                # 批量预加载现有库位
-                existing_locations = {}
-                try:
-                    locations_result = conn.execute('SELECT location_code FROM locations').fetchall()
-                    for location in locations_result:
-                        existing_locations[location['location_code']] = True
-                    current_app.logger.info(f"预加载完成: {len(existing_locations)} 个现有库位")
-                except Exception as e:
-                    current_app.logger.error(f"预加载现有库位失败: {str(e)}")
-
-                # 批量处理：先收集所有操作
-                locations_to_create = []
-                locations_to_update = []
-                validation_errors = []
-
-                # 设置进度报告
-                total_rows = len(df)
-                progress_interval = max(1, total_rows // 10)
-                last_progress_time = time.time()
-
-                for index, row in df.iterrows():
-                    row_number = index + 2
-
-                    # 进度报告
-                    if index % progress_interval == 0:
-                        current_time = time.time()
-                        if current_time - last_progress_time > 2:
-                            current_app.logger.info(
-                                f"数据准备进度: {index + 1}/{total_rows} ({((index + 1) / total_rows * 100):.1f}%)")
-                            last_progress_time = current_time
-
-                    try:
-                        location_data = extract_location_data_quick(row)
-
-                        if not location_data.get('location_code'):
-                            validation_errors.append(create_error(
-                                row_number, '实际库位代码不能为空', 'location_code', '', 'error', '请填写实际库位代码'
-                            ))
-                            continue
-
-                        location_code = location_data['location_code']
-
-                        # 设置默认值
-                        if 'status' not in location_data:
-                            location_data['status'] = 'free'
-                        if 'capacity' not in location_data:
-                            location_data['capacity'] = 0
-
-                        if location_code in existing_locations:
-                            # 添加到更新列表
-                            update_data = {k: v for k, v in location_data.items() if k != 'location_code'}
-                            if update_data:
-                                locations_to_update.append({
-                                    'location_code': location_code,
-                                    'update_data': update_data,
-                                    'row_number': row_number
-                                })
-                        else:
-                            # 添加到创建列表
-                            locations_to_create.append({
-                                'location_data': location_data,
-                                'row_number': row_number
-                            })
-                            existing_locations[location_code] = True
-
-                    except Exception as e:
-                        error_msg = f'处理库位数据时出错: {str(e)}'
-                        validation_errors.append(create_error(
-                            row_number, error_msg, '数据处理', '', 'error', '请检查数据格式'
-                        ))
-
-                current_app.logger.info(
-                    f"数据准备完成: 创建 {len(locations_to_create)} 个，更新 {len(locations_to_update)} 个")
-
-                # 批量创建新库位 - 分批处理避免内存问题
-                batch_size = 100
-                for i in range(0, len(locations_to_create), batch_size):
-                    batch = locations_to_create[i:i + batch_size]
-                    current_app.logger.info(f"批量创建库位: {i + 1} 到 {min(i + batch_size, len(locations_to_create))}")
-
-                    for create_item in batch:
-                        try:
-                            create_success = create_location_simple(create_item['location_data'], conn)
-                            if create_success:
-                                created_count += 1
-                            else:
-                                validation_errors.append(create_error(
-                                    create_item['row_number'], f'创建库位失败', '数据库',
-                                    create_item['location_data']['location_code'], 'error', '请检查库位数据'
-                                ))
-                        except Exception as e:
-                            validation_errors.append(create_error(
-                                create_item['row_number'], f'创建库位失败: {str(e)}', '数据库',
-                                create_item['location_data']['location_code'], 'error', '请检查库位数据'
-                            ))
-
-                # 批量更新现有库位 - 分批处理
-                for i in range(0, len(locations_to_update), batch_size):
-                    batch = locations_to_update[i:i + batch_size]
-                    current_app.logger.info(f"批量更新库位: {i + 1} 到 {min(i + batch_size, len(locations_to_update))}")
-
-                    for update_item in batch:
-                        try:
-                            update_success = update_location_simple(
-                                update_item['location_code'],
-                                update_item['update_data'],
-                                conn
-                            )
-                            if update_success:
-                                updated_count += 1
-                            else:
-                                validation_errors.append(create_error(
-                                    update_item['row_number'], f'更新库位失败', '数据库',
-                                    update_item['location_code'], 'error', '库位可能不存在'
-                                ))
-                        except Exception as e:
-                            validation_errors.append(create_error(
-                                update_item['row_number'], f'更新库位失败: {str(e)}', '数据库',
-                                update_item['location_code'], 'error', '请检查库位数据'
-                            ))
-
-                # 合并错误
-                errors.extend(validation_errors)
-                error_count = len(validation_errors)
-
-                conn.commit()
-                current_app.logger.info(
-                    f"批量导入完成: 创建 {created_count} 个，更新 {updated_count} 个，错误 {error_count} 个")
-
-        except Exception as e:
-            error_msg = f'数据库操作失败: {str(e)}'
-            current_app.logger.error(f'{error_msg}\n{traceback.format_exc()}')
-            errors.append(create_error('系统', error_msg, '数据库', '', 'error', '请联系系统管理员'))
-            error_count += 1
-
-        import_end_time = datetime.now()
-        import_duration = (import_end_time - datetime.strptime(
-            import_summary['import_start_time'], '%Y-%m-%d %H:%M:%S'
-        )).total_seconds()
-
-        import_summary.update({
-            'import_end_time': import_end_time.strftime('%Y-%m-%d %H:%M:%S'),
-            'created_count': created_count,
-            'updated_count': updated_count,
-            'error_count': error_count,
-            'import_duration': import_duration
-        })
-
-        success = error_count == 0 or (created_count + updated_count) > 0
-
-        if success:
-            if error_count == 0:
-                message = f'批量导入成功！创建 {created_count} 个库位，更新 {updated_count} 个库位，耗时 {import_duration:.1f}秒'
-            else:
-                message = f'批量导入部分成功！创建 {created_count} 个库位，更新 {updated_count} 个库位，错误 {error_count} 个，耗时 {import_duration:.1f}秒'
-        else:
-            message = f'批量导入失败！错误 {error_count} 个，耗时 {import_duration:.1f}秒'
-
-        return {
-            'success': success,
-            'message': message,
-            'created_count': created_count,
-            'updated_count': updated_count,
-            'error_count': error_count,
-            'errors': errors,
-            'import_summary': import_summary
-        }
-
-    def create_location_direct(location_data, conn):
-        """直接创建库位 - 简化版本"""
+    def create_location_simple(location_data, conn):
+        """创建库位 - 简化版本"""
         try:
             cursor = conn.execute('''
                 INSERT INTO locations 
-                (location_code, rack, level, position, side, status, capacity, size_type, description, part_count)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (location_code, rack, level, position, side, status, capacity, size_type, description,
+                 variety_count, total_quantity, utilization_rate, low_stock_varieties,
+                 out_of_stock_varieties, total_value, status_category)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0.0, 0, 0, 0.0, 'empty')
             ''', (
                 location_data['location_code'],
                 location_data.get('rack', ''),
@@ -778,12 +592,13 @@ def setup_import_export_routes(app):
                 location_data.get('status', 'free'),
                 location_data.get('capacity', 0),
                 location_data.get('size_type', ''),
-                location_data.get('description', ''),
-                0  # part_count
+                location_data.get('description', '')
             ))
             return True
         except Exception as e:
-            current_app.logger.error(f"创建库位失败: {str(e)}")
+            # 如果是重复键错误，忽略
+            if "UNIQUE constraint failed" in str(e):
+                return False
             raise e
 
     def update_location_simple(location_code, update_data, conn):
@@ -822,32 +637,6 @@ def setup_import_export_routes(app):
                 location_data['capacity'] = 0
 
         return location_data
-
-    def create_location_simple(location_data, conn):
-        """创建库位 - 简化版本"""
-        try:
-            cursor = conn.execute('''
-                INSERT INTO locations 
-                (location_code, rack, level, position, side, status, capacity, size_type, description, part_count)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (
-                location_data['location_code'],
-                location_data.get('rack', ''),
-                location_data.get('level', ''),
-                location_data.get('position', ''),
-                location_data.get('side', ''),
-                location_data.get('status', 'free'),
-                location_data.get('capacity', 0),
-                location_data.get('size_type', ''),
-                location_data.get('description', ''),
-                0  # part_count
-            ))
-            return True
-        except Exception as e:
-            # 如果是重复键错误，忽略
-            if "UNIQUE constraint failed" in str(e):
-                return False
-            raise e
 
     @app.route('/download_locations_template')
     def download_locations_template():
@@ -1115,7 +904,6 @@ def setup_import_export_routes(app):
             current_app.logger.error(f'下载操作记录模板时出错: {str(e)}')
             flash(f'下载模板失败: {str(e)}', 'danger')
             return redirect(url_for('import_operations'))
-
 
     # =============================================================================
     # 3. 备件信息更新导入功能 - 优化字段映射
@@ -1401,29 +1189,29 @@ def setup_import_export_routes(app):
                         try:
                             # 重新计算库位状态
                             cursor = conn.execute('''
-                                SELECT l.location_code, l.part_count,
+                                SELECT l.location_code, l.variety_count,
                                        COALESCE(SUM(p.current_stock), 0) as total_stock,
                                        COALESCE(MIN(p.min_stock), 0) as min_stock,
                                        COALESCE(MAX(p.max_stock), 0) as max_stock
                                 FROM locations l
                                 LEFT JOIN spare_parts p ON l.location_code = p.location
                                 WHERE l.location_code = ?
-                                GROUP BY l.location_code, l.part_count
+                                GROUP BY l.location_code, l.variety_count
                             ''', (location_code,))
 
                             location_data = cursor.fetchone()
 
                             if location_data:
-                                part_count = safe_int(location_data['part_count'])
+                                variety_count = safe_int(location_data['variety_count'])
                                 total_stock = safe_int(location_data['total_stock'])
                                 min_stock = safe_int(location_data['min_stock'])
                                 max_stock = safe_int(location_data['max_stock'])
 
                                 # 计算新的状态
-                                if part_count == 0:
+                                if variety_count == 0:
                                     new_status = 'not_use'
                                 else:
-                                    new_status = calculate_location_status(part_count, 0, total_stock, min_stock,
+                                    new_status = calculate_location_status(variety_count, 0, total_stock, min_stock,
                                                                            max_stock)
 
                                 # 更新库位状态
@@ -1595,7 +1383,7 @@ def setup_import_export_routes(app):
             return redirect(url_for('import_part_info_only'))
 
     # =============================================================================
-    # 4. 导出功能 - 保持不变，添加缺失的 export_parts_advanced 路由
+    # 4. 导出功能
     # =============================================================================
 
     @app.route('/export_parts')
@@ -1756,7 +1544,7 @@ def setup_import_export_routes(app):
             return redirect(url_for('operation_records'))
 
     # =============================================================================
-    # 5. 导入报告下载功能 - 保持不变
+    # 5. 导入报告下载功能
     # =============================================================================
 
     @app.route('/download_import_report/<import_type>/<import_id>')
@@ -1824,7 +1612,7 @@ def setup_import_export_routes(app):
             return redirect(url_for(f'import_{import_type}'))
 
     # =============================================================================
-    # 6. 兼容性路由 - 保持不变
+    # 6. 兼容性路由
     # =============================================================================
 
     @app.route('/import_parts')
@@ -1840,8 +1628,6 @@ def setup_import_export_routes(app):
     # =============================================================================
     # 核心处理函数 - 主要优化操作记录导入的库存计算
     # =============================================================================
-
-    # [file name]: import_export_routes.py
 
     def process_operations_import_optimized(df, import_id):
         """处理操作记录导入 - 完整修复版本"""
@@ -1944,11 +1730,11 @@ def setup_import_export_routes(app):
                     }
 
                 locations_cache = {}
-                locations_result = conn.execute('SELECT location_code, status, part_count FROM locations').fetchall()
+                locations_result = conn.execute('SELECT location_code, status, variety_count FROM locations').fetchall()
                 for location in locations_result:
                     locations_cache[location['location_code']] = {
                         'status': location['status'],
-                        'part_count': location['part_count']
+                        'variety_count': location['variety_count']
                     }
 
                 current_app.logger.info(f"预加载完成: {len(parts_cache)} 备件, {len(locations_cache)} 库位")
@@ -2020,7 +1806,7 @@ def setup_import_export_routes(app):
                             locations_updated += 1
                             locations_cache[location_code] = {
                                 'status': 'in_use',
-                                'part_count': 0
+                                'variety_count': 0
                             }
 
                         # 准备操作记录
@@ -2095,8 +1881,10 @@ def setup_import_export_routes(app):
                             try:
                                 conn.execute('''
                                     INSERT INTO locations 
-                                    (location_code, rack, level, position, side, status, capacity, size_type, description, part_count)
-                                    VALUES (?, '', '', '', '', ?, 100, 'Medium', ?, 0)
+                                    (location_code, rack, level, position, side, status, capacity, size_type, description, 
+                                     variety_count, total_quantity, utilization_rate, low_stock_varieties,
+                                     out_of_stock_varieties, total_value, status_category)
+                                    VALUES (?, '', '', '', '', ?, 100, 'Medium', ?, 0, 0, 0.0, 0, 0, 0.0, 'empty')
                                 ''', (
                                     str(location_data['location_code']),
                                     str(location_data['status']),
@@ -2282,255 +2070,9 @@ def setup_import_export_routes(app):
             current_app.logger.error(f"强制重算过程失败: {str(e)}")
             return 0
 
-
     # =============================================================================
-    # 其他处理函数 - 保持不变
+    # 其他处理函数
     # =============================================================================
-
-    def process_part_info_update(df, import_id):
-        """处理备件信息更新导入 - 批量优化版本"""
-        updated_count = 0
-        not_found_count = 0
-        error_count = 0
-        errors = []
-
-        import_summary = {
-            'total_rows': len(df),
-            'import_start_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            'file_columns': list(df.columns),
-            'import_id': import_id
-        }
-
-        current_app.logger.info(f"开始批量处理备件信息更新，共 {len(df)} 行数据")
-
-        try:
-            db_manager = DatabaseManager()
-            with db_manager.get_connection() as conn:
-                # 预加载所有备件数据到内存
-                parts_cache = {}
-                parts_result = conn.execute('SELECT id, part_no FROM spare_parts').fetchall()
-                for part in parts_result:
-                    parts_cache[part['part_no']] = part['id']
-
-                current_app.logger.info(f"预加载完成: {len(parts_cache)} 个备件")
-
-                # 批量处理数据
-                update_batch = []
-                validation_errors = []
-
-                for index, row in df.iterrows():
-                    row_number = index + 2
-
-                    try:
-                        # 提取和验证数据
-                        part_no = safe_str(row.get('Part no', '')).strip()
-                        if not part_no:
-                            validation_errors.append(create_error(
-                                row_number, '备件编号不能为空', 'Part no', '', 'error', '请填写有效的备件编号'
-                            ))
-                            continue
-
-                        # 检查备件是否存在
-                        if part_no not in parts_cache:
-                            validation_errors.append(create_error(
-                                row_number, f'备件编号 "{part_no}" 不存在', 'Part no', part_no, 'error',
-                                '请检查备件编号是否正确，或先创建该备件'
-                            ))
-                            not_found_count += 1
-                            continue
-
-                        part_id = parts_cache[part_no]
-                        update_data = {}
-
-                        # 处理关键备件字段
-                        key_part = safe_str(row.get('Key part', '')).strip().lower()
-                        if key_part:
-                            if key_part in ['yes', '是', 'true', '1']:
-                                update_data['key_part'] = 1
-                            elif key_part in ['no', '否', 'false', '0']:
-                                update_data['key_part'] = 0
-
-                        # 处理库存阈值字段
-                        low_stock = safe_str(row.get('Low stock', '')).strip()
-                        if low_stock and low_stock != '':
-                            try:
-                                low_stock_value = safe_int(low_stock)
-                                if low_stock_value >= 0:
-                                    update_data['min_stock'] = low_stock_value
-                                else:
-                                    raise ValueError("最低库存不能为负数")
-                            except (ValueError, TypeError) as e:
-                                validation_errors.append(create_error(
-                                    row_number, f'最低库存格式错误: {str(e)}', 'Low stock', low_stock, 'error',
-                                    '请填写有效的数字'
-                                ))
-                                continue
-
-                        high_stock = safe_str(row.get('High stock', '')).strip()
-                        if high_stock and high_stock != '':
-                            try:
-                                high_stock_value = safe_int(high_stock)
-                                if high_stock_value >= 0:
-                                    update_data['max_stock'] = high_stock_value
-                                else:
-                                    raise ValueError("最高库存不能为负数")
-                            except (ValueError, TypeError) as e:
-                                validation_errors.append(create_error(
-                                    row_number, f'最高库存格式错误: {str(e)}', 'High stock', high_stock, 'error',
-                                    '请填写有效的数字'
-                                ))
-                                continue
-
-                        # 验证库存阈值逻辑
-                        if 'min_stock' in update_data and 'max_stock' in update_data:
-                            if update_data['min_stock'] > update_data['max_stock']:
-                                validation_errors.append(create_error(
-                                    row_number, '最低库存不能大于最高库存', '库存设置',
-                                    f'最低:{update_data["min_stock"]}, 最高:{update_data["max_stock"]}', 'error',
-                                    '请调整库存阈值设置'
-                                ))
-                                continue
-
-                        # 处理交货周期
-                        lt_weeks = safe_str(row.get('LT (Week)', '')).strip()
-                        if lt_weeks and lt_weeks != '':
-                            try:
-                                lt_weeks_value = safe_int(lt_weeks)
-                                if lt_weeks_value >= 0:
-                                    update_data['lt_weeks'] = lt_weeks_value
-                                else:
-                                    raise ValueError("交货周期不能为负数")
-                            except (ValueError, TypeError) as e:
-                                validation_errors.append(create_error(
-                                    row_number, f'交货周期格式错误: {str(e)}', 'LT (Week)', lt_weeks, 'error',
-                                    '请填写有效的数字（周数）'
-                                ))
-                                continue
-
-                        # 处理单价
-                        unit_price = safe_str(row.get('Unit price (RMB)', '')).strip()
-                        if unit_price and unit_price != '':
-                            try:
-                                unit_price_value = safe_float(unit_price)
-                                if unit_price_value >= 0:
-                                    update_data['unit_price'] = unit_price_value
-                                else:
-                                    raise ValueError("单价不能为负数")
-                            except (ValueError, TypeError) as e:
-                                validation_errors.append(create_error(
-                                    row_number, f'单价格式错误: {str(e)}', 'Unit price (RMB)', unit_price, 'error',
-                                    '请填写有效的金额数字'
-                                ))
-                                continue
-
-                        # 处理单位
-                        unit = safe_str(row.get('单位 Unit', '')).strip()
-                        if unit and unit != '':
-                            update_data['unit'] = unit
-
-                        # 如果没有需要更新的字段，跳过
-                        if not update_data:
-                            validation_errors.append(create_error(
-                                row_number, '没有提供任何可更新的字段', '数据验证', '', 'warning',
-                                '请至少填写一个需要更新的字段'
-                            ))
-                            continue
-
-                        # 添加到批量更新列表
-                        update_batch.append({
-                            'part_id': part_id,
-                            'part_no': part_no,
-                            'update_data': update_data,
-                            'row_number': row_number
-                        })
-
-                    except Exception as e:
-                        error_msg = f'处理备件信息时出错: {str(e)}'
-                        validation_errors.append(create_error(
-                            row_number, error_msg, '数据处理', str(row.to_dict()), 'error',
-                            '请检查数据格式或联系系统管理员'
-                        ))
-
-                # 执行批量更新
-                current_app.logger.info(f"开始批量更新，共 {len(update_batch)} 条记录需要更新")
-
-                for batch_item in update_batch:
-                    try:
-                        part_id = batch_item['part_id']
-                        part_no = batch_item['part_no']
-                        update_data = batch_item['update_data']
-                        row_number = batch_item['row_number']
-
-                        # 构建动态更新语句
-                        fields = []
-                        values = []
-
-                        for key, value in update_data.items():
-                            fields.append(f"{key} = ?")
-                            values.append(value)
-
-                        # 添加更新时间
-                        fields.append("updated_date = CURRENT_TIMESTAMP")
-
-                        # 添加WHERE条件
-                        values.append(part_id)
-
-                        query = f"UPDATE spare_parts SET {', '.join(fields)} WHERE id = ?"
-                        cursor = conn.execute(query, values)
-
-                        if cursor.rowcount > 0:
-                            updated_count += 1
-                            if updated_count % 100 == 0:  # 每100条记录记录一次日志
-                                current_app.logger.info(f"已更新 {updated_count} 个备件")
-                        else:
-                            validation_errors.append(create_error(
-                                row_number, f'备件 "{part_no}" 更新失败', '数据库更新', '', 'error',
-                                '可能是数据没有变化或数据库错误'
-                            ))
-
-                    except Exception as e:
-                        validation_errors.append(create_error(
-                            row_number, f'更新备件失败: {str(e)}', '数据库更新', part_no, 'error',
-                            '请检查数据格式或联系系统管理员'
-                        ))
-
-                # 合并验证错误
-                errors.extend(validation_errors)
-                error_count = len(validation_errors)
-
-                conn.commit()
-                current_app.logger.info(f"批量更新完成: 成功更新 {updated_count} 个备件，错误 {error_count} 个")
-
-        except Exception as e:
-            error_msg = f'数据库操作失败: {str(e)}'
-            current_app.logger.error(f'{error_msg}\n{traceback.format_exc()}')
-            errors.append(create_error('系统', error_msg, '数据库', '', 'error', '请联系系统管理员'))
-            error_count += 1
-
-        import_end_time = datetime.now()
-        import_duration = (import_end_time - datetime.strptime(
-            import_summary['import_start_time'], '%Y-%m-%d %H:%M:%S'
-        )).total_seconds()
-
-        import_summary.update({
-            'import_end_time': import_end_time.strftime('%Y-%m-%d %H:%M:%S'),
-            'updated_count': updated_count,
-            'not_found_count': not_found_count,
-            'error_count': error_count,
-            'import_duration': import_duration
-        })
-
-        current_app.logger.info(f"备件信息更新导入完成，耗时: {import_duration:.2f}秒")
-
-        return {
-            'success': error_count == 0 and updated_count > 0,
-            'message': f'更新 {updated_count} 个备件，未找到 {not_found_count} 个备件，错误 {error_count} 个，耗时 {import_duration:.2f}秒',
-            'updated_count': updated_count,
-            'not_found_count': not_found_count,
-            'error_count': error_count,
-            'errors': errors,
-            'import_summary': import_summary
-        }
 
     def process_part_info_update_advanced(df, import_id):
         """处理备件信息更新导入 - 高级批量优化版本"""
@@ -2728,10 +2270,8 @@ def setup_import_export_routes(app):
         return update_data
 
     # =============================================================================
-    # 辅助函数 - 保持不变
+    # 辅助函数
     # =============================================================================
-
-    # [在 import_export_routes.py 中找到 extract_operation_data 函数并修复]
 
     def extract_operation_data(row):
         """提取操作记录数据 - 修复数据类型版本"""
@@ -2844,28 +2384,6 @@ def setup_import_export_routes(app):
 
         return df
 
-    def clean_dataframe(df):
-        """清理DataFrame数据"""
-        df = df.dropna(how='all').reset_index(drop=True)
-
-        key_fields = ['Operation type', 'Part No', 'Description', 'Qty']
-        for field in key_fields:
-            if field in df.columns:
-                df[field] = df[field].fillna('').astype(str).str.strip()
-
-        optional_fields = ['Supplier or Recipients', 'Location', 'Type', 'Work center']
-        for field in optional_fields:
-            if field in df.columns:
-                df[field] = df[field].fillna('').astype(str).str.strip()
-
-        if 'Qty' in df.columns:
-            df['Qty'] = pd.to_numeric(df['Qty'], errors='coerce').fillna(0)
-
-        if 'Date' in df.columns:
-            df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
-
-        return df
-
     def detect_file_type(df):
         """检测文件类型"""
         columns = [str(col).strip() for col in df.columns]
@@ -2892,31 +2410,6 @@ def setup_import_export_routes(app):
         allowed_extensions = {'xlsx', 'xls'}
         return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
 
-    def safe_int(value, default=0):
-        """安全转换为整数"""
-        if value is None or value == '' or (isinstance(value, float) and np.isnan(value)):
-            return default
-        try:
-            if isinstance(value, float):
-                return int(value)
-            if isinstance(value, str):
-                value = value.replace(',', '')
-                return int(float(value))
-            return int(value)
-        except (ValueError, TypeError):
-            return default
-
-    def safe_float(value, default=0.0):
-        """安全转换为浮点数"""
-        if value is None or value == '' or (isinstance(value, float) and np.isnan(value)):
-            return default
-        try:
-            if isinstance(value, str):
-                value = value.replace(',', '')
-            return float(value)
-        except (ValueError, TypeError):
-            return default
-
     def safe_str(value, default=''):
         """安全转换为字符串"""
         if value is None or (isinstance(value, float) and np.isnan(value)):
@@ -2926,8 +2419,6 @@ def setup_import_export_routes(app):
             return result if result else default
         except:
             return default
-
-    # [在 import_export_routes.py 中找到 safe_datetime 函数并修复]
 
     def safe_datetime(value, default=None):
         """安全转换为日期时间 - 修复版本"""
@@ -3002,7 +2493,9 @@ def setup_import_export_routes(app):
         except Exception as e:
             current_app.logger.error(f"保存导入报告时出错: {str(e)}")
 
-    # [添加一个紧急修复导入函数]
+    # =============================================================================
+    # 调试函数
+    # =============================================================================
 
     @app.route('/debug/import_fix')
     def debug_import_fix():
@@ -3014,12 +2507,13 @@ def setup_import_export_routes(app):
                 conn.execute('DELETE FROM operation_records')
 
                 # 插入一些测试数据
+                import datetime as dt
                 test_data = [
-                    ('Stock in', datetime.datetime.now(), '供应商A', 'A-01-01', 'PART-001', '测试轴承', '机械',
+                    ('Stock in', dt.datetime.now(), '供应商A', 'A-01-01', 'PART-001', '测试轴承', '机械',
                      '6205ZZ', 100, '生产线A'),
-                    ('Stock out', datetime.datetime.now(), '部门B', 'B-02-01', 'PART-002', '测试螺丝', '电子', 'M6x20',
+                    ('Stock out', dt.datetime.now(), '部门B', 'B-02-01', 'PART-002', '测试螺丝', '电子', 'M6x20',
                      -50, '维修部'),
-                    ('Stock in', datetime.datetime.now(), '供应商C', 'C-03-01', 'PART-003', '测试密封圈', '机械',
+                    ('Stock in', dt.datetime.now(), '供应商C', 'C-03-01', 'PART-003', '测试密封圈', '机械',
                      '25x5x3', 200, '生产线B'),
                 ]
 
@@ -3065,8 +2559,6 @@ def setup_import_export_routes(app):
 
         except Exception as e:
             return f"修复失败: {str(e)}", 500
-
-    # [添加简化测试导入函数]
 
     @app.route('/debug/simple_import')
     def debug_simple_import():
@@ -3114,7 +2606,7 @@ def setup_import_export_routes(app):
                         # 直接构建操作记录数据
                         operation_data = (
                             str(row['Operation type']),
-                            datetime.datetime.strptime(row['Date'], '%Y-%m-%d'),
+                            datetime.strptime(row['Date'], '%Y-%m-%d'),
                             str(row['Supplier or Recipients']),
                             str(row['Location']),
                             str(row['Part No']),
