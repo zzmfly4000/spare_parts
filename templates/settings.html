@@ -1901,13 +1901,13 @@ async function testEmailConnection() {
         testBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>测试中...';
         testBtn.disabled = true;
 
-        // 发送空JSON对象
-        const response = await fetch('/api/settings/test_email', {
+        // 调用真实的测试邮件接口（从数据库获取配置）
+        const response = await fetch('/api/settings/test_email_real', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({})  // 发送空对象
+            body: JSON.stringify({})  // 发送空对象即可
         });
 
         // 检查响应状态
@@ -1923,7 +1923,7 @@ async function testEmailConnection() {
         testBtn.disabled = false;
 
         if (data.success) {
-            showFixedAlert('邮件服务器测试成功！', 'success');
+            showFixedAlert('邮件服务器测试成功！' + (data.message || ''), 'success');
             console.log('邮件测试成功');
         } else {
             showFixedAlert('邮件服务器测试失败: ' + (data.error || '未知错误'), 'error');

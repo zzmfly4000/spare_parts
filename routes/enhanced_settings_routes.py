@@ -1,7 +1,8 @@
+# routes/enhanced_settings_routes.py - 修复 datetime 导入冲突版本
 from flask import render_template, request, redirect, url_for, flash, jsonify, session, current_app
 import json
 import os
-import datetime
+import datetime as dt  # 关键修复：重命名导入
 import secrets
 import hashlib
 import smtplib
@@ -12,7 +13,6 @@ import sqlite3
 from functools import wraps
 import zipfile
 import shutil
-from datetime import datetime
 
 def setup_settings_routes(app):
     """设置增强版系统设置路由"""
@@ -196,7 +196,6 @@ def setup_settings_routes(app):
         current_settings = get_system_settings()
         return render_template('settings.html', settings=current_settings)
 
-
     # 获取系统设置
     def get_system_settings():
         """获取所有系统设置"""
@@ -303,7 +302,7 @@ def setup_settings_routes(app):
                 api_key,
                 session.get('user_id'),
                 1,
-                (datetime.datetime.now() + datetime.timedelta(days=365)).strftime('%Y-%m-%d %H:%M:%S')
+                (dt.datetime.now() + dt.timedelta(days=365)).strftime('%Y-%m-%d %H:%M:%S')
             ))
 
             key_id = cursor.lastrowid
@@ -319,7 +318,7 @@ def setup_settings_routes(app):
             logging.error(f"生成API密钥失败: {str(e)}")
             return jsonify({'success': False, 'error': str(e)})
 
-    # 测试邮件连接API
+    # 测试邮件连接API（简化版）
     @app.route('/api/settings/test_email', methods=['POST'])
     @login_required
     @admin_required
@@ -509,7 +508,7 @@ def setup_settings_routes(app):
                 'backups': {
                     'count': backup_count
                 },
-                'server_time': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                'server_time': dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             }
 
             return jsonify({'success': True, 'info': info})
@@ -529,7 +528,6 @@ def setup_settings_routes(app):
             return result['setting_value'] if result else default
         except:
             return default
-
 
     def check_admin_permission(user_id):
         """检查用户是否具有管理员权限"""
@@ -606,8 +604,6 @@ def setup_settings_routes(app):
             logging.error(f"保存设置失败: {str(e)}")
             return jsonify({'success': False, 'error': str(e)}), 500
 
-    # 在 enhanced_settings_routes.py 中添加
-
     @app.route('/api/users/refresh', methods=['GET'])
     @login_required
     @admin_required
@@ -650,8 +646,6 @@ def setup_settings_routes(app):
         except Exception as e:
             logging.error(f"刷新用户列表失败: {str(e)}")
             return jsonify({'success': False, 'error': str(e)})
-
-    # 在 enhanced_settings_routes.py 中添加
 
     @app.route('/api/settings/test_email_real', methods=['POST'])
     @login_required
@@ -706,19 +700,18 @@ def setup_settings_routes(app):
 
                 # 创建测试邮件
                 msg = MIMEMultipart()
-                msg[
-                    'From'] = f"{email_settings.get('mail_sender_name', '备件管理系统')} <{email_settings['mail_sender']}>"
+                msg['From'] = f"{email_settings.get('mail_sender_name', '备件管理系统')} <{email_settings['mail_sender']}>"
                 msg['To'] = email_settings['mail_sender']  # 发送给自己测试
                 msg['Subject'] = '邮件服务器测试 - 备件管理系统'
 
                 body = f'''
-                这是一封测试邮件，用于验证邮件服务器配置是否正确。
+这是一封测试邮件，用于验证邮件服务器配置是否正确。
 
-                发送时间: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-                服务器: {email_settings['mail_server']}:{port}
-                加密方式: {encryption}
+发送时间: {dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+服务器: {email_settings['mail_server']}:{port}
+加密方式: {encryption}
 
-                如果收到此邮件，说明邮件服务器配置正确。
+如果收到此邮件，说明邮件服务器配置正确。
                 '''
 
                 msg.attach(MIMEText(body, 'plain'))
@@ -754,12 +747,6 @@ def setup_settings_routes(app):
                 'error': f'邮件测试失败: {str(e)}'
             })
 
-    # 在 enhanced_settings_routes.py 中添加
-
-    import zipfile
-    import shutil
-    from datetime import datetime
-
     @app.route('/api/backup/create', methods=['POST'])
     @login_required
     @admin_required
@@ -772,7 +759,7 @@ def setup_settings_routes(app):
                 os.makedirs(backup_dir)
 
             # 创建备份文件名
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            timestamp = dt.datetime.now().strftime('%Y%m%d_%H%M%S')
             backup_name = f'backup_{timestamp}'
             zip_path = os.path.join(backup_dir, f'{backup_name}.zip')
 
@@ -841,7 +828,7 @@ def setup_settings_routes(app):
                         'filename': filename,
                         'size': stat.st_size,
                         'size_formatted': f"{stat.st_size / (1024 * 1024):.2f} MB",
-                        'created_time': datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S'),
+                        'created_time': dt.datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S'),
                         'path': filepath
                     })
 
@@ -887,8 +874,6 @@ def setup_settings_routes(app):
                 'success': False,
                 'error': f'下载备份失败: {str(e)}'
             })
-
-    # 在 enhanced_settings_routes.py 中，找到或添加以下函数：
 
     @app.route('/api/backup/delete/<backup_name>', methods=['DELETE'])
     @login_required
