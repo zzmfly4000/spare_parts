@@ -119,12 +119,9 @@ body.modal-open .main-content {
                 </button>
             </li>
             <li class="nav-item" role="presentation">
-                <div class="card-header d-flex justify-content-between align-items-center">
-    <h5 class="card-title mb-0"><i class="fas fa-user-cog me-2"></i>用户权限管理</h5>
-    <button type="button" class="btn btn-sm btn-primary" id="addUserBtn">
-        <i class="fas fa-user-plus me-1"></i>添加用户
-    </button>
-</div>
+                <button class="nav-link" id="users-tab" data-bs-toggle="tab" data-bs-target="#users" type="button">
+                    <i class="fas fa-users me-2"></i>用户权限管理
+                </button>
             </li>
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="notifications-tab" data-bs-toggle="tab" data-bs-target="#notifications" type="button">
@@ -252,53 +249,92 @@ body.modal-open .main-content {
     </div>
 
     <!-- 用户管理 -->
-    <div class="table-responsive">
-    <table class="table table-hover" id="usersTable">  <!-- 添加 id="usersTable" -->
-        <thead>
-            <tr>
-                <th>用户名</th>
-                <th>姓名</th>
-                <th>邮箱</th>
-                <th>角色</th>
-                <th>状态</th>
-                <th>最后登录</th>
-                <th>操作</th>
-            </tr>
-        </thead>
-        <tbody id="usersTableBody">  <!-- 添加 id="usersTableBody" -->
-            <!-- 示例用户数据（初始数据将被JavaScript替换） -->
-            <tr>
-                <td>
-                    <div class="d-flex align-items-center">
-                        <div class="avatar-sm bg-primary rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 32px; height: 32px;">
-                            <span class="text-white fw-bold">A</span>
+    <div class="tab-pane fade" id="users" role="tabpanel">
+    <!-- 页面标题和操作 -->
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-4 mb-4 border-bottom">
+        <div>
+            <h1 class="h3 mb-2">用户权限管理</h1>
+            <p class="text-muted mb-0">管理系统用户、角色和权限设置</p>
+        </div>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <div class="btn-group me-2">
+                <button type="button" class="btn btn-outline-primary" onclick="location.reload()">
+                    <i class="fas fa-sync-alt me-1"></i>刷新
+                </button>
+            </div>
+            <div class="btn-group">
+                <button type="button" class="btn btn-primary" id="addUserBtn">
+                    <i class="fas fa-user-plus me-1"></i>添加用户
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0"><i class="fas fa-users me-2"></i>用户列表</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="usersTable">
+                            <thead>
+                                <tr>
+                                    <th>用户名</th>
+                                    <th>姓名</th>
+                                    <th>邮箱</th>
+                                    <th>角色</th>
+                                    <th>状态</th>
+                                    <th>最后登录</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="usersTableBody">
+                                <!-- 动态加载用户数据 -->
+                                <tr>
+                                    <td colspan="7" class="text-center text-muted py-4">
+                                        <i class="fas fa-spinner fa-spin me-2"></i>正在加载用户数据...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- 角色权限卡片 -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="card-title mb-0"><i class="fas fa-user-shield me-2"></i>角色权限说明</h5>
+                </div>
+                <div class="card-body">
+                    <!-- 角色权限内容保持不变 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 登录日志卡片 -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="card-title mb-0"><i class="fas fa-history me-2"></i>最近登录记录</h5>
+                </div>
+                <div class="card-body">
+                    <div id="loginLogsContent">
+                        <!-- 动态加载登录日志 -->
+                        <div class="text-center py-4">
+                            <i class="fas fa-spinner fa-spin me-2"></i>正在加载登录记录...
                         </div>
-                        <span>admin</span>
                     </div>
-                </td>
-                <td>系统管理员</td>
-                <td>admin@example.com</td>
-                <td>
-                    <span class="badge bg-danger">系统管理员</span>
-                </td>
-                <td>
-                    <span class="badge bg-success">活跃</span>
-                </td>
-                <td>2024-01-15 14:30</td>
-                <td>
-                    <div class="btn-group btn-group-sm">
-                        <button type="button" class="btn btn-outline-primary" onclick="editUser(1)">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button type="button" class="btn btn-outline-secondary" onclick="resetPassword(1)">
-                            <i class="fas fa-key"></i>
-                        </button>
-                    </div>
-                </td>
-            </tr>
-            <!-- 其他示例行... -->
-        </tbody>
-    </table>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
     <!-- 通知设置 -->
@@ -1097,61 +1133,90 @@ function initTabs() {
 /**
  * 初始化所有按钮事件
  */
+/**
+ * 初始化所有按钮事件
+ */
 function initAllButtons() {
     console.log('初始化按钮事件...');
 
     // 保存所有设置按钮
-    const saveAllBtn = document.querySelector('button[onclick="saveAllSettings()"]');
-    if (saveAllBtn) {
-        console.log('找到保存设置按钮');
-        saveAllBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            saveAllSettings();
-        });
+    const saveButtons = document.querySelectorAll('button');
+    for (let btn of saveButtons) {
+        if (btn.textContent.includes('保存所有设置') || btn.innerHTML.includes('保存所有设置')) {
+            console.log('找到保存设置按钮');
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                saveAllSettings();
+            });
+            break;
+        }
     }
 
     // 添加用户按钮
     const addUserBtn = document.getElementById('addUserBtn');
-    if (!addUserBtn) {
-        // 如果按钮不存在，尝试查找
-        const possibleBtn = document.querySelector('button.btn-primary');
-        if (possibleBtn && possibleBtn.textContent.includes('添加用户')) {
-            possibleBtn.id = 'addUserBtn';
-            possibleBtn.addEventListener('click', showFixedModal);
-        }
+    if (addUserBtn) {
+        console.log('找到添加用户按钮');
+        addUserBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            showFixedModal();
+        });
     } else {
-        addUserBtn.addEventListener('click', showFixedModal);
+        console.warn('未找到添加用户按钮，尝试其他方式...');
+        // 查找可能的按钮
+        setTimeout(() => {
+            const possibleBtns = document.querySelectorAll('button');
+            for (let btn of possibleBtns) {
+                if (btn.textContent.includes('添加用户')) {
+                    btn.id = 'addUserBtn';
+                    btn.addEventListener('click', showFixedModal);
+                    console.log('已绑定添加用户按钮');
+                    break;
+                }
+            }
+        }, 500);
     }
 
     // 测试邮件按钮
-    const testEmailBtn = document.querySelector('button[onclick="testEmailConnection()"]');
-    if (testEmailBtn) {
-        testEmailBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            testEmailConnection();
-        });
+    for (let btn of document.querySelectorAll('button')) {
+        if (btn.textContent.includes('测试邮件连接') || btn.innerHTML.includes('测试邮件连接')) {
+            console.log('找到测试邮件按钮');
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                testEmailConnection();
+            });
+            break;
+        }
     }
 
     // 创建备份按钮
-    const createBackupBtn = document.querySelector('button[onclick="createBackup()"]');
-    if (createBackupBtn) {
-        createBackupBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            createBackup();
-        });
+    for (let btn of document.querySelectorAll('button')) {
+        if (btn.textContent.includes('创建备份') || btn.innerHTML.includes('创建备份')) {
+            console.log('找到创建备份按钮');
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                createBackup();
+            });
+            break;
+        }
     }
-
-    // 绑定现有的下载和删除备份按钮
-    bindBackupButtons();
-
-    // 绑定现有的编辑用户和重置密码按钮
-    bindUserButtons();
 
     // 密码显示切换按钮
     document.querySelectorAll('.toggle-password-btn').forEach(btn => {
         btn.addEventListener('click', function() {
             const input = this.closest('.input-group').querySelector('input[type="password"]');
-            togglePasswordVisibility(input, this);
+            if (input) {
+                if (input.type === 'password') {
+                    input.type = 'text';
+                    this.innerHTML = '<i class="fas fa-eye-slash"></i>';
+                } else {
+                    input.type = 'password';
+                    this.innerHTML = '<i class="fas fa-eye"></i>';
+                }
+            }
         });
     });
 }
@@ -1700,11 +1765,17 @@ async function submitFixedUserForm(form) {
 /**
  * 保存所有设置
  */
+/**
+ * 保存所有设置
+ */
+/**
+ * 保存所有设置
+ */
 async function saveAllSettings() {
     try {
         console.log('开始保存所有设置...');
 
-        // 收集所有设置数据
+        // 收集所有设置数据 - 确保收集所有字段
         const settings = {
             general: {
                 system_name: document.getElementById('system_name')?.value || '',
@@ -1731,10 +1802,26 @@ async function saveAllSettings() {
             }
         };
 
-        console.log('收集的设置数据:', settings);
+        console.log('收集的设置数据:', JSON.stringify(settings, null, 2));
+
+        // 找到保存按钮
+        let saveBtn = null;
+        const saveButtons = document.querySelectorAll('button');
+        for (let btn of saveButtons) {
+            const btnText = btn.textContent || btn.innerText || '';
+            if (btnText.includes('保存所有设置') || btn.innerHTML.includes('保存所有设置')) {
+                saveBtn = btn;
+                break;
+            }
+        }
+
+        if (!saveBtn) {
+            console.error('未找到保存按钮');
+            showFixedAlert('未找到保存按钮', 'error');
+            return;
+        }
 
         // 显示加载状态
-        const saveBtn = document.querySelector('button[onclick="saveAllSettings()"]');
         const originalText = saveBtn.innerHTML;
         saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>保存中...';
         saveBtn.disabled = true;
@@ -1748,7 +1835,13 @@ async function saveAllSettings() {
             body: JSON.stringify(settings)
         });
 
+        // 检查响应状态
+        if (!response.ok) {
+            throw new Error(`HTTP错误: ${response.status} ${response.statusText}`);
+        }
+
         const data = await response.json();
+        console.log('保存响应:', data);
 
         // 恢复按钮状态
         saveBtn.innerHTML = originalText;
@@ -1756,7 +1849,7 @@ async function saveAllSettings() {
 
         if (data.success) {
             showFixedAlert('系统设置保存成功', 'success');
-            console.log('设置保存成功:', data);
+            console.log('设置保存成功');
         } else {
             showFixedAlert('保存失败: ' + (data.error || '未知错误'), 'error');
             console.error('设置保存失败:', data.error);
@@ -1767,10 +1860,13 @@ async function saveAllSettings() {
         showFixedAlert('保存失败: ' + error.message, 'error');
 
         // 恢复按钮状态
-        const saveBtn = document.querySelector('button[onclick="saveAllSettings()"]');
-        if (saveBtn) {
-            saveBtn.innerHTML = '<i class="fas fa-save me-1"></i>保存所有设置';
-            saveBtn.disabled = false;
+        const saveButtons = document.querySelectorAll('button');
+        for (let btn of saveButtons) {
+            if (btn.innerHTML.includes('保存中')) {
+                btn.innerHTML = '<i class="fas fa-save me-1"></i>保存所有设置';
+                btn.disabled = false;
+                break;
+            }
         }
     }
 }
@@ -1778,43 +1874,49 @@ async function saveAllSettings() {
 /**
  * 测试邮件连接
  */
+/**
+ * 测试邮件连接
+ */
 async function testEmailConnection() {
     try {
         console.log('开始测试邮件连接...');
 
+        // 找到测试邮件按钮
+        let testBtn = null;
+        const testButtons = document.querySelectorAll('button');
+        for (let btn of testButtons) {
+            if (btn.textContent.includes('测试邮件连接') || btn.innerHTML.includes('测试邮件连接')) {
+                testBtn = btn;
+                break;
+            }
+        }
+
+        if (!testBtn) {
+            console.error('未找到测试邮件按钮');
+            return;
+        }
+
         // 显示加载状态
-        const testBtn = document.querySelector('button[onclick="testEmailConnection()"]');
         const originalText = testBtn.innerHTML;
         testBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>测试中...';
         testBtn.disabled = true;
 
-        // 先初始化邮件配置
-        const initResponse = await fetch('/api/settings/init_email_config', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            }
-        });
-
-        const initData = await initResponse.json();
-        console.log('邮件配置初始化结果:', initData);
-
-        if (!initData.success) {
-            showFixedAlert('邮件配置初始化失败: ' + (initData.error || '未知错误'), 'error');
-            testBtn.innerHTML = originalText;
-            testBtn.disabled = false;
-            return;
-        }
-
-        // 发送测试请求
+        // 发送空JSON对象
         const response = await fetch('/api/settings/test_email', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-            }
+            },
+            body: JSON.stringify({})  // 发送空对象
         });
 
+        // 检查响应状态
+        if (!response.ok) {
+            throw new Error(`HTTP错误: ${response.status}`);
+        }
+
         const data = await response.json();
+        console.log('邮件测试响应:', data);
 
         // 恢复按钮状态
         testBtn.innerHTML = originalText;
@@ -1822,7 +1924,7 @@ async function testEmailConnection() {
 
         if (data.success) {
             showFixedAlert('邮件服务器测试成功！', 'success');
-            console.log('邮件测试成功:', data);
+            console.log('邮件测试成功');
         } else {
             showFixedAlert('邮件服务器测试失败: ' + (data.error || '未知错误'), 'error');
             console.error('邮件测试失败:', data.error);
@@ -1833,10 +1935,13 @@ async function testEmailConnection() {
         showFixedAlert('邮件测试失败: ' + error.message, 'error');
 
         // 恢复按钮状态
-        const testBtn = document.querySelector('button[onclick="testEmailConnection()"]');
-        if (testBtn) {
-            testBtn.innerHTML = '<i class="fas fa-paper-plane me-1"></i>测试邮件连接';
-            testBtn.disabled = false;
+        const testButtons = document.querySelectorAll('button');
+        for (let btn of testButtons) {
+            if (btn.textContent.includes('测试中') || btn.innerHTML.includes('测试中')) {
+                btn.innerHTML = '<i class="fas fa-paper-plane me-1"></i>测试邮件连接';
+                btn.disabled = false;
+                break;
+            }
         }
     }
 }

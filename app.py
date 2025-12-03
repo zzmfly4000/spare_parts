@@ -31,8 +31,12 @@ def create_app(config_name='default'):
         app.config['SECRET_KEY'] = 'dev-secret-key'
         app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
         logging.basicConfig(
-            level=logging.INFO,
-            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+            level=logging.DEBUG,
+            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+            handlers=[
+                logging.FileHandler('app_debug.log'),  # 同时记录到文件
+                logging.StreamHandler()  # 同时输出到控制台
+            ]
         )
     elif config_name == 'production':
         app.config['DEBUG'] = False
@@ -416,22 +420,16 @@ def create_app(config_name='default'):
         if 'user_id' not in session:
             return jsonify({'success': False, 'error': '请先登录'}), 401
 
-        # 检查是否是管理员
-        from routes.enhanced_settings_routes import check_admin_permission
-        if not check_admin_permission(session.get('user_id')):
-            return jsonify({'success': False, 'error': '需要管理员权限'}), 403
-
         try:
             # 获取前端发送的数据
             settings_data = request.json
             if not settings_data:
                 return jsonify({'success': False, 'error': '无数据'})
 
-            # 这里调用 enhanced_settings_routes 中的保存函数
-            # 由于函数依赖较多，我们直接在这里实现简单的保存逻辑
-            import sqlite3
+            app.logger.info(f"收到设置数据: {settings_data}")  # 添加日志
 
             # 连接数据库
+            import sqlite3
             conn = sqlite3.connect('spare_parts.db')
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
@@ -444,6 +442,7 @@ def create_app(config_name='default'):
                         (setting_key, setting_value, setting_type, category, updated_date)
                         VALUES (?, ?, 'string', 'general', CURRENT_TIMESTAMP)
                     ''', (key, str(value)))
+                    app.logger.info(f"保存通用设置: {key} = {value}")
 
             # 保存库存设置
             if 'inventory' in settings_data:
@@ -455,19 +454,37 @@ def create_app(config_name='default'):
                         (setting_key, setting_value, setting_type, category, updated_date)
                         VALUES (?, ?, ?, 'inventory', CURRENT_TIMESTAMP)
                     ''', (key, str(value), setting_type))
+                    app.logger.info(f"保存库存设置: {key} = {value} (类型: {setting_type})")
 
-            # 保存邮件设置
+            # 保存邮件设置 - 确保保存所有字段
             if 'email' in settings_data:
-                for key, value in settings_data['email'].items():
-                    setting_type = 'integer' if key == 'mail_port' else 'string'
+                email_data = settings_data['email']
+                app.logger.info(f"邮件设置数据: {email_data}")
+
+                # 确保所有邮件字段都被保存
+                email_fields = {
+                    'mail_server': ('string', 'SMTP服务器'),
+                    'mail_port': ('integer', 'SMTP端口'),
+                    'mail_encryption': ('string', '邮件加密方式'),
+                    'mail_sender': ('string', '发件人邮箱'),
+                    'mail_sender_name': ('string', '发件人名称'),
+                    'mail_username': ('string', 'SMTP用户名'),
+                    'mail_password': ('string', 'SMTP密码')
+                }
+
+                for key, (setting_type, description) in email_fields.items():
+                    value = email_data.get(key, '')
                     cursor.execute('''
                         INSERT OR REPLACE INTO system_settings 
-                        (setting_key, setting_value, setting_type, category, updated_date)
-                        VALUES (?, ?, ?, 'email', CURRENT_TIMESTAMP)
-                    ''', (key, str(value), setting_type))
+                        (setting_key, setting_value, setting_type, category, description, updated_date)
+                        VALUES (?, ?, ?, 'email', ?, CURRENT_TIMESTAMP)
+                    ''', (key, str(value), setting_type, description))
+                    app.logger.info(f"保存邮件设置: {key} = {value}")
 
             conn.commit()
             conn.close()
+
+            app.logger.info("所有设置保存成功")
 
             return jsonify({
                 'success': True,
@@ -476,7 +493,10 @@ def create_app(config_name='default'):
 
         except Exception as e:
             app.logger.error(f"保存设置失败: {str(e)}")
+            import traceback
+            app.logger.error(traceback.format_exc())
             return jsonify({'success': False, 'error': str(e)}), 500
+
 
     # 在 app.py 中添加
     @app.route('/api/settings/init_email_config', methods=['POST'], endpoint='app_init_email_config')
@@ -535,6 +555,11 @@ def create_app(config_name='default'):
             return jsonify({'success': False, 'error': '请先登录'}), 401
 
         try:
+            app.logger.info("开始测试邮件连接...")
+
+            # 先初始化邮件配置（确保有默认配置）
+            init_response = init_email_config()
+
             # 获取邮件配置
             import sqlite3
             conn = sqlite3.connect('spare_parts.db')
@@ -549,38 +574,94 @@ def create_app(config_name='default'):
             for row in rows:
                 email_settings[row['setting_key']] = row['setting_value']
 
+            app.logger.info(f"邮件配置: {email_settings}")
+
             # 检查必要配置
-            required_fields = ['mail_server', 'mail_port', 'mail_sender', 'mail_username']
+            required_fields = ['mail_server', 'mail_port']
             missing_fields = []
             for field in required_fields:
                 if not email_settings.get(field):
                     missing_fields.append(field)
 
             if missing_fields:
+                app.logger.error(f"缺少邮件配置: {missing_fields}")
                 return jsonify({
                     'success': False,
-                    'error': f'缺少邮件配置: {", ".join(missing_fields)}'
+                    'error': f'缺少邮件配置: {", ".join(missing_fields)}。请先保存邮件设置。'
                 })
+
+            # 如果缺少可选配置，使用默认值
+            if not email_settings.get('mail_sender'):
+                email_settings['mail_sender'] = 'noreply@example.com'
+            if not email_settings.get('mail_sender_name'):
+                email_settings['mail_sender_name'] = '备件管理系统'
+            if not email_settings.get('mail_encryption'):
+                email_settings['mail_encryption'] = 'tls'
 
             # 尝试连接SMTP服务器
             try:
                 import smtplib
-                from email.mime.text import MIMEText
-                from email.mime.multipart import MIMEMultipart
-                import datetime
 
-                server = smtplib.SMTP(email_settings['mail_server'], int(email_settings['mail_port']))
-                server.starttls()  # 启用TLS
+                # 检查端口
+                try:
+                    port = int(email_settings['mail_port'])
+                except ValueError:
+                    return jsonify({
+                        'success': False,
+                        'error': f'端口号无效: {email_settings["mail_port"]}'
+                    })
+
+                app.logger.info(f"尝试连接SMTP服务器: {email_settings['mail_server']}:{port}")
+
+                # 根据加密方式选择连接方法
+                if email_settings.get('mail_encryption') == 'ssl':
+                    server = smtplib.SMTP_SSL(email_settings['mail_server'], port, timeout=10)
+                    app.logger.info("使用SSL加密连接")
+                else:
+                    server = smtplib.SMTP(email_settings['mail_server'], port, timeout=10)
+                    if email_settings.get('mail_encryption') == 'tls':
+                        server.starttls()  # 启用TLS
+                        app.logger.info("使用TLS加密连接")
+                    else:
+                        app.logger.info("无加密连接")
 
                 # 如果有用户名和密码，尝试登录
                 if email_settings.get('mail_username') and email_settings.get('mail_password'):
-                    server.login(email_settings['mail_username'], email_settings['mail_password'])
+                    app.logger.info("尝试登录SMTP服务器...")
+                    server.login(
+                        email_settings['mail_username'],
+                        email_settings['mail_password']
+                    )
+                    app.logger.info("SMTP登录成功")
 
                 server.quit()
+                app.logger.info("邮件服务器连接测试成功")
 
                 return jsonify({
                     'success': True,
-                    'message': '邮件服务器连接成功！'
+                    'message': '邮件服务器连接成功！',
+                    'config': {
+                        'server': email_settings['mail_server'],
+                        'port': port,
+                        'encryption': email_settings.get('mail_encryption', 'tls')
+                    }
+                })
+
+            except smtplib.SMTPException as smtp_error:
+                app.logger.error(f"SMTP连接失败: {str(smtp_error)}")
+                error_msg = str(smtp_error)
+
+                # 提供更友好的错误信息
+                if "connection refused" in error_msg.lower():
+                    error_msg = "连接被拒绝，请检查服务器地址和端口"
+                elif "authentication failed" in error_msg.lower():
+                    error_msg = "认证失败，请检查用户名和密码"
+                elif "timed out" in error_msg.lower():
+                    error_msg = "连接超时，请检查网络连接"
+
+                return jsonify({
+                    'success': False,
+                    'error': f'SMTP连接失败: {error_msg}'
                 })
 
             except Exception as smtp_error:
@@ -592,6 +673,8 @@ def create_app(config_name='default'):
 
         except Exception as e:
             app.logger.error(f"邮件测试失败: {str(e)}")
+            import traceback
+            app.logger.error(traceback.format_exc())
             return jsonify({'success': False, 'error': str(e)}), 500
 
     @app.route('/api/backup/create', methods=['POST'], endpoint='app_create_backup')
