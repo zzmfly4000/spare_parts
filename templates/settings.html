@@ -119,9 +119,12 @@ body.modal-open .main-content {
                 </button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link" id="users-tab" data-bs-toggle="tab" data-bs-target="#users" type="button">
-                    <i class="fas fa-users me-2"></i>用户管理
-                </button>
+                <div class="card-header d-flex justify-content-between align-items-center">
+    <h5 class="card-title mb-0"><i class="fas fa-user-cog me-2"></i>用户权限管理</h5>
+    <button type="button" class="btn btn-sm btn-primary" id="addUserBtn">
+        <i class="fas fa-user-plus me-1"></i>添加用户
+    </button>
+</div>
             </li>
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="notifications-tab" data-bs-toggle="tab" data-bs-target="#notifications" type="button">
@@ -249,215 +252,54 @@ body.modal-open .main-content {
     </div>
 
     <!-- 用户管理 -->
-    <div class="tab-pane fade" id="users" role="tabpanel">
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5 class="card-title mb-0"><i class="fas fa-user-cog me-2"></i>用户权限管理</h5>
-                        <button type="button" class="btn btn-sm btn-primary" onclick="showAddUserModal()">
-                            <i class="fas fa-user-plus me-1"></i>添加用户
+    <div class="table-responsive">
+    <table class="table table-hover" id="usersTable">  <!-- 添加 id="usersTable" -->
+        <thead>
+            <tr>
+                <th>用户名</th>
+                <th>姓名</th>
+                <th>邮箱</th>
+                <th>角色</th>
+                <th>状态</th>
+                <th>最后登录</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody id="usersTableBody">  <!-- 添加 id="usersTableBody" -->
+            <!-- 示例用户数据（初始数据将被JavaScript替换） -->
+            <tr>
+                <td>
+                    <div class="d-flex align-items-center">
+                        <div class="avatar-sm bg-primary rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 32px; height: 32px;">
+                            <span class="text-white fw-bold">A</span>
+                        </div>
+                        <span>admin</span>
+                    </div>
+                </td>
+                <td>系统管理员</td>
+                <td>admin@example.com</td>
+                <td>
+                    <span class="badge bg-danger">系统管理员</span>
+                </td>
+                <td>
+                    <span class="badge bg-success">活跃</span>
+                </td>
+                <td>2024-01-15 14:30</td>
+                <td>
+                    <div class="btn-group btn-group-sm">
+                        <button type="button" class="btn btn-outline-primary" onclick="editUser(1)">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="resetPassword(1)">
+                            <i class="fas fa-key"></i>
                         </button>
                     </div>
-                    <div class="card-body">
-                        <div class="table-responsive">
-                            <table class="table table-hover">
-                                <thead>
-                                    <tr>
-                                        <th>用户名</th>
-                                        <th>姓名</th>
-                                        <th>邮箱</th>
-                                        <th>角色</th>
-                                        <th>状态</th>
-                                        <th>最后登录</th>
-                                        <th>操作</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <!-- 示例用户数据 -->
-                                    <tr>
-                                        <td>
-                                            <div class="d-flex align-items-center">
-                                                <div class="avatar-sm bg-primary rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 32px; height: 32px;">
-                                                    <span class="text-white fw-bold">A</span>
-                                                </div>
-                                                <span>admin</span>
-                                            </div>
-                                        </td>
-                                        <td>系统管理员</td>
-                                        <td>admin@example.com</td>
-                                        <td>
-                                            <span class="badge bg-danger">系统管理员</span>
-                                        </td>
-                                        <td>
-                                            <span class="badge bg-success">活跃</span>
-                                        </td>
-                                        <td>2024-01-15 14:30</td>
-                                        <td>
-                                            <div class="btn-group btn-group-sm">
-                                                <button type="button" class="btn btn-outline-primary" onclick="editUser(1)">
-                                                    <i class="fas fa-edit"></i>
-                                                </button>
-                                                <button type="button" class="btn btn-outline-secondary" onclick="resetPassword(1)">
-                                                    <i class="fas fa-key"></i>
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td>
-                                            <div class="d-flex align-items-center">
-                                                <div class="avatar-sm bg-success rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 32px; height: 32px;">
-                                                    <span class="text-white fw-bold">M</span>
-                                                </div>
-                                                <span>manager</span>
-                                            </div>
-                                        </td>
-                                        <td>仓库管理员</td>
-                                        <td>manager@example.com</td>
-                                        <td>
-                                            <span class="badge bg-warning">仓库管理员</span>
-                                        </td>
-                                        <td>
-                                            <span class="badge bg-success">活跃</span>
-                                        </td>
-                                        <td>2024-01-14 09:15</td>
-                                        <td>
-                                            <div class="btn-group btn-group-sm">
-                                                <button type="button" class="btn btn-outline-primary" onclick="editUser(2)">
-                                                    <i class="fas fa-edit"></i>
-                                                </button>
-                                                <button type="button" class="btn btn-outline-secondary" onclick="resetPassword(2)">
-                                                    <i class="fas fa-key"></i>
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td>
-                                            <div class="d-flex align-items-center">
-                                                <div class="avatar-sm bg-info rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 32px; height: 32px;">
-                                                    <span class="text-white fw-bold">O</span>
-                                                </div>
-                                                <span>operator</span>
-                                            </div>
-                                        </td>
-                                        <td>操作员</td>
-                                        <td>operator@example.com</td>
-                                        <td>
-                                            <span class="badge bg-info">操作员</span>
-                                        </td>
-                                        <td>
-                                            <span class="badge bg-success">活跃</span>
-                                        </td>
-                                        <td>2024-01-13 16:45</td>
-                                        <td>
-                                            <div class="btn-group btn-group-sm">
-                                                <button type="button" class="btn btn-outline-primary" onclick="editUser(3)">
-                                                    <i class="fas fa-edit"></i>
-                                                </button>
-                                                <button type="button" class="btn btn-outline-secondary" onclick="resetPassword(3)">
-                                                    <i class="fas fa-key"></i>
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="row">
-            <div class="col-lg-6">
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="card-title mb-0"><i class="fas fa-user-shield me-2"></i>角色权限</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="accordion" id="rolePermissions">
-                            <div class="accordion-item">
-                                <h2 class="accordion-header">
-                                    <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#roleAdmin">
-                                        系统管理员
-                                    </button>
-                                </h2>
-                                <div id="roleAdmin" class="accordion-collapse collapse show" data-bs-parent="#rolePermissions">
-                                    <div class="accordion-body">
-                                        <div class="row">
-                                            {% for perm in ['系统设置', '用户管理', '所有数据查看', '所有数据编辑', '数据导入导出', '数据库管理'] %}
-                                            <div class="col-md-6 mb-2">
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" checked disabled>
-                                                    <label class="form-check-label">{{ perm }}</label>
-                                                </div>
-                                            </div>
-                                            {% endfor %}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="accordion-item">
-                                <h2 class="accordion-header">
-                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#roleManager">
-                                        仓库管理员
-                                    </button>
-                                </h2>
-                                <div id="roleManager" class="accordion-collapse collapse" data-bs-parent="#rolePermissions">
-                                    <div class="accordion-body">
-                                        <div class="row">
-                                            {% for perm in ['备件管理', '库位管理', '出入库操作', '数据查看', '数据编辑', '报表导出'] %}
-                                            <div class="col-md-6 mb-2">
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" checked disabled>
-                                                    <label class="form-check-label">{{ perm }}</label>
-                                                </div>
-                                            </div>
-                                            {% endfor %}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-lg-6">
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="card-title mb-0"><i class="fas fa-history me-2"></i>登录日志</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="list-group list-group-flush">
-                            {% for log in [
-                                {'user': 'admin', 'ip': '192.168.1.100', 'time': '2024-01-15 14:30', 'status': '成功'},
-                                {'user': 'manager', 'ip': '192.168.1.101', 'time': '2024-01-14 09:15', 'status': '成功'},
-                                {'user': 'admin', 'ip': '192.168.1.102', 'time': '2024-01-13 08:45', 'status': '失败'},
-                                {'user': 'operator', 'ip': '192.168.1.103', 'time': '2024-01-12 16:30', 'status': '成功'}
-                            ] %}
-                            <div class="list-group-item border-0 px-0 py-2">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <strong>{{ log.user }}</strong>
-                                        <small class="text-muted ms-2">{{ log.ip }}</small>
-                                    </div>
-                                    <div>
-                                        <small class="text-muted me-2">{{ log.time }}</small>
-                                        <span class="badge bg-{{ 'success' if log.status=='成功' else 'danger' }}">
-                                            {{ log.status }}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                            {% endfor %}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+                </td>
+            </tr>
+            <!-- 其他示例行... -->
+        </tbody>
+    </table>
+</div>
 
     <!-- 通知设置 -->
     <div class="tab-pane fade" id="notifications" role="tabpanel">
@@ -796,44 +638,45 @@ body.modal-open .main-content {
                     </div>
                     <div class="card-body">
                         <div class="table-responsive">
-                            <table class="table table-hover">
-                                <thead>
-                                    <tr>
-                                        <th>备份名称</th>
-                                        <th>大小</th>
-                                        <th>创建时间</th>
-                                        <th>状态</th>
-                                        <th>操作</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for backup in [
-                                        {'name': 'backup_20240115', 'size': '245 MB', 'time': '2024-01-15 02:00', 'status': '成功'},
-                                        {'name': 'backup_20240114', 'size': '240 MB', 'time': '2024-01-14 02:00', 'status': '成功'},
-                                        {'name': 'backup_20240113', 'size': '238 MB', 'time': '2024-01-13 02:00', 'status': '成功'}
-                                    ] %}
-                                    <tr>
-                                        <td>{{ backup.name }}</td>
-                                        <td>{{ backup.size }}</td>
-                                        <td>{{ backup.time }}</td>
-                                        <td>
-                                            <span class="badge bg-success">{{ backup.status }}</span>
-                                        </td>
-                                        <td>
-                                            <div class="btn-group btn-group-sm">
-                                                <button type="button" class="btn btn-outline-primary" onclick="downloadBackup('{{ backup.name }}')">
-                                                    <i class="fas fa-download"></i>
-                                                </button>
-                                                <button type="button" class="btn btn-outline-danger" onclick="deleteBackup('{{ backup.name }}')">
-                                                    <i class="fas fa-trash"></i>
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
+    <table class="table table-hover" id="backupsTable">  <!-- 添加 id="backupsTable" -->
+        <thead>
+            <tr>
+                <th>备份名称</th>
+                <th>大小</th>
+                <th>创建时间</th>
+                <th>状态</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody id="backupsTableBody">  <!-- 添加 id="backupsTableBody" -->
+            <!-- 示例备份数据（初始数据将被JavaScript替换） -->
+            {% for backup in [
+                {'name': 'backup_20240115', 'size': '245 MB', 'time': '2024-01-15 02:00', 'status': '成功'},
+                {'name': 'backup_20240114', 'size': '240 MB', 'time': '2024-01-14 02:00', 'status': '成功'},
+                {'name': 'backup_20240113', 'size': '238 MB', 'time': '2024-01-13 02:00', 'status': '成功'}
+            ] %}
+            <tr>
+                <td>{{ backup.name }}</td>
+                <td>{{ backup.size }}</td>
+                <td>{{ backup.time }}</td>
+                <td>
+                    <span class="badge bg-success">{{ backup.status }}</span>
+                </td>
+                <td>
+                    <div class="btn-group btn-group-sm">
+                        <button type="button" class="btn btn-outline-primary" onclick="downloadBackup('{{ backup.name }}')">
+                            <i class="fas fa-download"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-danger" onclick="deleteBackup('{{ backup.name }}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
                     </div>
                 </div>
             </div>
@@ -918,64 +761,22 @@ body.modal-open .main-content {
                     </div>
                     <div class="card-body">
                         <div class="table-responsive">
-                            <table class="table table-hover">
-                                <thead>
-                                    <tr>
-                                        <th>密钥名称</th>
-                                        <th>权限</th>
-                                        <th>创建时间</th>
-                                        <th>过期时间</th>
-                                        <th>状态</th>
-                                        <th>操作</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td>Web应用密钥</td>
-                                        <td>
-                                            <span class="badge bg-primary me-1">读取</span>
-                                            <span class="badge bg-success">写入</span>
-                                        </td>
-                                        <td>2024-01-01</td>
-                                        <td>2024-12-31</td>
-                                        <td>
-                                            <span class="badge bg-success">活跃</span>
-                                        </td>
-                                        <td>
-                                            <div class="btn-group btn-group-sm">
-                                                <button type="button" class="btn btn-outline-primary" onclick="showApiKey('web_app_key')">
-                                                    <i class="fas fa-eye"></i>
-                                                </button>
-                                                <button type="button" class="btn btn-outline-danger" onclick="revokeApiKey(1)">
-                                                    <i class="fas fa-ban"></i>
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td>移动应用密钥</td>
-                                        <td>
-                                            <span class="badge bg-primary">读取</span>
-                                        </td>
-                                        <td>2024-01-10</td>
-                                        <td>2024-06-10</td>
-                                        <td>
-                                            <span class="badge bg-success">活跃</span>
-                                        </td>
-                                        <td>
-                                            <div class="btn-group btn-group-sm">
-                                                <button type="button" class="btn btn-outline-primary" onclick="showApiKey('mobile_app_key')">
-                                                    <i class="fas fa-eye"></i>
-                                                </button>
-                                                <button type="button" class="btn btn-outline-danger" onclick="revokeApiKey(2)">
-                                                    <i class="fas fa-ban"></i>
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
+    <table class="table table-hover" id="apiKeysTable">  <!-- 添加 id="apiKeysTable" -->
+        <thead>
+            <tr>
+                <th>密钥名称</th>
+                <th>权限</th>
+                <th>创建时间</th>
+                <th>过期时间</th>
+                <th>状态</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody id="apiKeysTableBody">  <!-- 添加 id="apiKeysTableBody" -->
+            <!-- 示例API密钥数据... -->
+        </tbody>
+    </table>
+</div>
                     </div>
                 </div>
 
@@ -1226,144 +1027,6 @@ https://app.your-domain.com</textarea>
     </div>
 </div>
 
-<!-- 独立的添加用户模态框（不使用Bootstrap） -->
-<div id="simpleUserModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9999; background-color: rgba(0,0,0,0.5);">
-    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 2rem; border-radius: 1rem; width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-            <h4 style="margin: 0;"><i class="fas fa-user-plus me-2"></i>添加新用户</h4>
-            <button type="button" onclick="closeSimpleModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">×</button>
-        </div>
-
-        <form onsubmit="submitSimpleUserForm(event)">
-            <div style="margin-bottom: 1rem;">
-                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">用户名 *</label>
-                <input type="text" style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 0.25rem;" required>
-            </div>
-
-            <div style="margin-bottom: 1rem;">
-                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">邮箱 *</label>
-                <input type="email" style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 0.25rem;" required>
-            </div>
-
-            <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
-                <button type="button" onclick="closeSimpleModal()" style="flex: 1; padding: 0.5rem; background: #6c757d; color: white; border: none; border-radius: 0.25rem; cursor: pointer;">
-                    取消
-                </button>
-                <button type="submit" style="flex: 1; padding: 0.5rem; background: #4361ee; color: white; border: none; border-radius: 0.25rem; cursor: pointer;">
-                    添加用户
-                </button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<!-- 独立模态框 - 完全不受其他样式影响 -->
-<div id="userModalContainer" class="fixed-modal-container">
-    <div class="fixed-modal-backdrop"></div>
-    <div class="fixed-modal-content">
-        <button class="fixed-modal-close" onclick="closeFixedModal()">×</button>
-
-        <h4 style="margin-bottom: 1.5rem; font-weight: 600;">
-            <i class="fas fa-user-plus me-2"></i>添加新用户
-        </h4>
-
-        <form id="fixedUserForm" onsubmit="submitFixedUserForm(event)">
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
-                <div>
-                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">用户名 *</label>
-                    <input type="text" name="username" required style="width: 100%;">
-                </div>
-                <div>
-                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">邮箱 *</label>
-                    <input type="email" name="email" required style="width: 100%;">
-                </div>
-            </div>
-
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
-                <div>
-                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">姓名</label>
-                    <input type="text" name="display_name" style="width: 100%;">
-                </div>
-                <div>
-                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">部门</label>
-                    <select name="department" style="width: 100%;">
-                        <option value="">选择部门</option>
-                        <option value="warehouse">仓库管理部</option>
-                        <option value="maintenance">设备维护部</option>
-                        <option value="purchase">采购部</option>
-                        <option value="it">IT部</option>
-                    </select>
-                </div>
-            </div>
-
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
-                <div>
-                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">角色 *</label>
-                    <select name="role" required style="width: 100%;">
-                        <option value="">选择角色</option>
-                        <option value="admin">系统管理员</option>
-                        <option value="manager">仓库管理员</option>
-                        <option value="operator">操作员</option>
-                        <option value="viewer">查看员</option>
-                    </select>
-                </div>
-                <div>
-                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">初始密码 *</label>
-                    <div style="display: flex;">
-                        <input type="password" name="password" required style="flex: 1; border-right: none; border-radius: 0.5rem 0 0 0.5rem;">
-                        <button type="button" onclick="toggleFixedPassword(this)" style="background: #e2e8f0; border: 2px solid #e2e8f0; border-left: none; border-radius: 0 0.5rem 0.5rem 0; cursor: pointer; padding: 0 1rem;">
-                            <i class="fas fa-eye"></i>
-                        </button>
-                    </div>
-                    <small style="color: #666; display: block; margin-top: 0.25rem;">至少8位字符，包含字母和数字</small>
-                </div>
-            </div>
-
-            <div style="margin-bottom: 1.5rem;">
-                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">权限设置</label>
-                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;">
-                    <label style="display: flex; align-items: center; gap: 0.5rem;">
-                        <input type="checkbox" name="permissions" value="parts_manage" checked>
-                        <span>备件管理</span>
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 0.5rem;">
-                        <input type="checkbox" name="permissions" value="locations_manage" checked>
-                        <span>库位管理</span>
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 0.5rem;">
-                        <input type="checkbox" name="permissions" value="operations_manage" checked>
-                        <span>出入库操作</span>
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 0.5rem;">
-                        <input type="checkbox" name="permissions" value="reports_view" checked>
-                        <span>报表查看</span>
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 0.5rem;">
-                        <input type="checkbox" name="permissions" value="data_export">
-                        <span>数据导出</span>
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 0.5rem;">
-                        <input type="checkbox" name="permissions" value="system_settings">
-                        <span>系统设置</span>
-                    </label>
-                </div>
-            </div>
-
-            <div style="display: flex; gap: 1rem; justify-content: flex-end;">
-                <button type="button" onclick="closeFixedModal()">取消</button>
-                <button type="submit">添加用户</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<!-- 在适当位置添加 -->
-<div class="mt-3">
-    <button type="button" class="btn btn-outline-info btn-sm" onclick="window.testModal()">
-        <i class="fas fa-vial me-1"></i>测试模态框
-    </button>
-</div>
-
 {% endblock %}
 
 
@@ -1372,17 +1035,25 @@ https://app.your-domain.com</textarea>
 // ======================= 修复事件冒泡问题的模态框解决方案 =======================
 let isModalClosing = false; // 防止重复关闭
 
+/**
+ * 主初始化函数 - 页面加载完成后执行
+ */
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('页面加载完成，初始化系统...');
+    console.log('系统设置页面加载完成，开始初始化...');
 
-    // 初始化标签页
+    // 1. 初始化标签页
     initTabs();
 
-    // 初始化添加用户按钮
-    initAddUserButtonFixed();
+    // 2. 初始化所有按钮事件
+    initAllButtons();
 
-    // 初始化其他功能
-    initOtherFunctions();
+    // 3. 初始化模态框修复
+    initFixedModal();
+
+    // 4. 加载页面数据
+    initPageData();
+
+    console.log('页面初始化完成');
 });
 
 /**
@@ -1397,6 +1068,13 @@ function initTabs() {
         tabTrigger.addEventListener('shown.bs.tab', function(event) {
             const activeTab = event.target.getAttribute('data-bs-target');
             localStorage.setItem('lastActiveSettingsTab', activeTab);
+
+            // 标签页切换时加载对应数据
+            if (activeTab === '#users') {
+                loadUsersList();
+            } else if (activeTab === '#backup') {
+                loadBackupsList();
+            }
         });
     });
 
@@ -1417,47 +1095,158 @@ function initTabs() {
 }
 
 /**
- * 初始化添加用户按钮 - 修复版
+ * 初始化所有按钮事件
  */
-function initAddUserButtonFixed() {
-    console.log('初始化添加用户按钮...');
+function initAllButtons() {
+    console.log('初始化按钮事件...');
 
-    // 查找按钮
-    const buttons = document.querySelectorAll('button');
-    let addUserBtn = null;
+    // 保存所有设置按钮
+    const saveAllBtn = document.querySelector('button[onclick="saveAllSettings()"]');
+    if (saveAllBtn) {
+        console.log('找到保存设置按钮');
+        saveAllBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            saveAllSettings();
+        });
+    }
 
-    for (let btn of buttons) {
-        if (btn.textContent.includes('添加用户')) {
-            addUserBtn = btn;
-            break;
+    // 添加用户按钮
+    const addUserBtn = document.getElementById('addUserBtn');
+    if (!addUserBtn) {
+        // 如果按钮不存在，尝试查找
+        const possibleBtn = document.querySelector('button.btn-primary');
+        if (possibleBtn && possibleBtn.textContent.includes('添加用户')) {
+            possibleBtn.id = 'addUserBtn';
+            possibleBtn.addEventListener('click', showFixedModal);
         }
+    } else {
+        addUserBtn.addEventListener('click', showFixedModal);
     }
 
-    if (!addUserBtn) {
-        console.warn('未找到添加用户按钮，尝试其他选择器...');
-        addUserBtn = document.querySelector('#users .card-header .btn-primary');
+    // 测试邮件按钮
+    const testEmailBtn = document.querySelector('button[onclick="testEmailConnection()"]');
+    if (testEmailBtn) {
+        testEmailBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            testEmailConnection();
+        });
     }
 
-    if (!addUserBtn) {
-        console.error('无法找到添加用户按钮');
-        return;
+    // 创建备份按钮
+    const createBackupBtn = document.querySelector('button[onclick="createBackup()"]');
+    if (createBackupBtn) {
+        createBackupBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            createBackup();
+        });
     }
 
-    console.log('找到按钮:', addUserBtn);
+    // 绑定现有的下载和删除备份按钮
+    bindBackupButtons();
 
-    // 移除所有现有事件监听器并重新绑定
-    const newBtn = addUserBtn.cloneNode(true);
-    newBtn.addEventListener('click', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        console.log('点击添加用户按钮');
-        showFixedModal();
+    // 绑定现有的编辑用户和重置密码按钮
+    bindUserButtons();
+
+    // 密码显示切换按钮
+    document.querySelectorAll('.toggle-password-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const input = this.closest('.input-group').querySelector('input[type="password"]');
+            togglePasswordVisibility(input, this);
+        });
+    });
+}
+
+/**
+ * 初始化修复版模态框
+ */
+function initFixedModal() {
+    console.log('初始化修复版模态框...');
+
+    // 如果模态框已经存在，移除并重新创建
+    const existingModal = document.getElementById('fixedUserModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+
+    // 创建模态框
+    const modalContainer = createFixedModal();
+    document.body.appendChild(modalContainer);
+
+    // 绑定事件
+    bindFixedModalEvents(modalContainer);
+}
+
+/**
+ * 初始化页面数据
+ */
+async function initPageData() {
+    try {
+        console.log('加载页面数据...');
+
+        // 加载用户列表
+        await loadUsersList();
+
+        // 加载备份列表
+        await loadBackupsList();
+
+        console.log('页面数据加载完成');
+    } catch (error) {
+        console.error('初始化页面数据失败:', error);
+    }
+}
+
+/**
+ * 绑定备份按钮事件
+ */
+function bindBackupButtons() {
+    // 为现有的备份按钮绑定事件（针对页面初始的静态内容）
+    document.querySelectorAll('button[onclick^="downloadBackup"]').forEach(btn => {
+        const originalOnclick = btn.getAttribute('onclick');
+        btn.removeAttribute('onclick');
+        btn.addEventListener('click', function() {
+            const match = originalOnclick.match(/downloadBackup\('([^']+)'\)/);
+            if (match && match[1]) {
+                downloadBackup(match[1]);
+            }
+        });
     });
 
-    addUserBtn.parentNode.replaceChild(newBtn, addUserBtn);
-
-    console.log('按钮初始化完成');
+    document.querySelectorAll('button[onclick^="deleteBackup"]').forEach(btn => {
+        const originalOnclick = btn.getAttribute('onclick');
+        btn.removeAttribute('onclick');
+        btn.addEventListener('click', function() {
+            const match = originalOnclick.match(/deleteBackup\('([^']+)'\)/);
+            if (match && match[1]) {
+                deleteBackup(match[1]);
+            }
+        });
+    });
 }
+
+/**
+ * 绑定用户按钮事件
+ */
+function bindUserButtons() {
+    document.querySelectorAll('button[onclick^="editUser"]').forEach(btn => {
+        const originalOnclick = btn.getAttribute('onclick');
+        btn.removeAttribute('onclick');
+        btn.addEventListener('click', function() {
+            const userId = originalOnclick.match(/editUser\((\d+)\)/)?.[1];
+            if (userId) editUser(userId);
+        });
+    });
+
+    document.querySelectorAll('button[onclick^="resetPassword"]').forEach(btn => {
+        const originalOnclick = btn.getAttribute('onclick');
+        btn.removeAttribute('onclick');
+        btn.addEventListener('click', function() {
+            const userId = originalOnclick.match(/resetPassword\((\d+)\)/)?.[1];
+            if (userId) resetPassword(userId);
+        });
+    });
+}
+
+// ======================= 模态框相关函数 =======================
 
 /**
  * 显示修复版模态框 - 解决事件冒泡问题
@@ -1465,13 +1254,10 @@ function initAddUserButtonFixed() {
 function showFixedModal() {
     console.log('显示修复版模态框');
 
-    // 创建模态框容器
-    let modalContainer = document.getElementById('fixedUserModal');
-
+    const modalContainer = document.getElementById('fixedUserModal');
     if (!modalContainer) {
-        modalContainer = createFixedModal();
-        document.body.appendChild(modalContainer);
-        bindFixedModalEvents(modalContainer);
+        console.error('模态框未找到');
+        return;
     }
 
     // 显示模态框
@@ -1775,17 +1561,6 @@ function bindFixedModalEvents(modalContainer) {
 
     document.addEventListener('keydown', escHandler);
     modalContainer.escHandler = escHandler;
-
-    // 防止模态框内的输入框失去焦点时意外关闭
-    modalContainer.addEventListener('focusout', function(e) {
-        // 延迟检查，避免焦点切换时立即关闭
-        setTimeout(() => {
-            if (!modalContent.contains(document.activeElement) && !isModalClosing) {
-                // 焦点不在模态框内，但不立即关闭，只记录日志
-                console.log('焦点离开模态框');
-            }
-        }, 100);
-    });
 }
 
 /**
@@ -1837,7 +1612,7 @@ function toggleFixedPassword(button) {
 /**
  * 提交修复版用户表单
  */
-function submitFixedUserForm(form) {
+async function submitFixedUserForm(form) {
     console.log('提交用户表单');
 
     // 验证表单
@@ -1845,6 +1620,7 @@ function submitFixedUserForm(form) {
     const email = form.querySelector('input[name="email"]').value.trim();
     const password = form.querySelector('input[name="password"]').value;
     const role = form.querySelector('select[name="role"]').value;
+    const displayName = form.querySelector('input[name="display_name"]').value.trim();
 
     if (!username || !email || !password || !role) {
         showFixedAlert('请填写所有必填字段（用户名、邮箱、密码、角色）', 'error');
@@ -1856,31 +1632,457 @@ function submitFixedUserForm(form) {
         return;
     }
 
+    // 收集权限
+    const permissions = [];
+    form.querySelectorAll('input[name="permissions"]:checked').forEach(cb => {
+        permissions.push(cb.value);
+    });
+
     // 显示加载状态
     const submitBtn = form.querySelector('button[type="submit"]');
     const originalText = submitBtn.textContent;
     submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>添加中...';
     submitBtn.disabled = true;
 
-    // 模拟提交
-    setTimeout(() => {
-        console.log('用户添加成功:', username);
+    try {
+        // 准备用户数据
+        const userData = {
+            username: username,
+            email: email,
+            password: password,
+            role: role,
+            display_name: displayName || username,
+            department: form.querySelector('select[name="department"]').value,
+            permissions: permissions
+        };
 
-        // 显示成功消息
-        showFixedAlert('用户 ' + username + ' 添加成功', 'success');
+        console.log('添加用户数据:', userData);
 
-        // 重置表单
-        form.reset();
+        // 发送到后端API
+        const response = await fetch('/api/users/add', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(userData)
+        });
 
+        const data = await response.json();
+
+        if (data.success) {
+            showFixedAlert('用户 ' + username + ' 添加成功', 'success');
+
+            // 重置表单
+            form.reset();
+
+            // 关闭模态框
+            closeFixedModal();
+
+            // 刷新用户列表
+            await loadUsersList();
+
+        } else {
+            showFixedAlert('添加用户失败: ' + (data.error || '未知错误'), 'error');
+        }
+
+    } catch (error) {
+        console.error('添加用户失败:', error);
+        showFixedAlert('添加用户失败: ' + error.message, 'error');
+    } finally {
         // 恢复按钮
         submitBtn.textContent = originalText;
         submitBtn.disabled = false;
-
-        // 关闭模态框
-        closeFixedModal();
-
-    }, 1500);
+    }
 }
+
+// ======================= 核心功能函数 =======================
+
+/**
+ * 保存所有设置
+ */
+async function saveAllSettings() {
+    try {
+        console.log('开始保存所有设置...');
+
+        // 收集所有设置数据
+        const settings = {
+            general: {
+                system_name: document.getElementById('system_name')?.value || '',
+                company_name: document.getElementById('company_name')?.value || '',
+                timezone: document.getElementById('timezone')?.value || 'Asia/Shanghai',
+                language: document.getElementById('language')?.value || 'zh-CN',
+                system_description: document.getElementById('system_description')?.value || ''
+            },
+            inventory: {
+                low_stock_threshold: document.getElementById('low_stock_threshold')?.value || '20',
+                out_of_stock_days: document.getElementById('out_of_stock_days')?.value || '3',
+                auto_sync_enabled: document.getElementById('auto_sync_enabled')?.checked || false,
+                sync_frequency: document.getElementById('sync_frequency')?.value || '15',
+                critical_part_threshold: document.getElementById('critical_part_threshold')?.value || '50'
+            },
+            email: {
+                mail_server: document.getElementById('mail_server')?.value || '',
+                mail_port: document.getElementById('mail_port')?.value || '587',
+                mail_encryption: document.getElementById('mail_encryption')?.value || 'tls',
+                mail_sender: document.getElementById('mail_sender')?.value || '',
+                mail_sender_name: document.getElementById('mail_sender_name')?.value || '备件管理系统',
+                mail_username: document.getElementById('mail_username')?.value || '',
+                mail_password: document.getElementById('mail_password')?.value || ''
+            }
+        };
+
+        console.log('收集的设置数据:', settings);
+
+        // 显示加载状态
+        const saveBtn = document.querySelector('button[onclick="saveAllSettings()"]');
+        const originalText = saveBtn.innerHTML;
+        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>保存中...';
+        saveBtn.disabled = true;
+
+        // 发送到后端
+        const response = await fetch('/api/settings/save_all', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(settings)
+        });
+
+        const data = await response.json();
+
+        // 恢复按钮状态
+        saveBtn.innerHTML = originalText;
+        saveBtn.disabled = false;
+
+        if (data.success) {
+            showFixedAlert('系统设置保存成功', 'success');
+            console.log('设置保存成功:', data);
+        } else {
+            showFixedAlert('保存失败: ' + (data.error || '未知错误'), 'error');
+            console.error('设置保存失败:', data.error);
+        }
+
+    } catch (error) {
+        console.error('保存设置失败:', error);
+        showFixedAlert('保存失败: ' + error.message, 'error');
+
+        // 恢复按钮状态
+        const saveBtn = document.querySelector('button[onclick="saveAllSettings()"]');
+        if (saveBtn) {
+            saveBtn.innerHTML = '<i class="fas fa-save me-1"></i>保存所有设置';
+            saveBtn.disabled = false;
+        }
+    }
+}
+
+/**
+ * 测试邮件连接
+ */
+async function testEmailConnection() {
+    try {
+        console.log('开始测试邮件连接...');
+
+        // 显示加载状态
+        const testBtn = document.querySelector('button[onclick="testEmailConnection()"]');
+        const originalText = testBtn.innerHTML;
+        testBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>测试中...';
+        testBtn.disabled = true;
+
+        // 先初始化邮件配置
+        const initResponse = await fetch('/api/settings/init_email_config', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+
+        const initData = await initResponse.json();
+        console.log('邮件配置初始化结果:', initData);
+
+        if (!initData.success) {
+            showFixedAlert('邮件配置初始化失败: ' + (initData.error || '未知错误'), 'error');
+            testBtn.innerHTML = originalText;
+            testBtn.disabled = false;
+            return;
+        }
+
+        // 发送测试请求
+        const response = await fetch('/api/settings/test_email', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+
+        const data = await response.json();
+
+        // 恢复按钮状态
+        testBtn.innerHTML = originalText;
+        testBtn.disabled = false;
+
+        if (data.success) {
+            showFixedAlert('邮件服务器测试成功！', 'success');
+            console.log('邮件测试成功:', data);
+        } else {
+            showFixedAlert('邮件服务器测试失败: ' + (data.error || '未知错误'), 'error');
+            console.error('邮件测试失败:', data.error);
+        }
+
+    } catch (error) {
+        console.error('邮件测试失败:', error);
+        showFixedAlert('邮件测试失败: ' + error.message, 'error');
+
+        // 恢复按钮状态
+        const testBtn = document.querySelector('button[onclick="testEmailConnection()"]');
+        if (testBtn) {
+            testBtn.innerHTML = '<i class="fas fa-paper-plane me-1"></i>测试邮件连接';
+            testBtn.disabled = false;
+        }
+    }
+}
+
+/**
+ * 创建备份
+ */
+async function createBackup() {
+    try {
+        if (!confirm('确定要创建数据库备份吗？')) {
+            return;
+        }
+
+        console.log('开始创建备份...');
+
+        // 显示加载状态
+        const backupBtn = document.querySelector('button[onclick="createBackup()"]');
+        const originalText = backupBtn.innerHTML;
+        backupBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>创建中...';
+        backupBtn.disabled = true;
+
+        // 发送创建请求
+        const response = await fetch('/api/backup/create', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+
+        const data = await response.json();
+
+        // 恢复按钮状态
+        backupBtn.innerHTML = originalText;
+        backupBtn.disabled = false;
+
+        if (data.success) {
+            showFixedAlert('备份创建成功: ' + data.message, 'success');
+            console.log('备份创建成功:', data);
+            // 刷新备份列表
+            await loadBackupsList();
+        } else {
+            showFixedAlert('备份创建失败: ' + (data.error || '未知错误'), 'error');
+            console.error('备份创建失败:', data.error);
+        }
+
+    } catch (error) {
+        console.error('创建备份失败:', error);
+        showFixedAlert('创建备份失败: ' + error.message, 'error');
+
+        // 恢复按钮状态
+        const backupBtn = document.querySelector('button[onclick="createBackup()"]');
+        if (backupBtn) {
+            backupBtn.innerHTML = '<i class="fas fa-plus me-1"></i>创建备份';
+            backupBtn.disabled = false;
+        }
+    }
+}
+
+/**
+ * 加载用户列表
+ */
+async function loadUsersList() {
+    try {
+        console.log('正在加载用户列表...');
+
+        const response = await fetch('/api/users/list', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const data = await response.json();
+
+        if (data.success && data.users) {
+            console.log('获取到用户列表:', data.users);
+            updateUsersTable(data.users);
+        } else {
+            showFixedAlert('加载用户列表失败: ' + (data.error || '未知错误'), 'error');
+            console.error('加载用户列表失败:', data.error);
+        }
+    } catch (error) {
+        console.error('加载用户列表失败:', error);
+        showFixedAlert('加载用户列表失败: ' + error.message, 'error');
+    }
+}
+
+/**
+ * 更新用户表格
+ */
+function updateUsersTable(users) {
+    const tbody = document.querySelector('#usersTable tbody');
+    if (!tbody) {
+        console.warn('未找到用户表格tbody');
+        return;
+    }
+
+    tbody.innerHTML = '';
+
+    if (users.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" class="text-center text-muted py-4">
+                    <i class="fas fa-users me-2"></i>暂无用户数据
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    users.forEach(user => {
+        // 用户头像
+        const avatarLetter = (user.display_name || user.username).charAt(0).toUpperCase();
+        const avatarColor = getAvatarColor(user.id);
+
+        // 角色徽章颜色
+        let roleBadgeClass = 'bg-info';
+        if (user.role === 'admin') roleBadgeClass = 'bg-danger';
+        if (user.role === 'manager') roleBadgeClass = 'bg-warning';
+
+        // 状态徽章
+        const statusBadge = user.is_active ?
+            '<span class="badge bg-success">活跃</span>' :
+            '<span class="badge bg-secondary">禁用</span>';
+
+        // 格式化最后登录时间
+        const lastLogin = user.last_login ?
+            new Date(user.last_login).toLocaleString('zh-CN') :
+            '从未登录';
+
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>
+                <div class="d-flex align-items-center">
+                    <div class="avatar-sm rounded-circle d-flex align-items-center justify-content-center me-2"
+                         style="width: 32px; height: 32px; background-color: ${avatarColor};">
+                        <span class="text-white fw-bold">${avatarLetter}</span>
+                    </div>
+                    <span>${user.username}</span>
+                </div>
+            </td>
+            <td>${user.display_name || user.username}</td>
+            <td>${user.email}</td>
+            <td>
+                <span class="badge ${roleBadgeClass}">${getRoleName(user.role)}</span>
+            </td>
+            <td>${statusBadge}</td>
+            <td>${lastLogin}</td>
+            <td>
+                <div class="btn-group btn-group-sm">
+                    <button type="button" class="btn btn-outline-primary" onclick="editUser(${user.id})">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="resetPassword(${user.id})">
+                        <i class="fas fa-key"></i>
+                    </button>
+                    <button type="button" class="btn btn-outline-danger" onclick="deleteUser(${user.id})">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </td>
+        `;
+
+        tbody.appendChild(row);
+    });
+}
+
+/**
+ * 加载备份列表
+ */
+async function loadBackupsList() {
+    try {
+        console.log('正在加载备份列表...');
+
+        const response = await fetch('/api/backup/list', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+
+        const data = await response.json();
+
+        if (data.success && data.backups) {
+            console.log('获取到备份列表:', data.backups);
+            updateBackupsTable(data.backups);
+        } else {
+            showFixedAlert('加载备份列表失败: ' + (data.error || '未知错误'), 'error');
+            console.error('加载备份列表失败:', data.error);
+        }
+
+    } catch (error) {
+        console.error('加载备份列表失败:', error);
+        showFixedAlert('加载备份列表失败: ' + error.message, 'error');
+    }
+}
+
+/**
+ * 更新备份表格
+ */
+function updateBackupsTable(backups) {
+    const tbody = document.querySelector('#backupsTable tbody');
+    if (!tbody) {
+        console.warn('未找到备份表格tbody');
+        return;
+    }
+
+    tbody.innerHTML = '';
+
+    if (backups.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="5" class="text-center text-muted py-4">
+                    <i class="fas fa-database me-2"></i>暂无备份数据
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    backups.forEach(backup => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${backup.name}</td>
+            <td>${backup.size_formatted}</td>
+            <td>${backup.created_time}</td>
+            <td>
+                <span class="badge bg-success">可用</span>
+            </td>
+            <td>
+                <div class="btn-group btn-group-sm">
+                    <button type="button" class="btn btn-outline-primary" onclick="downloadBackup('${backup.name}')">
+                        <i class="fas fa-download"></i>
+                    </button>
+                    <button type="button" class="btn btn-outline-danger" onclick="deleteBackup('${backup.name}')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </td>
+        `;
+
+        tbody.appendChild(row);
+    });
+}
+
+// ======================= 工具函数 =======================
 
 /**
  * 显示修复版提示消息
@@ -1917,7 +2119,7 @@ function showFixedAlert(message, type) {
     }
 
     alertDiv.innerHTML = `
-        <div style="display: flex; align-items: center; gap: 8px;">
+        <div style="display: flex; align-items-center; gap: 8px;">
             <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i>
             <span>${message}</span>
         </div>
@@ -1939,64 +2141,105 @@ function showFixedAlert(message, type) {
 }
 
 /**
- * 初始化其他功能
+ * 切换密码显示
  */
-function initOtherFunctions() {
-    // 保存所有设置按钮
-    const saveAllBtn = document.querySelector('button[onclick="saveAllSettings()"]');
-    if (saveAllBtn) {
-        saveAllBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            saveAllSettings();
-        });
+function togglePasswordVisibility(input, button) {
+    if (!input) return;
+
+    if (input.type === 'password') {
+        input.type = 'text';
+        button.innerHTML = '<i class="fas fa-eye-slash"></i>';
+    } else {
+        input.type = 'password';
+        button.innerHTML = '<i class="fas fa-eye"></i>';
     }
-
-    // 编辑用户按钮
-    document.querySelectorAll('button[onclick^="editUser"]').forEach(btn => {
-        const originalOnclick = btn.getAttribute('onclick');
-        btn.removeAttribute('onclick');
-        btn.addEventListener('click', function() {
-            const userId = originalOnclick.match(/editUser\((\d+)\)/)[1];
-            editUser(userId);
-        });
-    });
-
-    // 重置密码按钮
-    document.querySelectorAll('button[onclick^="resetPassword"]').forEach(btn => {
-        const originalOnclick = btn.getAttribute('onclick');
-        btn.removeAttribute('onclick');
-        btn.addEventListener('click', function() {
-            const userId = originalOnclick.match(/resetPassword\((\d+)\)/)[1];
-            resetPassword(userId);
-        });
-    });
-
-    // 密码显示切换按钮
-    document.querySelectorAll('.toggle-password-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const inputId = this.closest('.input-group').querySelector('input[type="password"]').id;
-            togglePasswordVisibility(inputId, this);
-        });
-    });
 }
 
 /**
- * 保存所有设置
+ * 获取头像颜色
  */
-function saveAllSettings() {
-    console.log('保存所有设置');
+function getAvatarColor(userId) {
+    const colors = ['#4361ee', '#3a56d4', '#4895ef', '#4cc9f0', '#f72585', '#7209b7', '#3a0ca3'];
+    return colors[userId % colors.length];
+}
 
-    // 显示加载状态
-    const saveBtn = document.querySelector('button[onclick="saveAllSettings()"]');
-    const originalText = saveBtn.innerHTML;
-    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>保存中...';
-    saveBtn.disabled = true;
+/**
+ * 获取角色名称
+ */
+function getRoleName(role) {
+    const roleNames = {
+        'admin': '系统管理员',
+        'manager': '仓库管理员',
+        'operator': '操作员',
+        'viewer': '查看员'
+    };
+    return roleNames[role] || role;
+}
 
-    setTimeout(() => {
-        showFixedAlert('系统设置已保存', 'success');
-        saveBtn.innerHTML = originalText;
-        saveBtn.disabled = false;
-    }, 1500);
+// ======================= 其他功能函数 =======================
+
+/**
+ * 下载备份
+ */
+async function downloadBackup(backupName) {
+    try {
+        console.log('正在下载备份:', backupName);
+
+        // 直接使用URL下载
+        const downloadUrl = `/backups/${backupName}.zip`;
+
+        // 创建隐藏的链接并点击
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = `${backupName}.zip`;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        showFixedAlert('开始下载备份文件', 'success');
+
+    } catch (error) {
+        console.error('下载备份失败:', error);
+        showFixedAlert('下载备份失败: ' + error.message, 'error');
+    }
+}
+
+/**
+ * 删除备份
+ */
+async function deleteBackup(backupName) {
+    try {
+        if (!confirm(`确定要删除备份 ${backupName} 吗？此操作不可恢复。`)) {
+            return;
+        }
+
+        console.log('正在删除备份:', backupName);
+
+        // 显示加载状态
+        const response = await fetch(`/api/backup/delete/${backupName}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showFixedAlert('备份删除成功', 'success');
+            console.log('备份删除成功:', data);
+            // 刷新备份列表
+            await loadBackupsList();
+        } else {
+            showFixedAlert('删除失败: ' + (data.error || '未知错误'), 'error');
+            console.error('备份删除失败:', data.error);
+        }
+
+    } catch (error) {
+        console.error('删除备份失败:', error);
+        showFixedAlert('删除备份失败: ' + error.message, 'error');
+    }
 }
 
 /**
@@ -2016,29 +2259,28 @@ function resetPassword(userId) {
 }
 
 /**
- * 切换密码显示
+ * 删除用户
  */
-function togglePasswordVisibility(inputId, button) {
-    const input = document.getElementById(inputId);
-    if (input) {
-        if (input.type === 'password') {
-            input.type = 'text';
-            button.innerHTML = '<i class="fas fa-eye-slash"></i>';
-        } else {
-            input.type = 'password';
-            button.innerHTML = '<i class="fas fa-eye"></i>';
-        }
+function deleteUser(userId) {
+    if (confirm('确定要删除用户 ' + userId + ' 吗？此操作不可恢复。')) {
+        alert('用户 ' + userId + ' 已删除 (功能演示)');
     }
 }
 
-// 全局导出函数
+// ======================= 全局导出函数 =======================
+// 这些函数需要在HTML的onclick属性中调用，所以需要全局可用
 window.showAddUserModal = showFixedModal;
 window.saveAllSettings = saveAllSettings;
+window.testEmailConnection = testEmailConnection;
+window.createBackup = createBackup;
+window.downloadBackup = downloadBackup;
+window.deleteBackup = deleteBackup;
 window.editUser = editUser;
 window.resetPassword = resetPassword;
-window.togglePasswordVisibility = togglePasswordVisibility;
+window.deleteUser = deleteUser;
+window.toggleFixedPassword = toggleFixedPassword;
 
-console.log('系统设置页面初始化完成 - 修复事件冒泡问题');
+console.log('系统设置页面脚本加载完成');
 </script>
 
 <style>
@@ -2114,19 +2356,9 @@ console.log('系统设置页面初始化完成 - 修复事件冒泡问题');
     color: #f8f9fa !important;
 }
 
-/* 防止模态框内的点击事件影响外部 */
+/* 当模态框打开时，移除所有可能的模糊效果 */
 body.modal-open {
     overflow: hidden !important;
-    position: fixed;
-    width: 100%;
-    height: 100%;
-}
-
-/* 关闭按钮悬停效果 */
-#fixedModalClose:hover {
-    color: #212529 !important;
-    transform: scale(1.1);
-    transition: all 0.2s;
 }
 
 /* 确保表单元素有正确的光标 */

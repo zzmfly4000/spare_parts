@@ -15,6 +15,10 @@ import threading
 import time
 from routes.database_routes import setup_database_routes
 from routes.enhanced_settings_routes import setup_settings_routes
+import os
+import zipfile
+import shutil
+
 
 
 def create_app(config_name='default'):
@@ -402,6 +406,345 @@ def create_app(config_name='default'):
         from models.database import get_system_settings
         current_settings = get_system_settings()
         return render_template('settings.html', settings=current_settings)
+
+    # 在 app.py 的 create_app 函数中，添加以下路由
+    # 放在合适的位置，比如在 index 路由之后
+
+    @app.route('/api/settings/save_all', methods=['POST'], endpoint='app_save_all_settings')
+    def save_all_settings():
+        """保存所有系统设置"""
+        if 'user_id' not in session:
+            return jsonify({'success': False, 'error': '请先登录'}), 401
+
+        # 检查是否是管理员
+        from routes.enhanced_settings_routes import check_admin_permission
+        if not check_admin_permission(session.get('user_id')):
+            return jsonify({'success': False, 'error': '需要管理员权限'}), 403
+
+        try:
+            # 获取前端发送的数据
+            settings_data = request.json
+            if not settings_data:
+                return jsonify({'success': False, 'error': '无数据'})
+
+            # 这里调用 enhanced_settings_routes 中的保存函数
+            # 由于函数依赖较多，我们直接在这里实现简单的保存逻辑
+            import sqlite3
+
+            # 连接数据库
+            conn = sqlite3.connect('spare_parts.db')
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+
+            # 保存通用设置
+            if 'general' in settings_data:
+                for key, value in settings_data['general'].items():
+                    cursor.execute('''
+                        INSERT OR REPLACE INTO system_settings 
+                        (setting_key, setting_value, setting_type, category, updated_date)
+                        VALUES (?, ?, 'string', 'general', CURRENT_TIMESTAMP)
+                    ''', (key, str(value)))
+
+            # 保存库存设置
+            if 'inventory' in settings_data:
+                for key, value in settings_data['inventory'].items():
+                    setting_type = 'integer' if key in ['low_stock_threshold', 'out_of_stock_days',
+                                                        'sync_frequency', 'critical_part_threshold'] else 'boolean'
+                    cursor.execute('''
+                        INSERT OR REPLACE INTO system_settings 
+                        (setting_key, setting_value, setting_type, category, updated_date)
+                        VALUES (?, ?, ?, 'inventory', CURRENT_TIMESTAMP)
+                    ''', (key, str(value), setting_type))
+
+            # 保存邮件设置
+            if 'email' in settings_data:
+                for key, value in settings_data['email'].items():
+                    setting_type = 'integer' if key == 'mail_port' else 'string'
+                    cursor.execute('''
+                        INSERT OR REPLACE INTO system_settings 
+                        (setting_key, setting_value, setting_type, category, updated_date)
+                        VALUES (?, ?, ?, 'email', CURRENT_TIMESTAMP)
+                    ''', (key, str(value), setting_type))
+
+            conn.commit()
+            conn.close()
+
+            return jsonify({
+                'success': True,
+                'message': '设置保存成功'
+            })
+
+        except Exception as e:
+            app.logger.error(f"保存设置失败: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    # 在 app.py 中添加
+    @app.route('/api/settings/init_email_config', methods=['POST'], endpoint='app_init_email_config')
+    def init_email_config():
+        """初始化邮件配置"""
+        if 'user_id' not in session:
+            return jsonify({'success': False, 'error': '请先登录'}), 401
+
+        try:
+            # 连接数据库
+            import sqlite3
+            conn = sqlite3.connect('spare_parts.db')
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+
+            # 检查邮件配置是否存在
+            cursor.execute("SELECT setting_key FROM system_settings WHERE category = 'email'")
+            existing_configs = cursor.fetchall()
+
+            if not existing_configs:
+                # 初始化默认邮件配置
+                default_email_configs = [
+                    ('mail_server', 'smtp.example.com', 'string', 'email', 'SMTP服务器'),
+                    ('mail_port', '587', 'integer', 'email', 'SMTP端口'),
+                    ('mail_encryption', 'tls', 'string', 'email', '邮件加密方式'),
+                    ('mail_sender', 'noreply@example.com', 'string', 'email', '发件人邮箱'),
+                    ('mail_sender_name', '备件管理系统', 'string', 'email', '发件人名称'),
+                    ('mail_username', '', 'string', 'email', 'SMTP用户名'),
+                    ('mail_password', '', 'string', 'email', 'SMTP密码')
+                ]
+
+                for config in default_email_configs:
+                    cursor.execute('''
+                        INSERT OR IGNORE INTO system_settings 
+                        (setting_key, setting_value, setting_type, category, description)
+                        VALUES (?, ?, ?, ?, ?)
+                    ''', config)
+
+            conn.commit()
+            conn.close()
+
+            return jsonify({
+                'success': True,
+                'message': '邮件配置初始化完成'
+            })
+
+        except Exception as e:
+            app.logger.error(f"初始化邮件配置失败: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    # 修改测试邮件API，先从数据库获取配置
+    @app.route('/api/settings/test_email', methods=['POST'], endpoint='app_test_email')
+    def test_email_connection():
+        """测试邮件服务器连接"""
+        if 'user_id' not in session:
+            return jsonify({'success': False, 'error': '请先登录'}), 401
+
+        try:
+            # 获取邮件配置
+            import sqlite3
+            conn = sqlite3.connect('spare_parts.db')
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+
+            cursor.execute("SELECT setting_key, setting_value FROM system_settings WHERE category = 'email'")
+            rows = cursor.fetchall()
+            conn.close()
+
+            email_settings = {}
+            for row in rows:
+                email_settings[row['setting_key']] = row['setting_value']
+
+            # 检查必要配置
+            required_fields = ['mail_server', 'mail_port', 'mail_sender', 'mail_username']
+            missing_fields = []
+            for field in required_fields:
+                if not email_settings.get(field):
+                    missing_fields.append(field)
+
+            if missing_fields:
+                return jsonify({
+                    'success': False,
+                    'error': f'缺少邮件配置: {", ".join(missing_fields)}'
+                })
+
+            # 尝试连接SMTP服务器
+            try:
+                import smtplib
+                from email.mime.text import MIMEText
+                from email.mime.multipart import MIMEMultipart
+                import datetime
+
+                server = smtplib.SMTP(email_settings['mail_server'], int(email_settings['mail_port']))
+                server.starttls()  # 启用TLS
+
+                # 如果有用户名和密码，尝试登录
+                if email_settings.get('mail_username') and email_settings.get('mail_password'):
+                    server.login(email_settings['mail_username'], email_settings['mail_password'])
+
+                server.quit()
+
+                return jsonify({
+                    'success': True,
+                    'message': '邮件服务器连接成功！'
+                })
+
+            except Exception as smtp_error:
+                app.logger.error(f"SMTP连接失败: {str(smtp_error)}")
+                return jsonify({
+                    'success': False,
+                    'error': f'SMTP连接失败: {str(smtp_error)}'
+                })
+
+        except Exception as e:
+            app.logger.error(f"邮件测试失败: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    @app.route('/api/backup/create', methods=['POST'], endpoint='app_create_backup')
+    def create_backup():
+        """创建数据库备份"""
+        if 'user_id' not in session:
+            return jsonify({'success': False, 'error': '请先登录'}), 401
+
+        try:
+            # 创建备份目录
+            backup_dir = 'backups'
+            if not os.path.exists(backup_dir):
+                os.makedirs(backup_dir)
+
+            # 备份文件名
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            backup_name = f'backup_{timestamp}'
+            zip_path = os.path.join(backup_dir, f'{backup_name}.zip')
+
+            # 要备份的文件
+            backup_files = ['spare_parts.db']
+
+            # 创建ZIP文件
+            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                for file in backup_files:
+                    if os.path.exists(file):
+                        zipf.write(file, os.path.basename(file))
+                    else:
+                        app.logger.warning(f"备份文件不存在: {file}")
+
+            # 清理旧备份（保留最近10个）
+            backup_files_list = sorted(
+                [f for f in os.listdir(backup_dir) if f.endswith('.zip')],
+                key=lambda x: os.path.getmtime(os.path.join(backup_dir, x))
+            )
+
+            if len(backup_files_list) > 10:
+                for old_backup in backup_files_list[:-10]:
+                    os.remove(os.path.join(backup_dir, old_backup))
+
+            # 计算文件大小
+            file_size = os.path.getsize(zip_path)
+            file_size_mb = file_size / (1024 * 1024)
+
+            app.logger.info(f"备份创建成功: {backup_name}.zip, 大小: {file_size_mb:.2f} MB")
+
+            return jsonify({
+                'success': True,
+                'message': f'备份创建成功！文件大小: {file_size_mb:.2f} MB',
+                'backup_name': backup_name,
+                'file_size': file_size,
+                'file_size_mb': f'{file_size_mb:.2f} MB',
+                'created_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            })
+
+        except Exception as e:
+            app.logger.error(f"创建备份失败: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    @app.route('/api/backup/list', methods=['GET'], endpoint='app_list_backups')
+    def list_backups():
+        """获取备份列表"""
+        if 'user_id' not in session:
+            return jsonify({'success': False, 'error': '请先登录'}), 401
+
+        try:
+            backup_dir = 'backups'
+            if not os.path.exists(backup_dir):
+                os.makedirs(backup_dir)
+                return jsonify({'success': True, 'backups': []})
+
+            backups = []
+            for filename in sorted(os.listdir(backup_dir), reverse=True):
+                if filename.endswith('.zip'):
+                    filepath = os.path.join(backup_dir, filename)
+                    stat = os.stat(filepath)
+
+                    # 计算文件大小
+                    file_size = stat.st_size
+                    file_size_mb = file_size / (1024 * 1024)
+
+                    backups.append({
+                        'name': filename.replace('.zip', ''),
+                        'filename': filename,
+                        'size': file_size,
+                        'size_formatted': f'{file_size_mb:.2f} MB',
+                        'created_time': datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S'),
+                        'download_url': f'/backups/{filename}'
+                    })
+
+            return jsonify({
+                'success': True,
+                'backups': backups,
+                'count': len(backups)
+            })
+
+        except Exception as e:
+            app.logger.error(f"获取备份列表失败: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    # 添加静态文件路由用于下载备份
+    @app.route('/backups/<filename>', endpoint='app_download_backup')
+    def download_backup(filename):
+        """下载备份文件"""
+        if 'user_id' not in session:
+            return redirect(url_for('login_page'))
+
+        backup_dir = 'backups'
+        filepath = os.path.join(backup_dir, filename)
+
+        if not os.path.exists(filepath):
+            flash('备份文件不存在', 'danger')
+            return redirect(url_for('settings_page'))
+
+        try:
+            from flask import send_from_directory
+            return send_from_directory(
+                backup_dir,
+                filename,
+                as_attachment=True,
+                download_name=filename
+            )
+        except Exception as e:
+            app.logger.error(f"下载备份失败: {str(e)}")
+            flash(f'下载失败: {str(e)}', 'danger')
+            return redirect(url_for('settings_page'))
+
+    @app.route('/api/backup/delete/<backup_name>', methods=['DELETE'], endpoint='app_delete_backup')
+    def delete_backup(backup_name):
+        """删除备份文件"""
+        if 'user_id' not in session:
+            return jsonify({'success': False, 'error': '请先登录'}), 401
+
+        try:
+            backup_dir = 'backups'
+            filepath = os.path.join(backup_dir, f'{backup_name}.zip')
+
+            if not os.path.exists(filepath):
+                return jsonify({'success': False, 'error': '备份文件不存在'}), 404
+
+            # 删除文件
+            os.remove(filepath)
+
+            app.logger.info(f"备份删除成功: {backup_name}")
+
+            return jsonify({
+                'success': True,
+                'message': f'备份删除成功: {backup_name}'
+            })
+
+        except Exception as e:
+            app.logger.error(f"删除备份失败: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)}), 500
 
     # 同时需要更新 base.html 中的登录链接
 
