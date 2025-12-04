@@ -1089,6 +1089,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // 4. 加载页面数据
     initPageData();
 
+    // 5. 绑定事件委托
+    bindEventDelegation();
+
     console.log('页面初始化完成');
 });
 
@@ -1110,6 +1113,10 @@ function initTabs() {
                 loadUsersList();
             } else if (activeTab === '#backup') {
                 loadBackupsList();
+            } else if (activeTab === '#api') {
+                loadApiKeysList();
+            } else if (activeTab === '#security') {
+                loadLoginLogs();
             }
         });
     });
@@ -1133,81 +1140,212 @@ function initTabs() {
 /**
  * 初始化所有按钮事件
  */
-/**
- * 初始化所有按钮事件
- */
 function initAllButtons() {
     console.log('初始化按钮事件...');
 
-    // 保存所有设置按钮
-    const saveButtons = document.querySelectorAll('button');
-    for (let btn of saveButtons) {
-        if (btn.textContent.includes('保存所有设置') || btn.innerHTML.includes('保存所有设置')) {
-            console.log('找到保存设置按钮');
+    // 移除所有按钮可能存在的旧事件监听器
+    removeAllButtonListeners();
+
+    // 1. 保存所有设置按钮
+    bindSaveSettingsButtons();
+
+    // 2. 添加用户按钮
+    bindAddUserButton();
+
+    // 3. 测试邮件连接按钮
+    bindTestEmailButton();
+
+    // 4. 创建备份按钮
+    bindCreateBackupButton();
+
+    // 5. 恢复备份按钮
+    bindRestoreBackupButton();
+
+    // 6. 密码显示切换按钮
+    bindTogglePasswordButtons();
+
+    // 7. 浏览备份路径按钮
+    bindBrowseBackupPathButton();
+
+    // 8. 生成API密钥按钮
+    bindGenerateApiKeyButton();
+
+    // 9. 下载API文档按钮
+    bindDownloadApiDocumentationButton();
+
+    // 10. 复制API密钥按钮
+    bindCopyApiKeyButton();
+
+    // 11. 标签页切换事件
+    bindTabEvents();
+
+    // 12. 表单提交事件
+    bindFormSubmitEvents();
+
+    console.log('所有按钮事件初始化完成');
+}
+
+/**
+ * 移除所有按钮的旧事件监听器
+ */
+function removeAllButtonListeners() {
+    // 移除所有按钮的click事件监听器（通过克隆节点实现）
+    const buttons = document.querySelectorAll('button');
+    buttons.forEach(button => {
+        const newButton = button.cloneNode(true);
+        button.parentNode.replaceChild(newButton, button);
+    });
+
+    console.log('已移除所有旧的事件监听器');
+}
+
+/**
+ * 绑定保存设置按钮
+ */
+function bindSaveSettingsButtons() {
+    console.log('绑定保存设置按钮...');
+
+    // 方式1: 通过按钮文本查找
+    document.querySelectorAll('button').forEach(btn => {
+        const btnText = (btn.textContent || btn.innerText || '').trim();
+        if (btnText.includes('保存所有设置') || btn.innerHTML.includes('保存所有设置')) {
+            console.log('找到保存所有设置按钮:', btn);
             btn.addEventListener('click', function(e) {
                 e.preventDefault();
                 e.stopPropagation();
+                console.log('保存所有设置按钮被点击');
                 saveAllSettings();
             });
-            break;
         }
-    }
+    });
+}
 
-    // 添加用户按钮
-    const addUserBtn = document.getElementById('addUserBtn');
+/**
+ * 绑定添加用户按钮
+ */
+function bindAddUserButton() {
+    console.log('绑定添加用户按钮...');
+
+    // 方式1: 通过ID查找
+    let addUserBtn = document.getElementById('addUserBtn');
+
     if (addUserBtn) {
-        console.log('找到添加用户按钮');
+        console.log('通过ID找到添加用户按钮');
         addUserBtn.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
+            console.log('添加用户按钮被点击');
             showFixedModal();
         });
     } else {
-        console.warn('未找到添加用户按钮，尝试其他方式...');
-        // 查找可能的按钮
-        setTimeout(() => {
-            const possibleBtns = document.querySelectorAll('button');
-            for (let btn of possibleBtns) {
-                if (btn.textContent.includes('添加用户')) {
-                    btn.id = 'addUserBtn';
-                    btn.addEventListener('click', showFixedModal);
-                    console.log('已绑定添加用户按钮');
-                    break;
-                }
-            }
-        }, 500);
-    }
+        console.log('未找到ID为addUserBtn的按钮，尝试其他方式...');
 
-    // 测试邮件按钮
-    for (let btn of document.querySelectorAll('button')) {
-        if (btn.textContent.includes('测试邮件连接') || btn.innerHTML.includes('测试邮件连接')) {
-            console.log('找到测试邮件按钮');
+        // 方式2: 通过文本查找
+        document.querySelectorAll('button').forEach(btn => {
+            const btnText = (btn.textContent || btn.innerText || '').trim();
+            if (btnText.includes('添加用户') || btn.innerHTML.includes('添加用户')) {
+                console.log('通过文本找到添加用户按钮:', btn);
+                btn.id = 'addUserBtn'; // 添加ID以便后续引用
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('添加用户按钮被点击');
+                    showFixedModal();
+                });
+                return;
+            }
+        });
+    }
+}
+
+/**
+ * 绑定测试邮件连接按钮
+ */
+function bindTestEmailButton() {
+    console.log('绑定测试邮件连接按钮...');
+
+    document.querySelectorAll('button').forEach(btn => {
+        const btnText = (btn.textContent || btn.innerText || '').trim();
+        const btnHtml = btn.innerHTML || '';
+
+        if (btnText.includes('测试邮件连接') ||
+            btnText.includes('测试邮件') ||
+            btnHtml.includes('测试邮件连接') ||
+            btnHtml.includes('测试邮件')) {
+            console.log('找到测试邮件按钮:', btn);
+
             btn.addEventListener('click', function(e) {
                 e.preventDefault();
                 e.stopPropagation();
+                console.log('测试邮件按钮被点击');
                 testEmailConnection();
             });
-            break;
-        }
-    }
 
-    // 创建备份按钮
-    for (let btn of document.querySelectorAll('button')) {
-        if (btn.textContent.includes('创建备份') || btn.innerHTML.includes('创建备份')) {
-            console.log('找到创建备份按钮');
+            // 标记已绑定
+            btn.setAttribute('data-test-email-bound', 'true');
+        }
+    });
+}
+
+/**
+ * 绑定创建备份按钮
+ */
+function bindCreateBackupButton() {
+    console.log('绑定创建备份按钮...');
+
+    document.querySelectorAll('button').forEach(btn => {
+        const btnText = (btn.textContent || btn.innerText || '').trim();
+        const btnHtml = btn.innerHTML || '';
+
+        if (btnText.includes('创建备份') ||
+            btnText.includes('创建新备份') ||
+            btnHtml.includes('创建备份') ||
+            btnHtml.includes('创建新备份')) {
+            console.log('找到创建备份按钮:', btn);
+
             btn.addEventListener('click', function(e) {
                 e.preventDefault();
                 e.stopPropagation();
+                console.log('创建备份按钮被点击');
                 createBackup();
             });
-            break;
         }
-    }
+    });
+}
 
-    // 密码显示切换按钮
+/**
+ * 绑定恢复备份按钮
+ */
+function bindRestoreBackupButton() {
+    console.log('绑定恢复备份按钮...');
+
+    document.querySelectorAll('button').forEach(btn => {
+        const btnText = (btn.textContent || btn.innerText || '').trim();
+        if (btnText.includes('恢复备份') || btnText.includes('Restore')) {
+            console.log('找到恢复备份按钮:', btn);
+
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('恢复备份按钮被点击');
+                restoreBackup();
+            });
+        }
+    });
+}
+
+/**
+ * 绑定密码显示切换按钮
+ */
+function bindTogglePasswordButtons() {
+    console.log('绑定密码显示切换按钮...');
+
     document.querySelectorAll('.toggle-password-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const input = this.closest('.input-group').querySelector('input[type="password"]');
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const input = this.closest('.input-group').querySelector('input[type="password"], input[type="text"]');
             if (input) {
                 if (input.type === 'password') {
                     input.type = 'text';
@@ -1222,15 +1360,257 @@ function initAllButtons() {
 }
 
 /**
+ * 绑定浏览备份路径按钮
+ */
+function bindBrowseBackupPathButton() {
+    console.log('绑定浏览备份路径按钮...');
+
+    document.querySelectorAll('button').forEach(btn => {
+        if (btn.innerHTML.includes('fa-folder-open') || btn.innerHTML.includes('浏览')) {
+            console.log('找到浏览文件夹按钮:', btn);
+
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('浏览备份路径按钮被点击');
+                browseBackupPath();
+            });
+        }
+    });
+}
+
+/**
+ * 绑定生成API密钥按钮
+ */
+function bindGenerateApiKeyButton() {
+    console.log('绑定生成API密钥按钮...');
+
+    document.querySelectorAll('button').forEach(btn => {
+        const btnText = (btn.textContent || btn.innerText || '').trim();
+        if (btnText.includes('生成新密钥') || btnText.includes('生成API密钥')) {
+            console.log('找到生成API密钥按钮:', btn);
+
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('生成API密钥按钮被点击');
+                generateApiKey();
+            });
+        }
+    });
+}
+
+/**
+ * 绑定下载API文档按钮
+ */
+function bindDownloadApiDocumentationButton() {
+    console.log('绑定下载API文档按钮...');
+
+    document.querySelectorAll('button').forEach(btn => {
+        const btnText = (btn.textContent || btn.innerText || '').trim();
+        if (btnText.includes('下载API文档') || btnText.includes('下载文档')) {
+            console.log('找到下载API文档按钮:', btn);
+
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('下载API文档按钮被点击');
+                downloadApiDocumentation();
+            });
+        }
+    });
+}
+
+/**
+ * 绑定复制API密钥按钮
+ */
+function bindCopyApiKeyButton() {
+    console.log('绑定复制API密钥按钮...');
+
+    // 绑定现有的复制按钮
+    document.querySelectorAll('button').forEach(btn => {
+        if (btn.innerHTML.includes('fa-copy') || btn.innerHTML.includes('复制')) {
+            console.log('找到复制按钮:', btn);
+
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                const input = this.closest('.input-group').querySelector('input');
+                if (input) {
+                    copyApiKey(input.value);
+                }
+            });
+        }
+    });
+}
+
+/**
+ * 绑定标签页切换事件
+ */
+function bindTabEvents() {
+    console.log('绑定标签页事件...');
+
+    const settingsTab = document.getElementById('settingsTab');
+    if (settingsTab) {
+        const tabTriggers = settingsTab.querySelectorAll('button[data-bs-toggle="tab"]');
+        tabTriggers.forEach(tabTrigger => {
+            tabTrigger.addEventListener('shown.bs.tab', function(event) {
+                const activeTab = event.target.getAttribute('data-bs-target');
+                console.log('切换到标签页:', activeTab);
+                localStorage.setItem('lastActiveSettingsTab', activeTab);
+
+                // 标签页切换时加载对应数据
+                if (activeTab === '#users') {
+                    loadUsersList();
+                } else if (activeTab === '#backup') {
+                    loadBackupsList();
+                } else if (activeTab === '#api') {
+                    loadApiKeysList();
+                } else if (activeTab === '#security') {
+                    loadLoginLogs();
+                }
+            });
+        });
+    }
+}
+
+/**
+ * 绑定表单提交事件
+ */
+function bindFormSubmitEvents() {
+    console.log('绑定表单提交事件...');
+
+    // 添加用户表单
+    const addUserForm = document.getElementById('addUserForm');
+    if (addUserForm) {
+        console.log('找到添加用户表单');
+        addUserForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('添加用户表单提交');
+            addNewUser(e);
+        });
+    }
+
+    // 修复版用户表单
+    const fixedUserForm = document.getElementById('fixedUserForm');
+    if (fixedUserForm) {
+        console.log('找到修复版用户表单');
+        fixedUserForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('修复版用户表单提交');
+            submitFixedUserForm(this);
+        });
+    }
+}
+
+/**
+ * 绑定事件委托
+ */
+function bindEventDelegation() {
+    console.log('绑定事件委托...');
+
+    // 用户表格的动态按钮
+    document.addEventListener('click', function(e) {
+        // 编辑用户按钮
+        if (e.target.closest('button') && e.target.closest('button').innerHTML.includes('fa-edit')) {
+            const btn = e.target.closest('button');
+            const row = btn.closest('tr');
+            if (row) {
+                const userId = row.getAttribute('data-user-id') ||
+                              row.querySelector('td:first-child')?.textContent ||
+                              row.querySelector('input[type="hidden"]')?.value;
+                if (userId) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('编辑用户:', userId);
+                    showEditUserModal(userId);
+                }
+            }
+        }
+
+        // 重置密码按钮
+        if (e.target.closest('button') && e.target.closest('button').innerHTML.includes('fa-key')) {
+            const btn = e.target.closest('button');
+            const row = btn.closest('tr');
+            if (row) {
+                const userId = row.getAttribute('data-user-id') ||
+                              row.querySelector('td:first-child')?.textContent ||
+                              row.querySelector('input[type="hidden"]')?.value;
+                const username = row.querySelector('td:nth-child(2)')?.textContent || '用户';
+                if (userId) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('重置密码:', userId);
+                    showResetPasswordModal(userId, username);
+                }
+            }
+        }
+
+        // 删除用户按钮
+        if (e.target.closest('button') && e.target.closest('button').innerHTML.includes('fa-trash')) {
+            const btn = e.target.closest('button');
+            const row = btn.closest('tr');
+            if (row) {
+                const userId = row.getAttribute('data-user-id') ||
+                              row.querySelector('td:first-child')?.textContent ||
+                              row.querySelector('input[type="hidden"]')?.value;
+                const username = row.querySelector('td:nth-child(2)')?.textContent || '用户';
+                if (userId) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('删除用户:', userId);
+                    confirmDeleteUser(userId, username);
+                }
+            }
+        }
+
+        // 下载备份按钮
+        if (e.target.closest('button') && e.target.closest('button').innerHTML.includes('fa-download')) {
+            const btn = e.target.closest('button');
+            const row = btn.closest('tr');
+            if (row) {
+                const backupName = row.querySelector('td:first-child')?.textContent || '';
+                if (backupName) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('下载备份:', backupName);
+                    downloadBackup(backupName);
+                }
+            }
+        }
+
+        // 删除备份按钮
+        if (e.target.closest('button') && e.target.closest('button').innerHTML.includes('fa-trash')) {
+            const btn = e.target.closest('button');
+            const row = btn.closest('tr');
+            if (row) {
+                const backupName = row.querySelector('td:first-child')?.textContent || '';
+                if (backupName) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('删除备份:', backupName);
+                    deleteBackup(backupName);
+                }
+            }
+        }
+    });
+}
+
+/**
  * 初始化修复版模态框
  */
 function initFixedModal() {
     console.log('初始化修复版模态框...');
 
-    // 如果模态框已经存在，移除并重新创建
+    // 如果模态框已经存在，直接绑定事件
     const existingModal = document.getElementById('fixedUserModal');
     if (existingModal) {
-        existingModal.remove();
+        console.log('模态框已存在，直接绑定事件');
+        bindFixedModalEvents(existingModal);
+        return;
     }
 
     // 创建模态框
@@ -1244,9 +1624,61 @@ function initFixedModal() {
 /**
  * 初始化页面数据
  */
+/**
+ * 初始化页面数据
+ */
 async function initPageData() {
     try {
         console.log('加载页面数据...');
+
+        // 检查用户是否登录 - 使用新的API路径
+        const response = await fetch('/api/check-auth', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include'  // 确保发送cookie
+        });
+
+        // 检查响应类型
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            // 如果不是JSON响应，尝试获取文本查看错误
+            const text = await response.text();
+            console.error('非JSON响应:', text.substring(0, 200));
+            throw new Error('服务器返回了非JSON响应，可能是未登录或路由错误');
+        }
+
+        const authData = await response.json();
+        console.log('认证检查结果:', authData);
+
+        if (!authData.authenticated) {
+            showFixedAlert('请先登录系统', 'error');
+            setTimeout(() => {
+                window.location.href = '/login';
+            }, 2000);
+            return;
+        }
+
+        // 检查管理员权限
+        const adminResponse = await fetch('/api/check-admin', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include'
+        });
+
+        if (adminResponse.ok) {
+            const adminData = await adminResponse.json();
+            if (!adminData.is_admin) {
+                showFixedAlert('需要管理员权限', 'error');
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 2000);
+                return;
+            }
+        }
 
         // 加载用户列表
         await loadUsersList();
@@ -1257,58 +1689,26 @@ async function initPageData() {
         console.log('页面数据加载完成');
     } catch (error) {
         console.error('初始化页面数据失败:', error);
+
+        // 显示更友好的错误信息
+        let errorMessage = '初始化页面数据失败';
+        if (error.message.includes('非JSON响应')) {
+            errorMessage = '无法连接到服务器，请检查网络连接或联系管理员';
+        } else if (error.message.includes('404')) {
+            errorMessage = '找不到请求的资源，请确保API路由已正确配置';
+        } else {
+            errorMessage = '初始化页面数据失败: ' + error.message;
+        }
+
+        showFixedAlert(errorMessage, 'error');
+
+        // 如果是认证问题，重定向到登录页面
+        if (error.message.includes('未登录') || error.message.includes('401')) {
+            setTimeout(() => {
+                window.location.href = '/login';
+            }, 3000);
+        }
     }
-}
-
-/**
- * 绑定备份按钮事件
- */
-function bindBackupButtons() {
-    // 为现有的备份按钮绑定事件（针对页面初始的静态内容）
-    document.querySelectorAll('button[onclick^="downloadBackup"]').forEach(btn => {
-        const originalOnclick = btn.getAttribute('onclick');
-        btn.removeAttribute('onclick');
-        btn.addEventListener('click', function() {
-            const match = originalOnclick.match(/downloadBackup\('([^']+)'\)/);
-            if (match && match[1]) {
-                downloadBackup(match[1]);
-            }
-        });
-    });
-
-    document.querySelectorAll('button[onclick^="deleteBackup"]').forEach(btn => {
-        const originalOnclick = btn.getAttribute('onclick');
-        btn.removeAttribute('onclick');
-        btn.addEventListener('click', function() {
-            const match = originalOnclick.match(/deleteBackup\('([^']+)'\)/);
-            if (match && match[1]) {
-                deleteBackup(match[1]);
-            }
-        });
-    });
-}
-
-/**
- * 绑定用户按钮事件
- */
-function bindUserButtons() {
-    document.querySelectorAll('button[onclick^="editUser"]').forEach(btn => {
-        const originalOnclick = btn.getAttribute('onclick');
-        btn.removeAttribute('onclick');
-        btn.addEventListener('click', function() {
-            const userId = originalOnclick.match(/editUser\((\d+)\)/)?.[1];
-            if (userId) editUser(userId);
-        });
-    });
-
-    document.querySelectorAll('button[onclick^="resetPassword"]').forEach(btn => {
-        const originalOnclick = btn.getAttribute('onclick');
-        btn.removeAttribute('onclick');
-        btn.addEventListener('click', function() {
-            const userId = originalOnclick.match(/resetPassword\((\d+)\)/)?.[1];
-            if (userId) resetPassword(userId);
-        });
-    });
 }
 
 // ======================= 模态框相关函数 =======================
@@ -1327,10 +1727,11 @@ function showFixedModal() {
 
     // 显示模态框
     modalContainer.style.display = 'flex';
+    modalContainer.classList.add('show');
 
     // 防止body滚动
     document.body.style.overflow = 'hidden';
-    document.body.classList.add('modal-open');
+    document.body.classList.add('modal-open', 'fixed-modal-open');
 
     // 重置关闭标志
     isModalClosing = false;
@@ -1357,7 +1758,7 @@ function createFixedModal() {
         left: 0;
         width: 100%;
         height: 100%;
-        z-index: 9999;
+        z-index: 1055;
         background-color: rgba(0,0,0,0.5);
         align-items: center;
         justify-content: center;
@@ -1373,7 +1774,7 @@ function createFixedModal() {
             overflow-y: auto;
             box-shadow: 0 10px 40px rgba(0,0,0,0.3);
             position: relative;
-            z-index: 10000;
+            z-index: 1056;
         ">
             <div style="
                 padding: 20px;
@@ -1406,7 +1807,7 @@ function createFixedModal() {
                                 border: 1px solid #dee2e6;
                                 border-radius: 6px;
                                 font-size: 14px;
-                            ">
+                            " placeholder="请输入用户名">
                         </div>
                         <div>
                             <label style="display: block; margin-bottom: 5px; font-weight: 500;">邮箱 *</label>
@@ -1416,7 +1817,7 @@ function createFixedModal() {
                                 border: 1px solid #dee2e6;
                                 border-radius: 6px;
                                 font-size: 14px;
-                            ">
+                            " placeholder="请输入邮箱">
                         </div>
                     </div>
 
@@ -1429,7 +1830,7 @@ function createFixedModal() {
                                 border: 1px solid #dee2e6;
                                 border-radius: 6px;
                                 font-size: 14px;
-                            ">
+                            " placeholder="请输入姓名（可选）">
                         </div>
                         <div>
                             <label style="display: block; margin-bottom: 5px; font-weight: 500;">部门</label>
@@ -1478,7 +1879,7 @@ function createFixedModal() {
                                     border-right: none;
                                     border-radius: 6px 0 0 6px;
                                     font-size: 14px;
-                                ">
+                                " placeholder="请输入密码">
                                 <button type="button" onclick="toggleFixedPassword(this)" style="
                                     background: #e9ecef;
                                     border: 1px solid #dee2e6;
@@ -1562,9 +1963,8 @@ function bindFixedModalEvents(modalContainer) {
     const cancelBtn = modalContainer.querySelector('#fixedModalCancel');
     const form = modalContainer.querySelector('#fixedUserForm');
 
-    // 点击背景关闭 - 修复：使用事件捕获阶段
+    // 点击背景关闭
     modalContainer.addEventListener('click', function(e) {
-        // 如果正在关闭中，直接返回
         if (isModalClosing) return;
 
         // 只有当点击的是背景（不是内容区域）时才关闭
@@ -1609,18 +2009,12 @@ function bindFixedModalEvents(modalContainer) {
         });
     }
 
-    // ESC键关闭 - 修复：检查焦点元素
+    // ESC键关闭
     const escHandler = function(e) {
         if (e.key === 'Escape' && !isModalClosing) {
-            // 检查焦点是否在模态框的输入元素上
-            const activeElement = document.activeElement;
-            const isInModal = modalContent && modalContent.contains(activeElement);
-
-            if (!isInModal) {
-                e.preventDefault();
-                e.stopPropagation();
-                closeFixedModal();
-            }
+            e.preventDefault();
+            e.stopPropagation();
+            closeFixedModal();
         }
     };
 
@@ -1646,11 +2040,12 @@ function closeFixedModal() {
 
         // 隐藏模态框
         modalContainer.style.display = 'none';
+        modalContainer.classList.remove('show');
     }
 
     // 恢复body滚动
     document.body.style.overflow = '';
-    document.body.classList.remove('modal-open');
+    document.body.classList.remove('modal-open', 'fixed-modal-open');
 
     // 重置标志
     setTimeout(() => {
@@ -1675,7 +2070,7 @@ function toggleFixedPassword(button) {
 }
 
 /**
- * 提交修复版用户表单
+ * 提交修复版用户表单 - 修复版
  */
 async function submitFixedUserForm(form) {
     console.log('提交用户表单');
@@ -1692,8 +2087,30 @@ async function submitFixedUserForm(form) {
         return;
     }
 
+    // 验证用户名
+    if (username.length < 3) {
+        showFixedAlert('用户名至少需要3个字符', 'error');
+        return;
+    }
+
+    // 验证邮箱格式
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        showFixedAlert('邮箱格式不正确', 'error');
+        return;
+    }
+
+    // 验证密码强度
     if (password.length < 8) {
         showFixedAlert('密码至少需要8位字符', 'error');
+        return;
+    }
+
+    // 检查是否包含字母和数字
+    const hasLetter = /[a-zA-Z]/.test(password);
+    const hasDigit = /\d/.test(password);
+    if (!hasLetter || !hasDigit) {
+        showFixedAlert('密码必须包含字母和数字', 'error');
         return;
     }
 
@@ -1735,7 +2152,7 @@ async function submitFixedUserForm(form) {
         const data = await response.json();
 
         if (data.success) {
-            showFixedAlert('用户 ' + username + ' 添加成功', 'success');
+            showFixedAlert(`用户 ${username} 添加成功`, 'success');
 
             // 重置表单
             form.reset();
@@ -1765,17 +2182,11 @@ async function submitFixedUserForm(form) {
 /**
  * 保存所有设置
  */
-/**
- * 保存所有设置
- */
-/**
- * 保存所有设置
- */
 async function saveAllSettings() {
     try {
         console.log('开始保存所有设置...');
 
-        // 收集所有设置数据 - 确保收集所有字段
+        // 收集所有设置数据
         const settings = {
             general: {
                 system_name: document.getElementById('system_name')?.value || '',
@@ -1871,9 +2282,6 @@ async function saveAllSettings() {
     }
 }
 
-/**
- * 测试邮件连接
- */
 /**
  * 测试邮件连接
  */
@@ -2007,6 +2415,17 @@ async function loadUsersList() {
     try {
         console.log('正在加载用户列表...');
 
+        const tbody = document.querySelector('#usersTable tbody');
+        if (tbody) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="7" class="text-center text-muted py-4">
+                        <i class="fas fa-spinner fa-spin me-2"></i>正在加载用户数据...
+                    </td>
+                </tr>
+            `;
+        }
+
         const response = await fetch('/api/users/list', {
             method: 'GET',
             headers: {
@@ -2054,13 +2473,14 @@ function updateUsersTable(users) {
 
     users.forEach(user => {
         // 用户头像
-        const avatarLetter = (user.display_name || user.username).charAt(0).toUpperCase();
+        const avatarLetter = (user.display_name || user.username || 'U').charAt(0).toUpperCase();
         const avatarColor = getAvatarColor(user.id);
 
         // 角色徽章颜色
         let roleBadgeClass = 'bg-info';
         if (user.role === 'admin') roleBadgeClass = 'bg-danger';
         if (user.role === 'manager') roleBadgeClass = 'bg-warning';
+        if (user.role === 'viewer') roleBadgeClass = 'bg-secondary';
 
         // 状态徽章
         const statusBadge = user.is_active ?
@@ -2069,10 +2489,16 @@ function updateUsersTable(users) {
 
         // 格式化最后登录时间
         const lastLogin = user.last_login ?
-            new Date(user.last_login).toLocaleString('zh-CN') :
+            formatDateTime(user.last_login) :
             '从未登录';
 
+        // 格式化创建时间
+        const createdDate = user.created_date ?
+            formatDateTime(user.created_date) :
+            '未知';
+
         const row = document.createElement('tr');
+        row.setAttribute('data-user-id', user.id);
         row.innerHTML = `
             <td>
                 <div class="d-flex align-items-center">
@@ -2080,11 +2506,11 @@ function updateUsersTable(users) {
                          style="width: 32px; height: 32px; background-color: ${avatarColor};">
                         <span class="text-white fw-bold">${avatarLetter}</span>
                     </div>
-                    <span>${user.username}</span>
+                    <span>${escapeHtml(user.username)}</span>
                 </div>
             </td>
-            <td>${user.display_name || user.username}</td>
-            <td>${user.email}</td>
+            <td>${escapeHtml(user.display_name || user.username)}</td>
+            <td>${escapeHtml(user.email)}</td>
             <td>
                 <span class="badge ${roleBadgeClass}">${getRoleName(user.role)}</span>
             </td>
@@ -2092,13 +2518,13 @@ function updateUsersTable(users) {
             <td>${lastLogin}</td>
             <td>
                 <div class="btn-group btn-group-sm">
-                    <button type="button" class="btn btn-outline-primary" onclick="editUser(${user.id})">
+                    <button type="button" class="btn btn-outline-primary" data-action="edit">
                         <i class="fas fa-edit"></i>
                     </button>
-                    <button type="button" class="btn btn-outline-secondary" onclick="resetPassword(${user.id})">
+                    <button type="button" class="btn btn-outline-secondary" data-action="reset-password">
                         <i class="fas fa-key"></i>
                     </button>
-                    <button type="button" class="btn btn-outline-danger" onclick="deleteUser(${user.id})">
+                    <button type="button" class="btn btn-outline-danger" data-action="delete">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
@@ -2115,6 +2541,17 @@ function updateUsersTable(users) {
 async function loadBackupsList() {
     try {
         console.log('正在加载备份列表...');
+
+        const tbody = document.querySelector('#backupsTable tbody');
+        if (tbody) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="text-center text-muted py-4">
+                        <i class="fas fa-spinner fa-spin me-2"></i>正在加载备份数据...
+                    </td>
+                </tr>
+            `;
+        }
 
         const response = await fetch('/api/backup/list', {
             method: 'GET',
@@ -2165,18 +2602,18 @@ function updateBackupsTable(backups) {
     backups.forEach(backup => {
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td>${backup.name}</td>
-            <td>${backup.size_formatted}</td>
-            <td>${backup.created_time}</td>
+            <td>${escapeHtml(backup.name)}</td>
+            <td>${escapeHtml(backup.size_formatted)}</td>
+            <td>${escapeHtml(backup.created_time)}</td>
             <td>
                 <span class="badge bg-success">可用</span>
             </td>
             <td>
                 <div class="btn-group btn-group-sm">
-                    <button type="button" class="btn btn-outline-primary" onclick="downloadBackup('${backup.name}')">
+                    <button type="button" class="btn btn-outline-primary" data-action="download-backup">
                         <i class="fas fa-download"></i>
                     </button>
-                    <button type="button" class="btn btn-outline-danger" onclick="deleteBackup('${backup.name}')">
+                    <button type="button" class="btn btn-outline-danger" data-action="delete-backup">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
@@ -2185,6 +2622,391 @@ function updateBackupsTable(backups) {
 
         tbody.appendChild(row);
     });
+}
+
+// ======================= 用户管理功能 =======================
+
+/**
+ * 显示编辑用户模态框
+ */
+async function showEditUserModal(userId) {
+    try {
+        console.log('获取用户信息:', userId);
+
+        // 获取用户信息
+        const response = await fetch(`/api/users/${userId}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showEditUserForm(data.user);
+        } else {
+            showFixedAlert('获取用户信息失败: ' + (data.error || '未知错误'), 'error');
+        }
+    } catch (error) {
+        console.error('获取用户信息失败:', error);
+        showFixedAlert('获取用户信息失败: ' + error.message, 'error');
+    }
+}
+
+/**
+ * 显示编辑用户表单
+ */
+function showEditUserForm(user) {
+    // 创建编辑用户模态框
+    const modalHtml = `
+        <div class="modal fade" id="editUserModal" tabindex="-1" aria-labelledby="editUserModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="editUserModalLabel">
+                            <i class="fas fa-user-edit me-2"></i>编辑用户 - ${escapeHtml(user.username)}
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+                    </div>
+                    <form id="editUserForm" onsubmit="updateUser(event, ${user.id})">
+                        <div class="modal-body">
+                            <input type="hidden" name="id" value="${user.id}">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">用户名</label>
+                                    <input type="text" class="form-control" value="${escapeHtml(user.username)}" disabled>
+                                    <div class="form-text">用户名不可修改</div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">邮箱</label>
+                                    <input type="email" class="form-control" name="email" value="${escapeHtml(user.email)}" required>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">姓名</label>
+                                    <input type="text" class="form-control" name="display_name" value="${escapeHtml(user.display_name || '')}">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">部门</label>
+                                    <select class="form-select" name="department">
+                                        <option value="">选择部门</option>
+                                        <option value="warehouse" ${user.department === 'warehouse' ? 'selected' : ''}>仓库管理部</option>
+                                        <option value="maintenance" ${user.department === 'maintenance' ? 'selected' : ''}>设备维护部</option>
+                                        <option value="purchase" ${user.department === 'purchase' ? 'selected' : ''}>采购部</option>
+                                        <option value="it" ${user.department === 'it' ? 'selected' : ''}>IT部</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">角色</label>
+                                    <select class="form-select" name="role" required>
+                                        <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>系统管理员</option>
+                                        <option value="manager" ${user.role === 'manager' ? 'selected' : ''}>仓库管理员</option>
+                                        <option value="operator" ${user.role === 'operator' ? 'selected' : ''}>操作员</option>
+                                        <option value="viewer" ${user.role === 'viewer' ? 'selected' : ''}>查看员</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">状态</label>
+                                    <select class="form-select" name="is_active">
+                                        <option value="1" ${user.is_active ? 'selected' : ''}>激活</option>
+                                        <option value="0" ${!user.is_active ? 'selected' : ''}>禁用</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                            <button type="submit" class="btn btn-primary">保存更改</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // 移除现有的编辑模态框
+    const existingModal = document.getElementById('editUserModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+
+    // 添加新的模态框
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    // 显示模态框
+    const editUserModal = new bootstrap.Modal(document.getElementById('editUserModal'));
+    editUserModal.show();
+
+    // 模态框关闭时清理
+    document.getElementById('editUserModal').addEventListener('hidden.bs.modal', function () {
+        this.remove();
+    });
+}
+
+/**
+ * 更新用户信息
+ */
+async function updateUser(event, userId) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    try {
+        const form = event.target;
+        const formData = new FormData(form);
+
+        // 准备用户数据
+        const userData = {
+            email: formData.get('email'),
+            display_name: formData.get('display_name'),
+            department: formData.get('department'),
+            role: formData.get('role'),
+            is_active: formData.get('is_active') === '1'
+        };
+
+        console.log('更新用户数据:', userData);
+
+        // 显示加载状态
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>保存中...';
+        submitBtn.disabled = true;
+
+        // 发送更新请求
+        const response = await fetch(`/api/users/${userId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(userData)
+        });
+
+        const data = await response.json();
+
+        // 恢复按钮状态
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+
+        if (data.success) {
+            showFixedAlert('用户信息更新成功', 'success');
+
+            // 关闭模态框
+            const editUserModal = bootstrap.Modal.getInstance(document.getElementById('editUserModal'));
+            if (editUserModal) {
+                editUserModal.hide();
+            }
+
+            // 刷新用户列表
+            await loadUsersList();
+        } else {
+            showFixedAlert('更新失败: ' + (data.error || '未知错误'), 'error');
+        }
+
+    } catch (error) {
+        console.error('更新用户失败:', error);
+        showFixedAlert('更新失败: ' + error.message, 'error');
+
+        // 恢复按钮状态
+        const submitBtn = event.target.querySelector('button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.innerHTML = '保存更改';
+            submitBtn.disabled = false;
+        }
+    }
+}
+
+/**
+ * 确认删除用户
+ */
+function confirmDeleteUser(userId, username) {
+    if (confirm(`确定要删除用户 "${username}" 吗？此操作不可恢复。`)) {
+        deleteUser(userId);
+    }
+}
+
+/**
+ * 删除用户
+ */
+async function deleteUser(userId) {
+    try {
+        console.log('删除用户:', userId);
+
+        const response = await fetch(`/api/users/${userId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showFixedAlert('用户删除成功', 'success');
+            // 刷新用户列表
+            await loadUsersList();
+        } else {
+            showFixedAlert('删除失败: ' + (data.error || '未知错误'), 'error');
+        }
+    } catch (error) {
+        console.error('删除用户失败:', error);
+        showFixedAlert('删除失败: ' + error.message, 'error');
+    }
+}
+
+/**
+ * 显示重置密码模态框
+ */
+function showResetPasswordModal(userId, username) {
+    const modalHtml = `
+        <div class="modal fade" id="resetPasswordModal" tabindex="-1" aria-labelledby="resetPasswordModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="resetPasswordModalLabel">
+                            <i class="fas fa-key me-2"></i>重置密码 - ${escapeHtml(username)}
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+                    </div>
+                    <form id="resetPasswordForm" onsubmit="resetUserPassword(event, ${userId})">
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label class="form-label">新密码</label>
+                                <div class="input-group">
+                                    <input type="password" class="form-control" name="new_password" required minlength="8">
+                                    <button class="btn btn-outline-secondary toggle-password-btn" type="button">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                                <div class="form-text">至少8位字符，包含字母和数字</div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">确认新密码</label>
+                                <input type="password" class="form-control" name="confirm_password" required minlength="8">
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                            <button type="submit" class="btn btn-primary">重置密码</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // 移除现有的重置密码模态框
+    const existingModal = document.getElementById('resetPasswordModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+
+    // 添加新的模态框
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    // 绑定密码显示切换
+    const modalElement = document.getElementById('resetPasswordModal');
+    modalElement.addEventListener('shown.bs.modal', function () {
+        const toggleBtn = modalElement.querySelector('.toggle-password-btn');
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', function() {
+                const input = this.closest('.input-group').querySelector('input[type="password"]');
+                if (input) {
+                    if (input.type === 'password') {
+                        input.type = 'text';
+                        this.innerHTML = '<i class="fas fa-eye-slash"></i>';
+                    } else {
+                        input.type = 'password';
+                        this.innerHTML = '<i class="fas fa-eye"></i>';
+                    }
+                }
+            });
+        }
+    });
+
+    // 显示模态框
+    const resetPasswordModal = new bootstrap.Modal(modalElement);
+    resetPasswordModal.show();
+
+    // 模态框关闭时清理
+    modalElement.addEventListener('hidden.bs.modal', function () {
+        this.remove();
+    });
+}
+
+/**
+ * 重置用户密码
+ */
+async function resetUserPassword(event, userId) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    try {
+        const form = event.target;
+        const formData = new FormData(form);
+
+        const newPassword = formData.get('new_password');
+        const confirmPassword = formData.get('confirm_password');
+
+        // 验证密码
+        if (newPassword !== confirmPassword) {
+            showFixedAlert('两次输入的密码不一致', 'error');
+            return;
+        }
+
+        if (newPassword.length < 8) {
+            showFixedAlert('密码至少需要8位字符', 'error');
+            return;
+        }
+
+        // 显示加载状态
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>重置中...';
+        submitBtn.disabled = true;
+
+        // 发送重置密码请求
+        const response = await fetch(`/api/users/${userId}/reset-password`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                new_password: newPassword
+            })
+        });
+
+        const data = await response.json();
+
+        // 恢复按钮状态
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+
+        if (data.success) {
+            showFixedAlert('密码重置成功', 'success');
+
+            // 关闭模态框
+            const resetPasswordModal = bootstrap.Modal.getInstance(document.getElementById('resetPasswordModal'));
+            if (resetPasswordModal) {
+                resetPasswordModal.hide();
+            }
+        } else {
+            showFixedAlert('重置失败: ' + (data.error || '未知错误'), 'error');
+        }
+
+    } catch (error) {
+        console.error('重置密码失败:', error);
+        showFixedAlert('重置失败: ' + error.message, 'error');
+
+        // 恢复按钮状态
+        const submitBtn = event.target.querySelector('button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.innerHTML = '重置密码';
+            submitBtn.disabled = false;
+        }
+    }
 }
 
 // ======================= 工具函数 =======================
@@ -2202,6 +3024,7 @@ function showFixedAlert(message, type) {
     // 创建新的提示
     const alertDiv = document.createElement('div');
     alertDiv.id = 'fixedAlert';
+    alertDiv.className = type;
     alertDiv.style.cssText = `
         position: fixed;
         top: 20px;
@@ -2281,6 +3104,38 @@ function getRoleName(role) {
     return roleNames[role] || role;
 }
 
+/**
+ * 格式化日期时间
+ */
+function formatDateTime(dateTimeStr) {
+    try {
+        if (!dateTimeStr) return '未知';
+
+        const date = new Date(dateTimeStr);
+        if (isNaN(date.getTime())) return dateTimeStr;
+
+        return date.toLocaleString('zh-CN', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        }).replace(/\//g, '-');
+    } catch (e) {
+        return dateTimeStr;
+    }
+}
+
+/**
+ * 转义HTML字符
+ */
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 // ======================= 其他功能函数 =======================
 
 /**
@@ -2348,28 +3203,126 @@ async function deleteBackup(backupName) {
 }
 
 /**
- * 编辑用户
+ * 辅助函数：复制API密钥
  */
-function editUser(userId) {
-    alert('编辑用户 ' + userId + ' (功能演示)');
+function copyApiKey(text) {
+    if (!text) {
+        const apiKeyInput = document.getElementById('api_key_value');
+        if (apiKeyInput) {
+            text = apiKeyInput.value;
+        }
+    }
+
+    if (!text) {
+        showFixedAlert('没有可复制的文本', 'error');
+        return;
+    }
+
+    navigator.clipboard.writeText(text).then(() => {
+        showFixedAlert('已复制到剪贴板', 'success');
+    }).catch(err => {
+        console.error('复制失败:', err);
+        showFixedAlert('复制失败，请手动选择复制', 'error');
+    });
 }
 
 /**
- * 重置密码
+ * 辅助函数：浏览备份路径（模拟）
  */
-function resetPassword(userId) {
-    if (confirm('确定要重置用户 ' + userId + ' 的密码吗？')) {
-        alert('用户 ' + userId + ' 的密码已重置为默认密码 (功能演示)');
+function browseBackupPath() {
+    const backupPathInput = document.getElementById('backup_path');
+    if (backupPathInput) {
+        // 在实际应用中，这里会打开文件选择对话框
+        // 这里我们只是模拟
+        const newPath = prompt('请输入备份路径:', backupPathInput.value);
+        if (newPath !== null) {
+            backupPathInput.value = newPath;
+        }
     }
 }
 
 /**
- * 删除用户
+ * 辅助函数：生成API密钥（模拟）
  */
-function deleteUser(userId) {
-    if (confirm('确定要删除用户 ' + userId + ' 吗？此操作不可恢复。')) {
-        alert('用户 ' + userId + ' 已删除 (功能演示)');
+function generateApiKey() {
+    console.log('生成API密钥');
+
+    // 生成随机API密钥
+    const apiKey = 'sk_' + Math.random().toString(36).substring(2) +
+                   Math.random().toString(36).substring(2);
+
+    // 显示在模态框中
+    const apiKeyInput = document.getElementById('api_key_value');
+    if (apiKeyInput) {
+        apiKeyInput.value = apiKey;
     }
+
+    // 显示API密钥模态框
+    const apiKeyModal = new bootstrap.Modal(document.getElementById('apiKeyModal'));
+    apiKeyModal.show();
+
+    showFixedAlert('API密钥已生成', 'success');
+}
+
+/**
+ * 辅助函数：下载API文档（模拟）
+ */
+function downloadApiDocumentation() {
+    console.log('下载API文档');
+
+    // 创建虚拟链接并点击
+    const link = document.createElement('a');
+    link.href = '/api/documentation.pdf'; // 假设的URL
+    link.download = '备件管理系统API文档.pdf';
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    showFixedAlert('开始下载API文档', 'success');
+}
+
+/**
+ * 辅助函数：恢复备份（模拟）
+ */
+function restoreBackup() {
+    const restoreFile = document.getElementById('restore_file');
+    if (!restoreFile || !restoreFile.files || !restoreFile.files[0]) {
+        showFixedAlert('请选择备份文件', 'error');
+        return;
+    }
+
+    if (!confirm('警告：恢复备份会覆盖当前数据！确定要继续吗？')) {
+        return;
+    }
+
+    console.log('开始恢复备份:', restoreFile.files[0].name);
+    showFixedAlert('开始恢复备份，请稍候...', 'info');
+
+    // 模拟恢复过程
+    setTimeout(() => {
+        showFixedAlert('备份恢复成功', 'success');
+    }, 2000);
+}
+
+/**
+ * 辅助函数：加载API密钥列表
+ */
+async function loadApiKeysList() {
+    console.log('加载API密钥列表...');
+    // 这里应该调用API获取密钥列表
+    // 暂时返回模拟数据
+    return [];
+}
+
+/**
+ * 辅助函数：加载登录日志
+ */
+async function loadLoginLogs() {
+    console.log('加载登录日志...');
+    // 这里应该调用API获取登录日志
+    // 暂时返回模拟数据
+    return [];
 }
 
 // ======================= 全局导出函数 =======================
@@ -2380,10 +3333,18 @@ window.testEmailConnection = testEmailConnection;
 window.createBackup = createBackup;
 window.downloadBackup = downloadBackup;
 window.deleteBackup = deleteBackup;
-window.editUser = editUser;
-window.resetPassword = resetPassword;
+window.showEditUserModal = showEditUserModal;
+window.updateUser = updateUser;
+window.confirmDeleteUser = confirmDeleteUser;
 window.deleteUser = deleteUser;
+window.showResetPasswordModal = showResetPasswordModal;
+window.resetUserPassword = resetUserPassword;
 window.toggleFixedPassword = toggleFixedPassword;
+window.copyApiKey = copyApiKey;
+window.browseBackupPath = browseBackupPath;
+window.generateApiKey = generateApiKey;
+window.downloadApiDocumentation = downloadApiDocumentation;
+window.restoreBackup = restoreBackup;
 
 console.log('系统设置页面脚本加载完成');
 </script>
@@ -2479,6 +3440,685 @@ body.modal-open {
 #fixedUserModal input[type="password"],
 #fixedUserModal select {
     cursor: text;
+}
+</style>
+
+<style>
+/* ====== 模态框终极修复 ====== */
+/* 确保模态框在所有内容之上 */
+.modal {
+    z-index: 99999 !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.modal.show {
+    display: block !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+}
+
+/* 确保模态框背景可点击 */
+.modal-backdrop {
+    z-index: 99998 !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    background-color: rgba(0, 0, 0, 0.5) !important;
+}
+
+/* 确保模态框内容可交互 */
+.modal-dialog {
+    z-index: 100000 !important;
+    position: relative !important;
+    margin: 1.75rem auto !important;
+    pointer-events: none !important; /* 关键：允许点击穿透到内容 */
+}
+
+.modal-content {
+    z-index: 100001 !important;
+    pointer-events: auto !important; /* 关键：内容可交互 */
+    position: relative !important;
+    background-color: white !important;
+    border: 1px solid rgba(0,0,0,.2) !important;
+    border-radius: 0.3rem !important;
+    box-shadow: 0 0.5rem 1rem rgba(0,0,0,.15) !important;
+}
+
+[data-bs-theme="dark"] .modal-content {
+    background-color: #1e293b !important;
+    color: #f8f9fa !important;
+}
+
+/* 确保所有表单元素可交互 */
+.modal-content * {
+    pointer-events: auto !important;
+    -webkit-user-select: auto !important;
+    user-select: auto !important;
+}
+
+/* 确保关闭按钮可点击 */
+.modal .btn-close {
+    z-index: 100002 !important;
+    position: relative !important;
+    cursor: pointer !important;
+}
+
+/* 当模态框打开时，移除所有可能的模糊效果 */
+body.modal-open {
+    overflow: hidden !important;
+    padding-right: 0 !important;
+}
+
+body.modal-open .app-container,
+body.modal-open .navbar-main,
+body.modal-open .card,
+body.modal-open .sidebar,
+body.modal-open .main-content {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    filter: none !important;
+}
+
+/* ====== 自定义修复样式 ====== */
+/* 修复修复版模态框显示问题 */
+#fixedUserModal {
+    display: none !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    z-index: 1055 !important;
+    background-color: rgba(0, 0, 0, 0.5) !important;
+    align-items: center !important;
+    justify-content: center !important;
+    overflow: hidden !important;
+    animation: fixedFadeIn 0.3s ease-out !important;
+}
+
+#fixedUserModal.show {
+    display: flex !important;
+}
+
+#fixedModalContent {
+    background: white !important;
+    border-radius: 0.5rem !important;
+    width: 90% !important;
+    max-width: 800px !important;
+    max-height: 85vh !important;
+    overflow-y: auto !important;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+    animation: modalFadeIn 0.3s ease-out !important;
+    position: relative !important;
+    z-index: 1056 !important;
+    pointer-events: auto !important;
+    margin: 20px !important;
+}
+
+@keyframes fixedFadeIn {
+    from { opacity: 0 !important; }
+    to { opacity: 1 !important; }
+}
+
+@keyframes modalFadeIn {
+    from {
+        opacity: 0 !important;
+        transform: translateY(-20px) !important;
+    }
+    to {
+        opacity: 1 !important;
+        transform: translateY(0) !important;
+    }
+}
+
+@keyframes fixedAlertSlideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes fixedAlertSlideOut {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
+
+/* 确保修复版模态框在最顶层 */
+#fixedUserModal {
+    z-index: 9999 !important;
+}
+
+#fixedUserModal > div {
+    z-index: 10000 !important;
+}
+
+/* 输入框焦点样式 */
+#fixedUserModal input:focus,
+#fixedUserModal select:focus,
+#fixedUserModal textarea:focus {
+    outline: none !important;
+    border-color: #4361ee !important;
+    box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.2) !important;
+}
+
+/* 阻止模态框内容区域的点击事件传播 */
+#fixedModalContent {
+    pointer-events: auto !important;
+}
+
+/* 暗色主题支持 */
+[data-bs-theme="dark"] #fixedModalContent {
+    background: #1e293b !important;
+    color: #f8f9fa !important;
+}
+
+[data-bs-theme="dark"] #fixedModalContent input,
+[data-bs-theme="dark"] #fixedModalContent select,
+[data-bs-theme="dark"] #fixedModalContent textarea {
+    background: #0f172a !important;
+    color: #f8f9fa !important;
+    border-color: #475569 !important;
+}
+
+[data-bs-theme="dark"] #fixedModalContent button:not([type="submit"]) {
+    background: #475569 !important;
+    color: #f8f9fa !important;
+}
+
+/* 当模态框打开时，移除所有可能的模糊效果 */
+body.modal-open {
+    overflow: hidden !important;
+}
+
+/* 确保表单元素有正确的光标 */
+#fixedUserModal input,
+#fixedUserModal select,
+#fixedUserModal textarea,
+#fixedUserModal button {
+    cursor: pointer !important;
+}
+
+#fixedUserModal input[type="text"],
+#fixedUserModal input[type="email"],
+#fixedUserModal input[type="password"],
+#fixedUserModal select {
+    cursor: text !important;
+}
+
+/* 修复模态框内部元素样式 */
+#fixedModalContent input,
+#fixedModalContent select,
+#fixedModalContent textarea {
+    width: 100% !important;
+    padding: 0.5rem 0.75rem !important;
+    border: 1px solid #dee2e6 !important;
+    border-radius: 0.375rem !important;
+    font-size: 1rem !important;
+    line-height: 1.5 !important;
+}
+
+#fixedModalContent input:focus,
+#fixedModalContent select:focus,
+#fixedModalContent textarea:focus {
+    border-color: #4361ee !important;
+    outline: 0 !important;
+    box-shadow: 0 0 0 0.25rem rgba(67, 97, 238, 0.25) !important;
+}
+
+/* 修复按钮样式 */
+#fixedModalContent button[type="submit"],
+#fixedModalContent button[type="button"] {
+    padding: 0.5rem 1rem !important;
+    border-radius: 0.375rem !important;
+    font-size: 1rem !important;
+    line-height: 1.5 !important;
+    cursor: pointer !important;
+    transition: all 0.15s ease-in-out !important;
+}
+
+#fixedModalContent button[type="submit"] {
+    background-color: #4361ee !important;
+    border-color: #4361ee !important;
+    color: white !important;
+}
+
+#fixedModalContent button[type="submit"]:hover {
+    background-color: #3a56d4 !important;
+    border-color: #3a56d4 !important;
+}
+
+#fixedModalContent button[type="button"] {
+    background-color: #6c757d !important;
+    border-color: #6c757d !important;
+    color: white !important;
+}
+
+#fixedModalContent button[type="button"]:hover {
+    background-color: #5c636a !important;
+    border-color: #565e64 !important;
+}
+
+/* 修复暗色主题 */
+[data-bs-theme="dark"] #fixedModalContent {
+    background-color: #212529 !important;
+    color: #f8f9fa !important;
+}
+
+[data-bs-theme="dark"] #fixedModalContent input,
+[data-bs-theme="dark"] #fixedModalContent select,
+[data-bs-theme="dark"] #fixedModalContent textarea {
+    background-color: #2b3035 !important;
+    border-color: #495057 !important;
+    color: #f8f9fa !important;
+}
+
+[data-bs-theme="dark"] #fixedModalContent input:focus,
+[data-bs-theme="dark"] #fixedModalContent select:focus,
+[data-bs-theme="dark"] #fixedModalContent textarea:focus {
+    border-color: #4361ee !important;
+    background-color: #2b3035 !important;
+}
+
+/* ====== 用户表格样式修复 ====== */
+/* 用户头像样式 */
+.avatar-sm {
+    width: 32px !important;
+    height: 32px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 50% !important;
+    font-weight: bold !important;
+    color: white !important;
+}
+
+/* 按钮组样式修复 */
+.btn-group-sm .btn {
+    padding: 0.25rem 0.5rem !important;
+    font-size: 0.875rem !important;
+    line-height: 1.5 !important;
+}
+
+/* 表格操作列按钮间距 */
+.btn-group-sm {
+    gap: 2px !important;
+}
+
+.btn-group-sm .btn {
+    margin: 0 !important;
+}
+
+/* 徽章样式修复 */
+.badge {
+    font-size: 0.75em !important;
+    font-weight: 600 !important;
+    padding: 0.25em 0.6em !important;
+}
+
+/* 状态徽章颜色 */
+.badge.bg-success {
+    background-color: #28a745 !important;
+}
+
+.badge.bg-secondary {
+    background-color: #6c757d !important;
+}
+
+.badge.bg-danger {
+    background-color: #dc3545 !important;
+}
+
+.badge.bg-warning {
+    background-color: #ffc107 !important;
+    color: #000 !important;
+}
+
+.badge.bg-info {
+    background-color: #17a2b8 !important;
+}
+
+/* ====== 表单样式修复 ====== */
+.form-label {
+    font-weight: 500 !important;
+    margin-bottom: 0.5rem !important;
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: #4361ee !important;
+    box-shadow: 0 0 0 0.25rem rgba(67, 97, 238, 0.25) !important;
+}
+
+.form-check-input:checked {
+    background-color: #4361ee !important;
+    border-color: #4361ee !important;
+}
+
+.form-switch .form-check-input:checked {
+    background-color: #4361ee !important;
+    border-color: #4361ee !important;
+}
+
+/* ====== 标签页样式修复 ====== */
+.nav-tabs {
+    border-bottom: 1px solid #dee2e6 !important;
+}
+
+.nav-tabs .nav-link {
+    border: 1px solid transparent !important;
+    border-top-left-radius: 0.25rem !important;
+    border-top-right-radius: 0.25rem !important;
+    margin-bottom: -1px !important;
+    color: #495057 !important;
+}
+
+.nav-tabs .nav-link:hover {
+    border-color: #e9ecef #e9ecef #dee2e6 !important;
+}
+
+.nav-tabs .nav-link.active {
+    color: #4361ee !important;
+    background-color: #fff !important;
+    border-color: #dee2e6 #dee2e6 #fff !important;
+}
+
+[data-bs-theme="dark"] .nav-tabs .nav-link.active {
+    background-color: #1e293b !important;
+    border-color: #475569 #475569 #1e293b !important;
+    color: #f8f9fa !important;
+}
+
+/* ====== 卡片样式修复 ====== */
+.card {
+    border: 1px solid rgba(0, 0, 0, 0.125) !important;
+    border-radius: 0.25rem !important;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075) !important;
+}
+
+.card-header {
+    background-color: rgba(0, 0, 0, 0.03) !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.125) !important;
+    padding: 0.75rem 1.25rem !important;
+}
+
+[data-bs-theme="dark"] .card {
+    background-color: #1e293b !important;
+    border-color: #475569 !important;
+}
+
+[data-bs-theme="dark"] .card-header {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    border-color: #475569 !important;
+}
+
+/* ====== 表格样式修复 ====== */
+.table {
+    width: 100% !important;
+    margin-bottom: 1rem !important;
+    color: #212529 !important;
+    border-collapse: collapse !important;
+}
+
+.table th {
+    vertical-align: bottom !important;
+    border-bottom: 2px solid #dee2e6 !important;
+    padding: 0.75rem !important;
+    text-align: left !important;
+    font-weight: 600 !important;
+}
+
+.table td {
+    padding: 0.75rem !important;
+    vertical-align: top !important;
+    border-top: 1px solid #dee2e6 !important;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 0, 0, 0.075) !important;
+}
+
+[data-bs-theme="dark"] .table {
+    color: #f8f9fa !important;
+}
+
+[data-bs-theme="dark"] .table th,
+[data-bs-theme="dark"] .table td {
+    border-color: #475569 !important;
+}
+
+[data-bs-theme="dark"] .table-hover tbody tr:hover {
+    background-color: rgba(255, 255, 255, 0.075) !important;
+}
+
+/* ====== 警告提示样式 ====== */
+.alert {
+    border-radius: 0.375rem !important;
+    padding: 0.75rem 1.25rem !important;
+    margin-bottom: 1rem !important;
+    border: 1px solid transparent !important;
+}
+
+.alert-success {
+    color: #155724 !important;
+    background-color: #d4edda !important;
+    border-color: #c3e6cb !important;
+}
+
+.alert-danger {
+    color: #721c24 !important;
+    background-color: #f8d7da !important;
+    border-color: #f5c6cb !important;
+}
+
+.alert-warning {
+    color: #856404 !important;
+    background-color: #fff3cd !important;
+    border-color: #ffeaa7 !important;
+}
+
+.alert-info {
+    color: #0c5460 !important;
+    background-color: #d1ecf1 !important;
+    border-color: #bee5eb !important;
+}
+
+[data-bs-theme="dark"] .alert-success {
+    color: #d4edda !important;
+    background-color: #155724 !important;
+    border-color: #0f5132 !important;
+}
+
+[data-bs-theme="dark"] .alert-danger {
+    color: #f8d7da !important;
+    background-color: #721c24 !important;
+    border-color: #491217 !important;
+}
+
+[data-bs-theme="dark"] .alert-warning {
+    color: #fff3cd !important;
+    background-color: #856404 !important;
+    border-color: #533f03 !important;
+}
+
+[data-bs-theme="dark"] .alert-info {
+    color: #d1ecf1 !important;
+    background-color: #0c5460 !important;
+    border-color: #062e33 !important;
+}
+
+/* ====== 响应式调整 ====== */
+@media (max-width: 768px) {
+    #fixedModalContent {
+        width: 95% !important;
+        max-width: 95% !important;
+        margin: 10px !important;
+        max-height: 90vh !important;
+    }
+
+    .table-responsive {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+    }
+
+    .btn-group-sm {
+        flex-wrap: wrap !important;
+        gap: 2px !important;
+    }
+
+    .btn-group-sm .btn {
+        flex: 1 0 auto !important;
+        min-width: 36px !important;
+    }
+}
+
+/* ====== 工具类 ====== */
+.text-muted {
+    color: #6c757d !important;
+}
+
+.text-center {
+    text-align: center !important;
+}
+
+.mt-3 {
+    margin-top: 1rem !important;
+}
+
+.mb-3 {
+    margin-bottom: 1rem !important;
+}
+
+.py-4 {
+    padding-top: 1.5rem !important;
+    padding-bottom: 1.5rem !important;
+}
+
+/* ====== 输入组样式修复 ====== */
+.input-group .form-control:focus {
+    z-index: 3 !important;
+}
+
+.input-group .btn-outline-secondary {
+    border-color: #dee2e6 !important;
+}
+
+.input-group .btn-outline-secondary:hover {
+    background-color: #e9ecef !important;
+}
+
+/* ====== 页面标题样式 ====== */
+.h3 {
+    font-size: 1.75rem !important;
+    font-weight: 600 !important;
+    margin-bottom: 0.5rem !important;
+}
+
+.border-bottom {
+    border-bottom: 1px solid #dee2e6 !important;
+}
+
+/* ====== 加载动画 ====== */
+.fa-spinner.fa-spin {
+    animation: fa-spin 1s infinite linear !important;
+}
+
+@keyframes fa-spin {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+/* ====== 修复版提示消息样式 ====== */
+#fixedAlert {
+    position: fixed !important;
+    top: 20px !important;
+    right: 20px !important;
+    padding: 12px 20px !important;
+    border-radius: 6px !important;
+    color: white !important;
+    font-weight: 500 !important;
+    z-index: 10000 !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+    animation: fixedAlertSlideIn 0.3s ease-out !important;
+}
+
+#fixedAlert.success {
+    background: #28a745 !important;
+}
+
+#fixedAlert.error {
+    background: #dc3545 !important;
+}
+
+#fixedAlert.info {
+    background: #17a2b8 !important;
+}
+
+/* ====== 滚动条样式修复 ====== */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+[data-bs-theme="dark"] ::-webkit-scrollbar-track {
+    background: #2d3748;
+}
+
+[data-bs-theme="dark"] ::-webkit-scrollbar-thumb {
+    background: #4a5568;
+}
+
+[data-bs-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+    background: #718096;
+}
+
+/* ====== 最后确保修复版模态框正确显示 ====== */
+body.fixed-modal-open {
+    overflow: hidden !important;
+    position: fixed !important;
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* 防止背景元素干扰模态框 */
+body.fixed-modal-open .container,
+body.fixed-modal-open .content,
+body.fixed-modal-open .sidebar {
+    filter: none !important;
+    backdrop-filter: none !important;
 }
 </style>
 {% endblock %}
