@@ -220,11 +220,13 @@ def setup_settings_routes(app):
         }
 
     # 添加用户API
+    # 在 enhanced_settings_routes.py 中修改 add_user 函数：
+
     @app.route('/api/users/add', methods=['POST'])
     @login_required
     @admin_required
     def add_user():
-        """添加新用户"""
+        """添加新用户 - 修复版"""
         try:
             user_data = request.json
             if not user_data:
@@ -236,42 +238,100 @@ def setup_settings_routes(app):
                 if not user_data.get(field):
                     return jsonify({'success': False, 'error': f'缺少字段: {field}'})
 
-            # 验证用户名是否已存在
+            # 验证用户名格式
+            username = user_data['username'].strip()
+            if len(username) < 3:
+                return jsonify({'success': False, 'error': '用户名至少需要3个字符'})
+
+            # 验证邮箱格式
+            import re
+            email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+            if not re.match(email_pattern, user_data['email']):
+                return jsonify({'success': False, 'error': '邮箱格式不正确'})
+
+            # 验证密码强度
+            password = user_data['password']
+            if len(password) < 8:
+                return jsonify({'success': False, 'error': '密码至少需要8位字符'})
+
+            # 检查是否包含字母和数字
+            if not (any(c.isalpha() for c in password) and any(c.isdigit() for c in password)):
+                return jsonify({'success': False, 'error': '密码必须包含字母和数字'})
+
             conn = get_db_connection()
             cursor = conn.cursor()
-            cursor.execute('SELECT id FROM users WHERE username = ? OR email = ?',
-                           (user_data['username'], user_data['email']))
+
+            # 验证用户名是否已存在
+            cursor.execute('SELECT id FROM users WHERE username = ?', (username,))
             if cursor.fetchone():
                 conn.close()
-                return jsonify({'success': False, 'error': '用户名或邮箱已存在'})
+                return jsonify({'success': False, 'error': '用户名已存在'})
+
+            # 验证邮箱是否已存在
+            cursor.execute('SELECT id FROM users WHERE email = ?', (user_data['email'],))
+            if cursor.fetchone():
+                conn.close()
+                return jsonify({'success': False, 'error': '邮箱已存在'})
 
             # 创建用户
-            password_hash = hash_password(user_data['password'])
-            permissions = json.dumps(user_data.get('permissions', []))
+            password_hash = hash_password(password)
+
+            # 处理权限字段
+            permissions = user_data.get('permissions', [])
+            if not isinstance(permissions, list):
+                permissions = []
+
+            # 根据角色设置默认权限
+            if user_data['role'] == 'admin':
+                permissions = ["parts_manage", "locations_manage", "operations_manage",
+                               "reports_view", "data_export", "system_settings"]
+            elif user_data['role'] == 'manager':
+                permissions = ["parts_manage", "locations_manage", "operations_manage", "reports_view"]
+            elif user_data['role'] == 'operator':
+                permissions = ["operations_manage", "reports_view"]
+            elif user_data['role'] == 'viewer':
+                permissions = ["reports_view"]
+
+            permissions_json = json.dumps(permissions)
 
             cursor.execute('''
-                INSERT INTO users 
-                (username, email, password_hash, display_name, role, department, permissions, is_active)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (
-                user_data['username'],
-                user_data['email'],
-                password_hash,
-                user_data.get('display_name', ''),
-                user_data['role'],
-                user_data.get('department', ''),
-                permissions,
-                1
-            ))
+                           INSERT INTO users
+                           (username, email, password_hash, display_name, role, department, permissions, is_active)
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                           ''', (
+                               username,
+                               user_data['email'],
+                               password_hash,
+                               user_data.get('display_name', username),
+                               user_data['role'],
+                               user_data.get('department', ''),
+                               permissions_json,
+                               1  # 默认激活用户
+                           ))
 
             user_id = cursor.lastrowid
             conn.commit()
+
+            # 获取创建的用户信息
+            cursor.execute('SELECT * FROM users WHERE id = ?', (user_id,))
+            new_user = cursor.fetchone()
             conn.close()
 
             # 记录操作日志
-            log_system_operation(f'添加用户: {user_data["username"]}', session.get('user_id'))
+            log_system_operation(f'添加用户: {username}', session.get('user_id'))
 
-            return jsonify({'success': True, 'user_id': user_id})
+            return jsonify({
+                'success': True,
+                'user_id': user_id,
+                'message': '用户添加成功',
+                'user': {
+                    'id': new_user['id'],
+                    'username': new_user['username'],
+                    'email': new_user['email'],
+                    'role': new_user['role'],
+                    'is_active': bool(new_user['is_active'])
+                }
+            })
 
         except Exception as e:
             logging.error(f"添加用户失败: {str(e)}")
@@ -374,59 +434,86 @@ def setup_settings_routes(app):
             logging.error(f"获取用户列表失败: {str(e)}")
             return jsonify({'success': False, 'error': str(e)})
 
-    # 登录API
+    # 修改登录函数，添加更多验证
+    # 在 enhanced_settings_routes.py 中修改 login 函数：
+
     @app.route('/api/login', methods=['POST'])
     def login():
-        """用户登录"""
+        """用户登录 - 增强版"""
         try:
             data = request.json
-            username = data.get('username')
-            password = data.get('password')
+            username = data.get('username', '').strip()
+            password = data.get('password', '')
 
-            if not username or not password:
-                return jsonify({'success': False, 'error': '用户名和密码不能为空'})
+            if not username:
+                return jsonify({'success': False, 'error': '用户名不能为空'})
+            if not password:
+                return jsonify({'success': False, 'error': '密码不能为空'})
 
             conn = get_db_connection()
             cursor = conn.cursor()
-            cursor.execute('SELECT id, username, password_hash, role, is_active FROM users WHERE username = ?',
-                           (username,))
+
+            # 同时检查用户名和邮箱
+            cursor.execute('''
+                           SELECT id, username, password_hash, role, is_active, display_name, email
+                           FROM users
+                           WHERE username = ?
+                              OR email = ?
+                           ''', (username, username))
+
             user = cursor.fetchone()
-            conn.close()
 
             if not user:
                 log_login_attempt(username, False, request.remote_addr)
+                conn.close()
                 return jsonify({'success': False, 'error': '用户名或密码错误'})
 
+            # 检查用户是否激活
             if not user['is_active']:
                 log_login_attempt(username, False, request.remote_addr)
-                return jsonify({'success': False, 'error': '用户已被禁用'})
+                conn.close()
+                return jsonify({'success': False, 'error': '用户已被禁用，请联系管理员'})
 
+            # 验证密码
             if not verify_password(user['password_hash'], password):
                 log_login_attempt(username, False, request.remote_addr)
+                conn.close()
                 return jsonify({'success': False, 'error': '用户名或密码错误'})
 
             # 更新最后登录时间
-            conn = get_db_connection()
-            cursor = conn.cursor()
             cursor.execute('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?', (user['id'],))
             conn.commit()
             conn.close()
 
             # 设置session
+            session.clear()
             session['user_id'] = user['id']
             session['username'] = user['username']
             session['role'] = user['role']
+            session['display_name'] = user['display_name'] or user['username']
+            session['email'] = user['email']
+
+            # 设置session永久性
+            session.permanent = True
 
             log_login_attempt(username, True, request.remote_addr)
-            return jsonify({'success': True, 'message': '登录成功', 'user': {
-                'id': user['id'],
-                'username': user['username'],
-                'role': user['role']
-            }})
+
+            return jsonify({
+                'success': True,
+                'message': '登录成功',
+                'user': {
+                    'id': user['id'],
+                    'username': user['username'],
+                    'display_name': user['display_name'] or user['username'],
+                    'role': user['role'],
+                    'email': user['email']
+                }
+            })
 
         except Exception as e:
             logging.error(f"登录失败: {str(e)}")
-            return jsonify({'success': False, 'error': str(e)})
+            return jsonify({'success': False, 'error': '登录失败，请稍后重试'})
+
 
     # 登出API
     @app.route('/api/logout', methods=['POST'])
@@ -907,6 +994,505 @@ def setup_settings_routes(app):
                 'success': False,
                 'error': f'删除备份失败: {str(e)}'
             })
+
+    # 在 enhanced_settings_routes.py 的 setup_settings_routes 函数中添加以下路由
+
+    # 编辑用户API
+    @app.route('/api/users/edit/<int:user_id>', methods=['PUT'])
+    @login_required
+    @admin_required
+    def edit_user(user_id):
+        """编辑用户信息"""
+        try:
+            user_data = request.json
+            if not user_data:
+                return jsonify({'success': False, 'error': '无用户数据'})
+
+            conn = get_db_connection()
+            cursor = conn.cursor()
+
+            # 检查用户是否存在
+            cursor.execute('SELECT id FROM users WHERE id = ?', (user_id,))
+            if not cursor.fetchone():
+                conn.close()
+                return jsonify({'success': False, 'error': '用户不存在'})
+
+            # 构建更新字段
+            update_fields = []
+            values = []
+
+            allowed_fields = ['display_name', 'email', 'role', 'department', 'is_active']
+            for field in allowed_fields:
+                if field in user_data:
+                    update_fields.append(f"{field} = ?")
+                    values.append(user_data[field])
+
+            if not update_fields:
+                conn.close()
+                return jsonify({'success': False, 'error': '没有要更新的字段'})
+
+            # 添加更新时间
+            update_fields.append("updated_date = CURRENT_TIMESTAMP")
+
+            # 执行更新
+            query = f"UPDATE users SET {', '.join(update_fields)} WHERE id = ?"
+            values.append(user_id)
+
+            cursor.execute(query, values)
+            conn.commit()
+            conn.close()
+
+            # 记录操作日志
+            log_system_operation(f'编辑用户 ID: {user_id}', session.get('user_id'))
+
+            return jsonify({'success': True, 'message': '用户更新成功'})
+
+        except Exception as e:
+            logging.error(f"编辑用户失败: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)})
+
+    # 删除用户API
+    @app.route('/api/users/delete/<int:user_id>', methods=['DELETE'])
+    @login_required
+    @admin_required
+    def delete_user(user_id):
+        """删除用户"""
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+
+            # 检查用户是否存在且不是当前登录用户
+            cursor.execute('SELECT username FROM users WHERE id = ?', (user_id,))
+            user = cursor.fetchone()
+
+            if not user:
+                conn.close()
+                return jsonify({'success': False, 'error': '用户不存在'})
+
+            if session.get('user_id') == user_id:
+                conn.close()
+                return jsonify({'success': False, 'error': '不能删除当前登录的用户'})
+
+            # 执行删除
+            cursor.execute('DELETE FROM users WHERE id = ?', (user_id,))
+            conn.commit()
+            conn.close()
+
+            # 记录操作日志
+            log_system_operation(f'删除用户: {user["username"]}', session.get('user_id'))
+
+            return jsonify({'success': True, 'message': '用户删除成功'})
+
+        except Exception as e:
+            logging.error(f"删除用户失败: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)})
+
+    # 重置密码API
+    @app.route('/api/users/reset_password/<int:user_id>', methods=['POST'])
+    @login_required
+    @admin_required
+    def reset_password_api(user_id):
+        """重置用户密码"""
+        try:
+            data = request.json
+            new_password = data.get('new_password')
+
+            if not new_password or len(new_password) < 8:
+                return jsonify({'success': False, 'error': '密码至少需要8位字符'})
+
+            conn = get_db_connection()
+            cursor = conn.cursor()
+
+            # 检查用户是否存在
+            cursor.execute('SELECT username FROM users WHERE id = ?', (user_id,))
+            user = cursor.fetchone()
+
+            if not user:
+                conn.close()
+                return jsonify({'success': False, 'error': '用户不存在'})
+
+            # 更新密码
+            password_hash = hash_password(new_password)
+            cursor.execute('''
+                           UPDATE users
+                           SET password_hash = ?,
+                               updated_date  = CURRENT_TIMESTAMP
+                           WHERE id = ?
+                           ''', (password_hash, user_id))
+
+            conn.commit()
+            conn.close()
+
+            # 记录操作日志
+            log_system_operation(f'重置用户密码: {user["username"]}', session.get('user_id'))
+
+            return jsonify({'success': True, 'message': '密码重置成功'})
+
+        except Exception as e:
+            logging.error(f"重置密码失败: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)})
+
+    # 添加获取当前用户信息的API
+    @app.route('/api/users/current', methods=['GET'])
+    @login_required
+    def get_current_user():
+        """获取当前登录用户信息"""
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute('''
+                           SELECT id,
+                                  username,
+                                  email,
+                                  display_name,
+                                  role,
+                                  department,
+                                  permissions,
+                                  is_active
+                           FROM users
+                           WHERE id = ?
+                           ''', (session.get('user_id'),))
+
+            user = cursor.fetchone()
+            conn.close()
+
+            if user:
+                return jsonify({
+                    'success': True,
+                    'user': {
+                        'id': user['id'],
+                        'username': user['username'],
+                        'email': user['email'],
+                        'display_name': user['display_name'],
+                        'role': user['role'],
+                        'department': user['department'],
+                        'permissions': json.loads(user['permissions']) if user['permissions'] else [],
+                        'is_active': bool(user['is_active'])
+                    }
+                })
+            else:
+                session.clear()
+                return jsonify({'success': False, 'error': '用户不存在'})
+
+        except Exception as e:
+            logging.error(f"获取当前用户失败: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)})
+
+    # 在 enhanced_settings_routes.py 的 setup_settings_routes 函数中添加以下路由：
+
+    # 获取单个用户信息API
+    @app.route('/api/users/<int:user_id>', methods=['GET'])
+    @login_required
+    @admin_required
+    def get_user(user_id):
+        """获取单个用户信息"""
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+
+            cursor.execute('''
+                           SELECT id,
+                                  username,
+                                  email,
+                                  display_name,
+                                  role,
+                                  department,
+                                  is_active,
+                                  last_login,
+                                  created_date,
+                                  updated_date
+                           FROM users
+                           WHERE id = ?
+                           ''', (user_id,))
+
+            user = cursor.fetchone()
+            conn.close()
+
+            if user:
+                return jsonify({
+                    'success': True,
+                    'user': {
+                        'id': user['id'],
+                        'username': user['username'],
+                        'email': user['email'],
+                        'display_name': user['display_name'],
+                        'role': user['role'],
+                        'department': user['department'],
+                        'is_active': bool(user['is_active']),
+                        'last_login': user['last_login'],
+                        'created_date': user['created_date']
+                    }
+                })
+            else:
+                return jsonify({'success': False, 'error': '用户不存在'})
+
+        except Exception as e:
+            logging.error(f"获取用户失败: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)})
+
+    # 更新用户信息API
+    @app.route('/api/users/<int:user_id>', methods=['PUT'])
+    @login_required
+    @admin_required
+    def update_user_api(user_id):
+        """更新用户信息"""
+        try:
+            user_data = request.json
+            if not user_data:
+                return jsonify({'success': False, 'error': '无用户数据'})
+
+            conn = get_db_connection()
+            cursor = conn.cursor()
+
+            # 检查用户是否存在
+            cursor.execute('SELECT username FROM users WHERE id = ?', (user_id,))
+            if not cursor.fetchone():
+                conn.close()
+                return jsonify({'success': False, 'error': '用户不存在'})
+
+            # 构建更新字段
+            update_fields = []
+            values = []
+
+            allowed_fields = ['email', 'display_name', 'role', 'department', 'is_active']
+            for field in allowed_fields:
+                if field in user_data:
+                    update_fields.append(f"{field} = ?")
+
+                    if field == 'is_active':
+                        values.append(1 if user_data[field] else 0)
+                    else:
+                        values.append(user_data[field])
+
+            if not update_fields:
+                conn.close()
+                return jsonify({'success': False, 'error': '没有要更新的字段'})
+
+            # 添加更新时间
+            update_fields.append("updated_date = CURRENT_TIMESTAMP")
+
+            # 执行更新
+            query = f"UPDATE users SET {', '.join(update_fields)} WHERE id = ?"
+            values.append(user_id)
+
+            cursor.execute(query, values)
+            conn.commit()
+            conn.close()
+
+            # 记录操作日志
+            log_system_operation(f'更新用户 ID: {user_id}', session.get('user_id'))
+
+            return jsonify({'success': True, 'message': '用户更新成功'})
+
+        except Exception as e:
+            logging.error(f"更新用户失败: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)})
+
+    # 删除用户API
+    @app.route('/api/users/<int:user_id>', methods=['DELETE'])
+    @login_required
+    @admin_required
+    def delete_user_api(user_id):
+        """删除用户"""
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+
+            # 检查用户是否存在
+            cursor.execute('SELECT username FROM users WHERE id = ?', (user_id,))
+            user = cursor.fetchone()
+
+            if not user:
+                conn.close()
+                return jsonify({'success': False, 'error': '用户不存在'})
+
+            # 检查是否为当前登录用户
+            if session.get('user_id') == user_id:
+                conn.close()
+                return jsonify({'success': False, 'error': '不能删除当前登录的用户'})
+
+            # 检查是否为管理员用户
+            cursor.execute('SELECT role FROM users WHERE id = ?', (user_id,))
+            user_role = cursor.fetchone()['role']
+
+            # 防止删除最后一个管理员
+            if user_role == 'admin':
+                cursor.execute('SELECT COUNT(*) as admin_count FROM users WHERE role = "admin"')
+                admin_count = cursor.fetchone()['admin_count']
+                if admin_count <= 1:
+                    conn.close()
+                    return jsonify({'success': False, 'error': '不能删除最后一个管理员'})
+
+            # 执行删除
+            cursor.execute('DELETE FROM users WHERE id = ?', (user_id,))
+            conn.commit()
+            conn.close()
+
+            # 记录操作日志
+            log_system_operation(f'删除用户: {user["username"]}', session.get('user_id'))
+
+            return jsonify({'success': True, 'message': '用户删除成功'})
+
+        except Exception as e:
+            logging.error(f"删除用户失败: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)})
+
+    # 重置用户密码API
+    @app.route('/api/users/<int:user_id>/reset-password', methods=['POST'])
+    @login_required
+    @admin_required
+    def reset_user_password_api(user_id):
+        """重置用户密码"""
+        try:
+            data = request.json
+            new_password = data.get('new_password')
+
+            if not new_password or len(new_password) < 8:
+                return jsonify({'success': False, 'error': '密码至少需要8位字符'})
+
+            conn = get_db_connection()
+            cursor = conn.cursor()
+
+            # 检查用户是否存在
+            cursor.execute('SELECT username FROM users WHERE id = ?', (user_id,))
+            user = cursor.fetchone()
+
+            if not user:
+                conn.close()
+                return jsonify({'success': False, 'error': '用户不存在'})
+
+            # 更新密码
+            password_hash = hash_password(new_password)
+            cursor.execute('''
+                           UPDATE users
+                           SET password_hash = ?,
+                               updated_date  = CURRENT_TIMESTAMP
+                           WHERE id = ?
+                           ''', (password_hash, user_id))
+
+            conn.commit()
+            conn.close()
+
+            # 记录操作日志
+            log_system_operation(f'重置用户密码: {user["username"]}', session.get('user_id'))
+
+            return jsonify({'success': True, 'message': '密码重置成功'})
+
+        except Exception as e:
+            logging.error(f"重置密码失败: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)})
+
+    # 在 enhanced_settings_routes.py 中添加以下路由（放在 setup_settings_routes 函数中）
+
+    # 检查认证状态API
+    @app.route('/api/check-auth', methods=['GET'])
+    def check_auth():
+        """检查用户认证状态"""
+        try:
+            if 'user_id' not in session:
+                return jsonify({
+                    'authenticated': False,
+                    'message': '用户未登录'
+                })
+
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute('''
+                           SELECT id, username, email, role, display_name
+                           FROM users
+                           WHERE id = ?
+                             AND is_active = 1
+                           ''', (session['user_id'],))
+
+            user = cursor.fetchone()
+            conn.close()
+
+            if not user:
+                session.clear()
+                return jsonify({
+                    'authenticated': False,
+                    'message': '用户不存在或已被禁用'
+                })
+
+            return jsonify({
+                'authenticated': True,
+                'user': {
+                    'id': user['id'],
+                    'username': user['username'],
+                    'email': user['email'],
+                    'role': user['role'],
+                    'display_name': user['display_name']
+                }
+            })
+
+        except Exception as e:
+            logging.error(f"检查认证状态失败: {str(e)}")
+            return jsonify({
+                'authenticated': False,
+                'error': str(e)
+            })
+
+    # 检查管理员权限API
+    @app.route('/api/check-admin', methods=['GET'])
+    @login_required
+    def check_admin():
+        """检查是否是管理员"""
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute('SELECT role FROM users WHERE id = ?', (session['user_id'],))
+            user = cursor.fetchone()
+            conn.close()
+
+            if user and user['role'] == 'admin':
+                return jsonify({
+                    'is_admin': True,
+                    'message': '管理员权限验证通过'
+                })
+            else:
+                return jsonify({
+                    'is_admin': False,
+                    'message': '需要管理员权限'
+                })
+
+        except Exception as e:
+            logging.error(f"检查管理员权限失败: {str(e)}")
+            return jsonify({
+                'is_admin': False,
+                'error': str(e)
+            })
+
+    # 在 enhanced_settings_routes.py 中添加错误处理器
+
+    @app.errorhandler(404)
+    def not_found_error(error):
+        """处理404错误"""
+        if request.path.startswith('/api/'):
+            return jsonify({
+                'success': False,
+                'error': 'API路径不存在',
+                'path': request.path
+            }), 404
+        return render_template('404.html'), 404
+
+    @app.errorhandler(500)
+    def internal_error(error):
+        """处理500错误"""
+        if request.path.startswith('/api/'):
+            return jsonify({
+                'success': False,
+                'error': '服务器内部错误'
+            }), 500
+        return render_template('500.html'), 500
+
+    @app.before_request
+    def before_request():
+        """在请求前检查认证（对于API请求）"""
+        if request.path.startswith('/api/') and not request.path.endswith('/login'):
+            # 对于需要认证的API，检查session
+            # 这里可以根据需要设置哪些API需要认证
+            pass
+
 
     # 初始化表
     init_settings_tables()

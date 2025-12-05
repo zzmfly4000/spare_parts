@@ -1,7 +1,7 @@
 {% if not session.get('user_id') %}
 <script>
     // 如果未登录，重定向到登录页面
-    window.location.href = "{{ url_for('login_page') }}";
+    window.location.href = "{{ url_for('app_login_page') }}";
 </script>
 {% endif %}
 

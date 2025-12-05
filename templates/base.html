@@ -8,11 +8,11 @@
     <!-- Bootstrap 5 CSS (本地版本) -->
     <link href="{{ url_for('static', filename='css/bootstrap.min.css') }}" rel="stylesheet">
 
-    <!-- Bootstrap Icons (本地版本) -->
-    <link href="{{ url_for('static', filename='css/bootstrap-icons.css') }}" rel="stylesheet">
+    <!-- Bootstrap Icons (CDN 版本) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
 
-    <!-- Font Awesome (本地版本) -->
-    <link href="{{ url_for('static', filename='css/font-awesome.min.css') }}" rel="stylesheet">
+    <!-- Font Awesome (CDN 版本) -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 
     <!-- Google Fonts Inter (使用本地回退) -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/inter-font.css') }}">
@@ -598,7 +598,7 @@ body.modal-open .main-content {
                         </ul>
                     </div>
                     {% else %}
-                    <a class="nav-link" href="{{ url_for('login_page') }}">
+                    <a class="nav-link" href="{{ url_for('app_login_page') }}">
                         <i class="fas fa-sign-in-alt me-2"></i>登录
                     </a>
                     {% endif %}
